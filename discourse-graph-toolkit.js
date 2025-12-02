@@ -256,15 +256,36 @@
         }
     };
 
-    DiscourseGraphToolkit.initializeProjectsSync = async function () {
-        const local = this.getProjects();
-        const roam = await this.loadProjectsFromRoam();
-        const merged = [...new Set([...local, ...roam])].sort();
+    DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
+        if (!window.roamAlphaAPI) return;
 
-        if (merged.length > 0) {
-            this.saveProjects(merged);
-            await this.syncProjectsToRoam(merged);
-            console.log(`Proyectos sincronizados: ${merged.length}`);
+        try {
+            const local = this.getProjects();
+            const roam = await this.loadProjectsFromRoam();
+
+            // Si Roam falla (devuelve vacío pero no debería), no sobrescribimos local si local tiene datos
+            if (roam.length === 0 && local.length > 0) {
+                // Intentar verificar si la página existe
+                const pageUid = await this.findProjectsPage();
+                if (pageUid) {
+                    // La página existe pero está vacía, o la query falló. 
+                    // Asumimos que debemos sincronizar local -> roam
+                    console.log("Roam projects empty, syncing local to roam.");
+                }
+            }
+
+            const merged = [...new Set([...local, ...roam])].sort();
+
+            if (merged.length > 0) {
+                this.saveProjects(merged);
+                await this.syncProjectsToRoam(merged);
+                console.log(`Proyectos sincronizados: ${merged.length}`);
+            }
+        } catch (e) {
+            console.error("Error initializing projects sync:", e);
+            if (retry < 3) {
+                setTimeout(() => this.initializeProjectsSync(retry + 1), 2000);
+            }
         }
     };
 
@@ -786,7 +807,6 @@
             setIsScanning(true);
             try {
                 const found = await DiscourseGraphToolkit.discoverProjectsInGraph();
-                // Filtrar los que ya están en la lista
                 const newSuggestions = found.filter(p => !projects.includes(p));
                 setSuggestions(newSuggestions);
                 if (newSuggestions.length === 0) {
@@ -799,6 +819,19 @@
                 DiscourseGraphToolkit.showToast("Error al buscar proyectos.", "error");
             } finally {
                 setIsScanning(false);
+            }
+        };
+
+        const handleForceSync = async () => {
+            setExportStatus("Sincronizando...");
+            try {
+                await DiscourseGraphToolkit.initializeProjectsSync();
+                setProjects(DiscourseGraphToolkit.getProjects());
+                DiscourseGraphToolkit.showToast("Sincronización completada.", "success");
+            } catch (e) {
+                DiscourseGraphToolkit.showToast("Error en sincronización.", "error");
+            } finally {
+                setExportStatus("");
             }
         };
 
@@ -983,7 +1016,8 @@
                         ),
                         React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
                             React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
-                            React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias")
+                            React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+                            React.createElement('button', { onClick: handleForceSync, style: { padding: '5px 10px', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
                         ),
 
                         suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
