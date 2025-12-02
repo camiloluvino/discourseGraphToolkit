@@ -723,19 +723,28 @@
         const [validation, setValidation] = React.useState({});
         const [suggestions, setSuggestions] = React.useState([]);
         const [isScanning, setIsScanning] = React.useState(false);
+        const [history, setHistory] = React.useState([]);
 
         // Init
         React.useEffect(() => {
-            loadProjects();
-        }, []);
+            const loadData = async () => {
+                // Asegurar que tenemos lo último de Roam al abrir
+                await DiscourseGraphToolkit.initializeProjectsSync();
 
-        const loadProjects = async () => {
-            const projs = await DiscourseGraphToolkit.loadAllProjects(); // Helper wrapper needed or direct call
-            // Since loadAllProjects is not defined as a single function in my previous step (I defined getProjects and loadProjectsFromRoam), let's fix this.
-            // Actually I defined initializeProjectsSync which merges them.
-            // Let's use getProjects after sync.
-            setProjects(DiscourseGraphToolkit.getProjects());
-        };
+                setConfig(DiscourseGraphToolkit.getConfig());
+                setTemplates(DiscourseGraphToolkit.getTemplates());
+                setProjects(DiscourseGraphToolkit.getProjects());
+                setHistory(DiscourseGraphToolkit.getExportHistory());
+
+                // Cargar validación inicial
+                const projs = DiscourseGraphToolkit.getProjects();
+                if (projs.length > 0) {
+                    const val = await DiscourseGraphToolkit.validateProjectsInGraph(projs);
+                    setValidation(val);
+                }
+            };
+            loadData();
+        }, []);
 
         // --- Handlers Config ---
         const handleSaveConfig = async () => {
@@ -756,432 +765,456 @@
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            setProjects(updated);
-            setNewProject('');
-            DiscourseGraphToolkit.saveProjects(updated);
-            await DiscourseGraphToolkit.syncProjectsToRoam(updated);
-        }
-    };
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        if (DiscourseGraphToolkit.importConfig(event.target.result)) {
+                            setConfig(DiscourseGraphToolkit.getConfig());
+                            setTemplates(DiscourseGraphToolkit.getTemplates());
+                            setProjects(DiscourseGraphToolkit.getProjects());
+                            DiscourseGraphToolkit.showToast('Configuración importada correctamente.', 'success');
+                        } else {
+                            DiscourseGraphToolkit.showToast('Error al importar configuración.', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        };
 
-    const handleRemoveProject = async (p) => {
-        if (confirm(`¿Eliminar proyecto "${p}"?`)) {
-            const updated = projects.filter(x => x !== p);
-            setProjects(updated);
-            DiscourseGraphToolkit.saveProjects(updated);
-            await DiscourseGraphToolkit.syncProjectsToRoam(updated);
-        }
-    };
-
-    const handleValidate = async () => {
-        setExportStatus("Validando proyectos...");
-        const val = await DiscourseGraphToolkit.validateProjectsInGraph(projects);
-        setValidation(val);
-        setExportStatus("Validación completada.");
-    };
-
-    const handleScanProjects = async () => {
-        setIsScanning(true);
-        try {
-            const found = await DiscourseGraphToolkit.discoverProjectsInGraph();
-            const newSuggestions = found.filter(p => !projects.includes(p));
-            setSuggestions(newSuggestions);
-            if (newSuggestions.length === 0) {
-                DiscourseGraphToolkit.showToast("No se encontraron nuevos proyectos.", "info");
-            } else {
-                DiscourseGraphToolkit.showToast(`Se encontraron ${newSuggestions.length} proyectos nuevos.`, "success");
+        // --- Handlers Proyectos ---
+        const handleAddProject = async () => {
+            if (newProject && !projects.includes(newProject)) {
+                const updated = [...projects, newProject].sort();
+                setProjects(updated);
+                setNewProject('');
+                DiscourseGraphToolkit.saveProjects(updated);
+                await DiscourseGraphToolkit.syncProjectsToRoam(updated);
             }
-        } catch (e) {
-            console.error(e);
-            DiscourseGraphToolkit.showToast("Error al buscar proyectos.", "error");
-        } finally {
-            setIsScanning(false);
-        }
-    };
+        };
 
-    const handleForceSync = async () => {
-        setExportStatus("Sincronizando...");
-        try {
-            await DiscourseGraphToolkit.initializeProjectsSync();
-            setProjects(DiscourseGraphToolkit.getProjects());
-            DiscourseGraphToolkit.showToast("Sincronización completada.", "success");
-        } catch (e) {
-            DiscourseGraphToolkit.showToast("Error en sincronización.", "error");
-        } finally {
-            setExportStatus("");
-        }
-    };
+        const handleRemoveProject = async (p) => {
+            if (confirm(`¿Eliminar proyecto "${p}"?`)) {
+                const updated = projects.filter(x => x !== p);
+                setProjects(updated);
+                DiscourseGraphToolkit.saveProjects(updated);
+                await DiscourseGraphToolkit.syncProjectsToRoam(updated);
+            }
+        };
 
-    const handleAddSuggestion = async (proj) => {
-        if (!projects.includes(proj)) {
-            const updated = [...projects, proj].sort();
-            setProjects(updated);
-            setSuggestions(suggestions.filter(s => s !== proj));
-            DiscourseGraphToolkit.saveProjects(updated);
-            await DiscourseGraphToolkit.syncProjectsToRoam(updated);
-        }
-    };
+        const handleValidate = async () => {
+            setExportStatus("Validando proyectos...");
+            const val = await DiscourseGraphToolkit.validateProjectsInGraph(projects);
+            setValidation(val);
+            setExportStatus("Validación completada.");
+        };
 
-    // --- Handlers Exportación ---
-    const handlePreview = async () => {
-        const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-        const tTypes = Object.keys(selectedTypes).filter(k => selectedTypes[k]);
+        const handleScanProjects = async () => {
+            setIsScanning(true);
+            try {
+                const found = await DiscourseGraphToolkit.discoverProjectsInGraph();
+                const newSuggestions = found.filter(p => !projects.includes(p));
+                setSuggestions(newSuggestions);
+                if (newSuggestions.length === 0) {
+                    DiscourseGraphToolkit.showToast("No se encontraron nuevos proyectos.", "info");
+                } else {
+                    DiscourseGraphToolkit.showToast(`Se encontraron ${newSuggestions.length} proyectos nuevos.`, "success");
+                }
+            } catch (e) {
+                console.error(e);
+                DiscourseGraphToolkit.showToast("Error al buscar proyectos.", "error");
+            } finally {
+                setIsScanning(false);
+            }
+        };
 
-        if (pNames.length === 0 || tTypes.length === 0) {
-            alert("Selecciona proyecto y tipo.");
-            return;
-        }
+        const handleForceSync = async () => {
+            setExportStatus("Sincronizando...");
+            try {
+                await DiscourseGraphToolkit.initializeProjectsSync();
+                setProjects(DiscourseGraphToolkit.getProjects());
+                DiscourseGraphToolkit.showToast("Sincronización completada.", "success");
+            } catch (e) {
+                DiscourseGraphToolkit.showToast("Error en sincronización.", "error");
+            } finally {
+                setExportStatus("");
+            }
+        };
 
-        setExportStatus("Buscando páginas...");
-        let allPages = [];
-        for (let p of pNames) {
-            const pages = await DiscourseGraphToolkit.queryDiscoursePages(p, tTypes);
-            allPages = allPages.concat(pages);
-        }
+        const handleAddSuggestion = async (proj) => {
+            if (!projects.includes(proj)) {
+                const updated = [...projects, proj].sort();
+                setProjects(updated);
+                setSuggestions(suggestions.filter(s => s !== proj));
+                DiscourseGraphToolkit.saveProjects(updated);
+                await DiscourseGraphToolkit.syncProjectsToRoam(updated);
+            }
+        };
 
-        // Deduplicar
-        let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
-
-        if (includeReferenced) {
-            setExportStatus("Buscando referencias...");
-            const referenced = await DiscourseGraphToolkit.findReferencedDiscoursePages(uniquePages.map(p => p.pageUid), tTypes);
-            uniquePages = Array.from(new Map([...uniquePages, ...referenced].map(item => [item.pageUid, item])).values());
-        }
-
-        setPreviewPages(uniquePages);
-        setExportStatus(`Encontradas ${uniquePages.length} páginas.`);
-    };
-
-    const handleExport = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
-        }
-
-        setIsExporting(true);
-        try {
-            const uids = previewPages.map(p => p.pageUid);
+        // --- Handlers Exportación ---
+        const handlePreview = async () => {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-            const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
+            const tTypes = Object.keys(selectedTypes).filter(k => selectedTypes[k]);
 
-            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg));
+            if (pNames.length === 0 || tTypes.length === 0) {
+                alert("Selecciona proyecto y tipo.");
+                return;
+            }
 
-            setExportStatus(`✅ Exportación completada: ${previewPages.length} páginas.`);
-            DiscourseGraphToolkit.addToExportHistory({
-                date: new Date().toISOString(),
-                projects: pNames,
-                count: previewPages.length,
-                status: 'success'
-            });
-        } catch (e) {
-            console.error(e);
-            setExportStatus("❌ Error: " + e.message);
-        } finally {
-            setIsExporting(false);
-        }
-    };
+            setExportStatus("Buscando páginas...");
+            let allPages = [];
+            for (let p of pNames) {
+                const pages = await DiscourseGraphToolkit.queryDiscoursePages(p, tTypes);
+                allPages = allPages.concat(pages);
+            }
 
-    // --- Render Helpers ---
-    const tabStyle = (id) => ({
-        padding: '10px 20px', cursor: 'pointer', borderBottom: activeTab === id ? '2px solid #2196F3' : 'none',
-        fontWeight: activeTab === id ? 'bold' : 'normal', color: activeTab === id ? '#2196F3' : '#666'
-    });
+            // Deduplicar
+            let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
 
-    return React.createElement('div', {
-        style: {
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center'
-        }
-    },
-        React.createElement('div', {
+            if (includeReferenced) {
+                setExportStatus("Buscando referencias...");
+                const referenced = await DiscourseGraphToolkit.findReferencedDiscoursePages(uniquePages.map(p => p.pageUid), tTypes);
+                uniquePages = Array.from(new Map([...uniquePages, ...referenced].map(item => [item.pageUid, item])).values());
+            }
+
+            setPreviewPages(uniquePages);
+            setExportStatus(`Encontradas ${uniquePages.length} páginas.`);
+        };
+
+        const handleExport = async () => {
+            if (previewPages.length === 0) {
+                await handlePreview();
+                if (previewPages.length === 0) return;
+            }
+
+            setIsExporting(true);
+            try {
+                const uids = previewPages.map(p => p.pageUid);
+                const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+                const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
+
+                await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg));
+
+                setExportStatus(`✅ Exportación completada: ${previewPages.length} páginas.`);
+                DiscourseGraphToolkit.addToExportHistory({
+                    date: new Date().toISOString(),
+                    projects: pNames,
+                    count: previewPages.length,
+                    status: 'success'
+                });
+                setHistory(DiscourseGraphToolkit.getExportHistory());
+            } catch (e) {
+                console.error(e);
+                setExportStatus("❌ Error: " + e.message);
+            } finally {
+                setIsExporting(false);
+            }
+        };
+
+        // --- Render Helpers ---
+        const tabStyle = (id) => ({
+            padding: '10px 20px', cursor: 'pointer', borderBottom: activeTab === id ? '2px solid #2196F3' : 'none',
+            fontWeight: activeTab === id ? 'bold' : 'normal', color: activeTab === id ? '#2196F3' : '#666'
+        });
+
+        return React.createElement('div', {
             style: {
-                backgroundColor: 'white', width: '800px', height: '85vh', borderRadius: '8px',
-                display: 'flex', flexDirection: 'column', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center'
             }
         },
-            // Header
-            React.createElement('div', { style: { padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
-                React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
-                React.createElement('button', { onClick: onClose, style: { border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer' } }, '✕')
-            ),
-            // Tabs
-            React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['general', 'nodos', 'relaciones', 'exportar', 'proyectos', 'historial'].map(t =>
-                    React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
-                )
-            ),
-            // Content
-            React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '20px' } },
-                activeTab === 'general' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Configuración General'),
-                    React.createElement('label', { style: { display: 'block', marginBottom: '10px' } },
-                        'Nombre del Campo de Proyecto:',
-                        React.createElement('input', {
-                            type: 'text', value: config.projectFieldName,
-                            onChange: e => setConfig({ ...config, projectFieldName: e.target.value }),
-                            style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px' }
-                        })
-                    ),
-                    React.createElement('label', { style: { display: 'block', marginBottom: '10px' } },
-                        'Proyecto por Defecto:',
-                        React.createElement('select', {
-                            value: config.defaultProject,
-                            onChange: e => setConfig({ ...config, defaultProject: e.target.value }),
-                            style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px' }
-                        },
-                            React.createElement('option', { value: "" }, "-- Seleccionar --"),
-                            projects.map(p => React.createElement('option', { key: p, value: p }, p))
-                        )
-                    ),
-                    React.createElement('button', { onClick: handleSaveConfig, style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', marginTop: '20px' } }, 'Guardar Todo'),
-
-                    React.createElement('div', { style: { marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' } },
-                        React.createElement('h4', null, 'Backup & Restore'),
-                        React.createElement('div', { style: { display: 'flex', gap: '10px' } },
-                            React.createElement('button', { onClick: handleExportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↓ Exportar Config'),
-                            React.createElement('button', { onClick: handleImportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↑ Importar Config')
-                        )
+            React.createElement('div', {
+                style: {
+                    backgroundColor: 'white', width: '800px', height: '85vh', borderRadius: '8px',
+                    display: 'flex', flexDirection: 'column', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                }
+            },
+                // Header
+                React.createElement('div', { style: { padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
+                    React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
+                    React.createElement('button', { onClick: onClose, style: { border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer' } }, '✕')
+                ),
+                // Tabs
+                React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
+                    ['general', 'nodos', 'relaciones', 'exportar', 'proyectos', 'historial'].map(t =>
+                        React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                     )
                 ),
-
-                activeTab === 'nodos' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Templates de Nodos'),
-                    ['QUE', 'CLM', 'EVD'].map(type =>
-                        React.createElement('div', { key: type, style: { marginBottom: '20px' } },
-                            React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
-                            React.createElement('textarea', {
-                                value: templates[type],
-                                onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
-                                style: { width: '100%', height: '100px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
+                // Content
+                React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '20px' } },
+                    activeTab === 'general' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Configuración General'),
+                        React.createElement('label', { style: { display: 'block', marginBottom: '10px' } },
+                            'Nombre del Campo de Proyecto:',
+                            React.createElement('input', {
+                                type: 'text', value: config.projectFieldName,
+                                onChange: e => setConfig({ ...config, projectFieldName: e.target.value }),
+                                style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px' }
                             })
-                        )
-                    )
-                ),
+                        ),
+                        React.createElement('label', { style: { display: 'block', marginBottom: '10px' } },
+                            'Proyecto por Defecto:',
+                            React.createElement('select', {
+                                value: config.defaultProject,
+                                onChange: e => setConfig({ ...config, defaultProject: e.target.value }),
+                                style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px' }
+                            },
+                                React.createElement('option', { value: "" }, "-- Seleccionar --"),
+                                projects.map(p => React.createElement('option', { key: p, value: p }, p))
+                            )
+                        ),
+                        React.createElement('button', { onClick: handleSaveConfig, style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', marginTop: '20px' } }, 'Guardar Todo'),
 
-                activeTab === 'relaciones' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Relaciones Lógicas'),
-                    React.createElement('p', { style: { color: '#666' } }, 'Las relaciones conectan nodos para construir argumentos.'),
-                    React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#e3f2fd', borderRadius: '4px' } },
-                        React.createElement('strong', { style: { color: '#0d7bc4' } }, '#RespondedBy'),
-                        React.createElement('span', { style: { marginLeft: '10px', padding: '2px 6px', backgroundColor: '#2196F3', color: 'white', borderRadius: '3px', fontSize: '12px' } }, 'QUE'),
-                        React.createElement('p', { style: { margin: '5px 0 0 0' } }, 'Vincula Claims o Evidencia que responden a una Pregunta.')
-                    ),
-                    React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#e8f5e9', borderRadius: '4px' } },
-                        React.createElement('strong', { style: { color: '#2e7d32' } }, '#SupportedBy'),
-                        React.createElement('span', { style: { marginLeft: '10px', padding: '2px 6px', backgroundColor: '#4CAF50', color: 'white', borderRadius: '3px', fontSize: '12px' } }, 'CLM'),
-                        React.createElement('p', { style: { margin: '5px 0 0 0' } }, 'Vincula Evidencia que soporta una Afirmación.')
-                    ),
-                    React.createElement('div', { style: { padding: '15px', backgroundColor: '#fff3e0', borderLeft: '4px solid #ff9800' } },
-                        React.createElement('strong', null, 'Flujo Típico:'),
-                        React.createElement('ul', { style: { margin: '10px 0 0 0', paddingLeft: '20px' } },
-                            React.createElement('li', null, 'Crear Pregunta (QUE)'),
-                            React.createElement('li', null, 'Agregar Claims que la responden (#RespondedBy)'),
-                            React.createElement('li', null, 'Respaldar Claims con Evidencia (#SupportedBy)')
-                        )
-                    )
-                ),
-
-                activeTab === 'proyectos' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Gestión de Proyectos'),
-                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
-                        React.createElement('input', {
-                            type: 'text', placeholder: 'Nuevo proyecto...',
-                            value: newProject, onChange: e => setNewProject(e.target.value),
-                            style: { flex: 1, padding: '8px' }
-                        }),
-                        React.createElement('button', { onClick: handleAddProject, style: { padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px' } }, 'Agregar')
-                    ),
-                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
-                        React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
-                        React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
-                        React.createElement('button', { onClick: handleForceSync, style: { padding: '5px 10px', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
-                    ),
-
-                    suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
-                        React.createElement('strong', { style: { display: 'block', marginBottom: '5px', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
-                        React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
-                            suggestions.map(s =>
-                                React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' } },
-                                    React.createElement('span', null, s),
-                                    React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
-                                )
+                        React.createElement('div', { style: { marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' } },
+                            React.createElement('h4', null, 'Backup & Restore'),
+                            React.createElement('div', { style: { display: 'flex', gap: '10px' } },
+                                React.createElement('button', { onClick: handleExportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↓ Exportar Config'),
+                                React.createElement('button', { onClick: handleImportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↑ Importar Config')
                             )
                         )
                     ),
 
-                    React.createElement('ul', { style: { listStyle: 'none', padding: 0 } },
-                        projects.map(p =>
-                            React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
-                                React.createElement('span', null,
-                                    p,
-                                    validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
-                                ),
-                                React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'Eliminar')
+                    activeTab === 'nodos' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Templates de Nodos'),
+                        ['QUE', 'CLM', 'EVD'].map(type =>
+                            React.createElement('div', { key: type, style: { marginBottom: '20px' } },
+                                React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
+                                React.createElement('textarea', {
+                                    value: templates[type],
+                                    onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
+                                    style: { width: '100%', height: '100px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
+                                })
                             )
                         )
-                    )
-                ),
+                    ),
 
-                activeTab === 'exportar' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Exportar Grafos'),
-                    React.createElement('div', { style: { display: 'flex', gap: '20px' } },
-                        React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('h4', null, '1. Proyectos'),
-                            React.createElement('div', { style: { maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
-                                projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
-                                    React.createElement('div', { key: p },
-                                        React.createElement('label', null,
-                                            React.createElement('input', {
-                                                type: 'checkbox',
-                                                checked: selectedProjects[p] || false,
-                                                onChange: e => setSelectedProjects({ ...selectedProjects, [p]: e.target.checked })
-                                            }),
-                                            ' ' + p
-                                        )
+                    activeTab === 'relaciones' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Relaciones Lógicas'),
+                        React.createElement('p', { style: { color: '#666' } }, 'Las relaciones conectan nodos para construir argumentos.'),
+                        React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#e3f2fd', borderRadius: '4px' } },
+                            React.createElement('strong', { style: { color: '#0d7bc4' } }, '#RespondedBy'),
+                            React.createElement('span', { style: { marginLeft: '10px', padding: '2px 6px', backgroundColor: '#2196F3', color: 'white', borderRadius: '3px', fontSize: '12px' } }, 'QUE'),
+                            React.createElement('p', { style: { margin: '5px 0 0 0' } }, 'Vincula Claims o Evidencia que responden a una Pregunta.')
+                        ),
+                        React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#e8f5e9', borderRadius: '4px' } },
+                            React.createElement('strong', { style: { color: '#2e7d32' } }, '#SupportedBy'),
+                            React.createElement('span', { style: { marginLeft: '10px', padding: '2px 6px', backgroundColor: '#4CAF50', color: 'white', borderRadius: '3px', fontSize: '12px' } }, 'CLM'),
+                            React.createElement('p', { style: { margin: '5px 0 0 0' } }, 'Vincula Evidencia que soporta una Afirmación.')
+                        ),
+                        React.createElement('div', { style: { padding: '15px', backgroundColor: '#fff3e0', borderLeft: '4px solid #ff9800' } },
+                            React.createElement('strong', null, 'Flujo Típico:'),
+                            React.createElement('ul', { style: { margin: '10px 0 0 0', paddingLeft: '20px' } },
+                                React.createElement('li', null, 'Crear Pregunta (QUE)'),
+                                React.createElement('li', null, 'Agregar Claims que la responden (#RespondedBy)'),
+                                React.createElement('li', null, 'Respaldar Claims con Evidencia (#SupportedBy)')
+                            )
+                        )
+                    ),
+
+                    activeTab === 'proyectos' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Gestión de Proyectos'),
+                        React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
+                            React.createElement('input', {
+                                type: 'text', placeholder: 'Nuevo proyecto...',
+                                value: newProject, onChange: e => setNewProject(e.target.value),
+                                style: { flex: 1, padding: '8px' }
+                            }),
+                            React.createElement('button', { onClick: handleAddProject, style: { padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px' } }, 'Agregar')
+                        ),
+                        React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
+                            React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
+                            React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+                            React.createElement('button', { onClick: handleForceSync, style: { padding: '5px 10px', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
+                        ),
+
+                        suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
+                            React.createElement('strong', { style: { display: 'block', marginBottom: '5px', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
+                            React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
+                                suggestions.map(s =>
+                                    React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' } },
+                                        React.createElement('span', null, s),
+                                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
                                     )
                                 )
                             )
                         ),
-                        React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('h4', null, '2. Tipos'),
-                            ['QUE', 'CLM', 'EVD'].map(t =>
-                                React.createElement('div', { key: t },
-                                    React.createElement('label', null,
-                                        React.createElement('input', {
-                                            type: 'checkbox',
-                                            checked: selectedTypes[t],
-                                            onChange: e => setSelectedTypes({ ...selectedTypes, [t]: e.target.checked })
-                                        }),
-                                        ` ${t}`
-                                    )
-                                )
-                            ),
-                            React.createElement('div', { style: { marginTop: '10px' } },
-                                React.createElement('label', null,
-                                    React.createElement('input', {
-                                        type: 'checkbox',
-                                        checked: includeReferenced,
-                                        onChange: e => setIncludeReferenced(e.target.checked)
-                                    }),
-                                    ' Incluir nodos referenciados'
+
+                        React.createElement('ul', { style: { listStyle: 'none', padding: 0 } },
+                            projects.map(p =>
+                                React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
+                                    React.createElement('span', null,
+                                        p,
+                                        validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
+                                    ),
+                                    React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'Eliminar')
                                 )
                             )
                         )
                     ),
-                    React.createElement('div', { style: { marginTop: '20px' } },
-                        React.createElement('button', { onClick: handlePreview, style: { marginRight: '10px', padding: '10px' } }, "Vista Previa"),
-                        React.createElement('button', {
-                            onClick: handleExport,
-                            disabled: isExporting,
-                            style: { padding: '10px 20px', backgroundColor: isExporting ? '#ccc' : '#2196F3', color: 'white', border: 'none', borderRadius: '4px' }
-                        }, isExporting ? 'Exportando...' : 'Exportar JSON')
-                    ),
-                    exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
-                    previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
-                        React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
-                        React.createElement('ul', { style: { paddingLeft: '20px' } },
-                            previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
-                        )
-                    )
-                ),
 
-                activeTab === 'historial' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Historial de Exportaciones'),
-                    React.createElement('ul', null,
-                        DiscourseGraphToolkit.getExportHistory().map((h, i) =>
-                            React.createElement('li', { key: i, style: { marginBottom: '10px', padding: '10px', border: '1px solid #eee' } },
-                                React.createElement('div', { style: { fontWeight: 'bold' } }, new Date(h.date).toLocaleString()),
-                                React.createElement('div', null, `Proyectos: ${h.projects.join(', ')}`),
-                                React.createElement('div', null, `Estado: ${h.status} (${h.count} páginas)`)
+                    activeTab === 'exportar' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Exportar Grafos'),
+                        React.createElement('div', { style: { display: 'flex', gap: '20px' } },
+                            React.createElement('div', { style: { flex: 1 } },
+                                React.createElement('h4', null, '1. Proyectos'),
+                                React.createElement('div', { style: { maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
+                                    projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
+                                        React.createElement('div', { key: p },
+                                            React.createElement('label', null,
+                                                React.createElement('input', {
+                                                    type: 'checkbox',
+                                                    checked: selectedProjects[p] || false,
+                                                    onChange: e => setSelectedProjects({ ...selectedProjects, [p]: e.target.checked })
+                                                }),
+                                                ' ' + p
+                                            )
+                                        )
+                                    )
+                                )
+                            ),
+                            React.createElement('div', { style: { flex: 1 } },
+                                React.createElement('h4', null, '2. Tipos'),
+                                ['QUE', 'CLM', 'EVD'].map(t =>
+                                    React.createElement('div', { key: t },
+                                        React.createElement('label', null,
+                                            React.createElement('input', {
+                                                type: 'checkbox',
+                                                checked: selectedTypes[t],
+                                                onChange: e => setSelectedTypes({ ...selectedTypes, [t]: e.target.checked })
+                                            }),
+                                            ` ${t}`
+                                        )
+                                    )
+                                ),
+                                React.createElement('div', { style: { marginTop: '10px' } },
+                                    React.createElement('label', null,
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: includeReferenced,
+                                            onChange: e => setIncludeReferenced(e.target.checked)
+                                        }),
+                                        ' Incluir nodos referenciados'
+                                    )
+                                )
+                            )
+                        ),
+                        React.createElement('div', { style: { marginTop: '20px' } },
+                            React.createElement('button', { onClick: handlePreview, style: { marginRight: '10px', padding: '10px' } }, "Vista Previa"),
+                            React.createElement('button', {
+                                onClick: handleExport,
+                                disabled: isExporting,
+                                style: { padding: '10px 20px', backgroundColor: isExporting ? '#ccc' : '#2196F3', color: 'white', border: 'none', borderRadius: '4px' }
+                            }, isExporting ? 'Exportando...' : 'Exportar JSON')
+                        ),
+                        exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
+                        previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
+                            React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
+                            React.createElement('ul', { style: { paddingLeft: '20px' } },
+                                previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
+                            )
+                        )
+                    ),
+
+                    activeTab === 'historial' && React.createElement('div', null,
+                        React.createElement('h3', null, 'Historial de Exportaciones'),
+                        React.createElement('ul', null,
+                            history.map((h, i) =>
+                                React.createElement('li', { key: i, style: { marginBottom: '10px', padding: '10px', border: '1px solid #eee' } },
+                                    React.createElement('div', { style: { fontWeight: 'bold' } }, new Date(h.date).toLocaleString()),
+                                    React.createElement('div', null, `Proyectos: ${h.projects.join(', ')}`),
+                                    React.createElement('div', null, `Estado: ${h.status} (${h.count} páginas)`)
+                                )
                             )
                         )
                     )
                 )
             )
-        )
-    );
-};
-
-DiscourseGraphToolkit.openModal = function () {
-    // Cerrar modal anterior si existe
-    const existing = document.getElementById('discourse-graph-toolkit-modal');
-    if (existing) {
-        ReactDOM.unmountComponentAtNode(existing);
-        existing.remove();
-    }
-
-    const div = document.createElement('div');
-    div.id = 'discourse-graph-toolkit-modal';
-    document.body.appendChild(div);
-
-    const close = () => {
-        try {
-            ReactDOM.unmountComponentAtNode(div);
-            if (div.parentNode) div.parentNode.removeChild(div);
-
-            // Restaurar foco a Roam (Agresivo)
-            setTimeout(() => {
-                const article = document.querySelector('.roam-article') || document.querySelector('.rm-article-wrapper') || document.querySelector('textarea.rm-block-input');
-                if (article) {
-                    article.focus();
-                    article.click();
-                } else {
-                    window.focus();
-                }
-            }, 100);
-        } catch (e) {
-            console.error("Error closing modal:", e);
-        }
+        );
     };
 
-    ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
-};
+    DiscourseGraphToolkit.openModal = function () {
+        // Cerrar modal anterior si existe
+        const existing = document.getElementById('discourse-graph-toolkit-modal');
+        if (existing) {
+            ReactDOM.unmountComponentAtNode(existing);
+            existing.remove();
+        }
 
-// (Duplicate showToast removed)
+        const div = document.createElement('div');
+        div.id = 'discourse-graph-toolkit-modal';
+        document.body.appendChild(div);
 
-// ============================================================================
-// 6. INICIALIZACIÓN
-// ============================================================================
+        const close = () => {
+            try {
+                ReactDOM.unmountComponentAtNode(div);
+                if (div.parentNode) div.parentNode.removeChild(div);
 
-if (window.roamAlphaAPI) {
-    // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
-    setTimeout(() => {
-        DiscourseGraphToolkit.initializeProjectsSync();
-    }, 2000);
+                // Restaurar foco a Roam (Agresivo)
+                setTimeout(() => {
+                    const article = document.querySelector('.roam-article') || document.querySelector('.rm-article-wrapper') || document.querySelector('textarea.rm-block-input');
+                    if (article) {
+                        article.focus();
+                        article.click();
+                    } else {
+                        window.focus();
+                    }
+                }, 100);
+            } catch (e) {
+                console.error("Error closing modal:", e);
+            }
+        };
 
-    // Cargar config desde Roam si existe
-    setTimeout(() => {
-        DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
-            if (data) console.log("Configuración cargada desde Roam.");
+        ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
+    };
+
+    // ============================================================================
+    // 6. INICIALIZACIÓN
+    // ============================================================================
+
+    if (window.roamAlphaAPI) {
+        // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
+        setTimeout(() => {
+            DiscourseGraphToolkit.initializeProjectsSync();
+        }, 2000);
+
+        // Cargar config desde Roam si existe
+        setTimeout(() => {
+            DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
+                if (data) console.log("Configuración cargada desde Roam.");
+            });
+        }, 2500);
+
+        // Registrar Comandos
+        window.roamAlphaAPI.ui.commandPalette.addCommand({
+            label: 'Discourse Graph Toolkit: Abrir',
+            callback: () => DiscourseGraphToolkit.openModal()
         });
-    }, 2500);
 
-    // Registrar Comandos
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
-        label: 'Discourse Graph Toolkit: Abrir',
-        callback: () => DiscourseGraphToolkit.openModal()
-    });
+        window.roamAlphaAPI.ui.commandPalette.addCommand({
+            label: 'Discourse Graph: Crear Pregunta (QUE)',
+            callback: () => DiscourseGraphToolkit.convertBlockToNode("QUE"),
+            "default-hotkey": "ctrl-shift-q"
+        });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
-        label: 'Discourse Graph: Crear Pregunta (QUE)',
-        callback: () => DiscourseGraphToolkit.convertBlockToNode("QUE"),
-        "default-hotkey": "ctrl-shift-q"
-    });
+        window.roamAlphaAPI.ui.commandPalette.addCommand({
+            label: 'Discourse Graph: Crear Afirmación (CLM)',
+            callback: () => DiscourseGraphToolkit.convertBlockToNode("CLM"),
+            "default-hotkey": "ctrl-shift-c"
+        });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
-        label: 'Discourse Graph: Crear Afirmación (CLM)',
-        callback: () => DiscourseGraphToolkit.convertBlockToNode("CLM"),
-        "default-hotkey": "ctrl-shift-c"
-    });
+        window.roamAlphaAPI.ui.commandPalette.addCommand({
+            label: 'Discourse Graph: Crear Evidencia (EVD)',
+            callback: () => DiscourseGraphToolkit.convertBlockToNode("EVD"),
+            "default-hotkey": "ctrl-shift-e"
+        });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
-        label: 'Discourse Graph: Crear Evidencia (EVD)',
-        callback: () => DiscourseGraphToolkit.convertBlockToNode("EVD"),
-        "default-hotkey": "ctrl-shift-e"
-    });
+        console.log(`✅ Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION} cargado.`);
+    } else {
+        console.error("Roam Alpha API no disponible.");
+    }
 
-    console.log(`✅ Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION} cargado.`);
-} else {
-    console.error("Roam Alpha API no disponible.");
-}
+})();
 
-}) ();
