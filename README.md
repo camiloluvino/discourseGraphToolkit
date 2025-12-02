@@ -58,9 +58,15 @@ Exporta tus grafos de discurso en formato JSON nativo de Roam, listo para ser im
 3. Selecciona los proyectos y tipos de nodos que deseas exportar.
 4. Haz clic en **Exportar JSON**.
 
-## Migración desde versiones anteriores
+## Migración y Consolidación
+Este proyecto (`discourseGraphToolkit`) es la versión consolidada y recomendada que une las funcionalidades de:
+1.  `discourseGraphElemental` (Creación de nodos y templates)
+2.  `roamDiscourseSelector` (Gestión de proyectos y exportación robusta)
 
-Si vienes de usar `discourseGraphElemental` o `roamDiscourseSelector` por separado:
-- Este plugin usa nuevas claves de configuración para no interferir con los anteriores.
-- Deberás volver a configurar tus templates y lista de proyectos en el nuevo menú.
-- Tus nodos existentes **seguirán funcionando** y serán detectados por el exportador siempre que el "Nombre del Campo de Proyecto" coincida.
+**Nota:** Los proyectos antiguos se han conservado en su carpeta original como respaldo, pero se recomienda usar exclusivamente este Toolkit para aprovechar las últimas mejoras y la integración completa.
+
+### Pasos para migrar:
+1.  Instala este plugin siguiendo las instrucciones de arriba.
+2.  Configura tus templates y proyectos en el nuevo menú unificado.
+3.  Verifica que tus flujos de trabajo de creación y exportación funcionen correctamente.
+4.  Puedes desactivar o eliminar los bloques `{{[[roam/js]]}}` de los plugins antiguos para evitar conflictos.
