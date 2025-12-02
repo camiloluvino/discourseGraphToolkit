@@ -261,7 +261,14 @@
 
         try {
             const local = this.getProjects();
-            const roam = await this.loadProjectsFromRoam();
+            let roam = await this.loadProjectsFromRoam();
+
+            // RETRY LOGIC: Si Roam devuelve vacío, puede ser por carga lenta. Reintentar.
+            if (roam.length === 0 && retry < 5) {
+                console.log(`Roam projects empty, retrying sync... (${retry + 1}/5)`);
+                await new Promise(r => setTimeout(r, 1000));
+                return this.initializeProjectsSync(retry + 1);
+            }
 
             // Si Roam falla (devuelve vacío pero no debería), no sobrescribimos local si local tiene datos
             if (roam.length === 0 && local.length > 0) {
@@ -288,6 +295,141 @@
             }
         }
     };
+
+    DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
+        const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "Proyecto Asociado::")]]`;
+        const results = await window.roamAlphaAPI.data.async.q(query);
+        const inGraph = new Set();
+        results.forEach(r => {
+            const match = r[0].match(/Proyecto Asociado::\s*\[\[([^\]]+)\]\]/);
+            if (match) inGraph.add(match[1].trim());
+        });
+
+        const validation = {};
+        projectNames.forEach(name => validation[name] = inGraph.has(name));
+        return validation;
+    };
+
+    DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
+        const config = this.getConfig();
+        const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+        // Query para encontrar todos los bloques con la propiedad de proyecto
+        const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${fieldName}::")]]`;
+        const results = await window.roamAlphaAPI.data.async.q(query);
+
+        const discovered = new Set();
+        const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+
+        results.forEach(r => {
+            const match = r[0].match(regex);
+            if (match && match[1]) {
+                discovered.add(match[1].trim());
+            }
+        });
+
+        return Array.from(discovered).sort();
+    };
+
+    // --- Historial de Nodos ---
+    DiscourseGraphToolkit.getNodeHistory = function () {
+        const stored = localStorage.getItem(this.STORAGE.HISTORY_NODES);
+        return stored ? JSON.parse(stored) : [];
+    };
+
+    DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
+        let history = this.getNodeHistory();
+        history.unshift({
+            type, title, project,
+            timestamp: new Date().toISOString(),
+            pageTitle: `[[${type}]] - ${title}`
+        });
+        if (history.length > 20) history = history.slice(0, 20);
+        localStorage.setItem(this.STORAGE.HISTORY_NODES, JSON.stringify(history));
+    };
+
+    // --- Historial de Exportación ---
+    DiscourseGraphToolkit.getExportHistory = function () {
+        const stored = localStorage.getItem(this.STORAGE.HISTORY_EXPORT);
+        return stored ? JSON.parse(stored) : [];
+    };
+
+    DiscourseGraphToolkit.addToExportHistory = function (entry) {
+        let history = this.getExportHistory();
+        history.unshift(entry);
+        if (history.length > 10) history = history.slice(0, 10);
+        localStorage.setItem(this.STORAGE.HISTORY_EXPORT, JSON.stringify(history));
+    };
+
+    // --- Utilidades UI (Toast) ---
+    DiscourseGraphToolkit.showToast = function (message, type = 'success') {
+        const toastContainer = document.createElement('div');
+        toastContainer.style.cssText = `
+            position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+            background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 10001; font-size: 14px; font-weight: 500; animation: slideIn 0.3s ease-out;
+        `;
+        toastContainer.textContent = message;
+        document.body.appendChild(toastContainer);
+        setTimeout(() => {
+            toastContainer.style.opacity = '0';
+            setTimeout(() => document.body.removeChild(toastContainer), 300);
+        }, 3000);
+    };
+
+    // --- Backup & Restore Config ---
+    DiscourseGraphToolkit.exportConfig = function () {
+        const config = {
+            version: this.VERSION,
+            timestamp: new Date().toISOString(),
+            config: this.getConfig(),
+            templates: this.getTemplates(),
+            projects: this.getProjects()
+        };
+        this.downloadJSON(config, `discourse-toolkit-config-${new Date().toISOString().split('T')[0]}.json`);
+    };
+
+    DiscourseGraphToolkit.importConfig = function (fileContent) {
+        try {
+            const data = JSON.parse(fileContent);
+            if (data.config) this.saveConfig(data.config);
+            if (data.templates) this.saveTemplates(data.templates);
+            if (data.projects) {
+                this.saveProjects(data.projects);
+                this.syncProjectsToRoam(data.projects);
+            }
+            return true;
+        } catch (e) {
+            console.error("Error importing config:", e);
+            return false;
+        }
+    };
+
+    // ============================================================================
+    // 5. INTERFAZ DE USUARIO (REACT)
+    // ============================================================================
+    // (ToolkitModal and openModal are defined here, skipping for brevity in this replacement block as they are unchanged)
+    // Wait, I need to replace the whole block or just the function?
+    // The instructions say "Update initializeProjectsSync".
+    // I will replace from 259 to 400 (approx) to cover initializeProjectsSync and subsequent functions up to ToolkitModal start.
+    // ToolkitModal starts at line 708 in the original file, but in the current file it starts around 400?
+    // No, in the current file (after my huge edit), ToolkitModal starts at line 403 (based on previous view).
+    // Wait, let's check the file content again.
+    // In step 380, initializeProjectsSync starts at 259.
+    // ToolkitModal starts at 708 in the ORIGINAL file, but I replaced a huge chunk.
+    // In step 380, I see lines 250-400.
+    // ToolkitModal is NOT in 250-400.
+    // I will replace from 259 to 400.
+
+    // BUT I also need to update the global timeout at the end of the file.
+    // I will do that in a separate replacement or include it here if I can view the end.
+    // I viewed the end in step 376.
+    // The global timeout is at line 1216 (in step 376).
+
+    // I will do two replacements.
+    // First: initializeProjectsSync.
+
 
     DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
         const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "Proyecto Asociado::")]]`;
@@ -1136,6 +1278,9 @@
     };
 
     DiscourseGraphToolkit.openModal = function () {
+        // Guardar el elemento activo actual para restaurarlo después
+        const previousActiveElement = document.activeElement;
+
         // Cerrar modal anterior si existe
         const existing = document.getElementById('discourse-graph-toolkit-modal');
         if (existing) {
@@ -1152,14 +1297,25 @@
                 ReactDOM.unmountComponentAtNode(div);
                 if (div.parentNode) div.parentNode.removeChild(div);
 
-                // Restaurar foco a Roam (Agresivo)
+                // Restaurar foco (Estrategia Robusta)
                 setTimeout(() => {
-                    const article = document.querySelector('.roam-article') || document.querySelector('.rm-article-wrapper') || document.querySelector('textarea.rm-block-input');
-                    if (article) {
-                        article.focus();
-                        article.click();
+                    if (previousActiveElement && document.body.contains(previousActiveElement)) {
+                        previousActiveElement.focus();
                     } else {
-                        window.focus();
+                        // Fallback: Intentar enfocar el área principal de Roam
+                        const article = document.querySelector('.roam-article') ||
+                            document.querySelector('.rm-article-wrapper') ||
+                            document.querySelector('.roam-body-main');
+
+                        if (article) {
+                            article.focus();
+                            // Simular click para reactivar listeners de Roam
+                            article.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                            article.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+                            article.click();
+                        } else {
+                            window.focus();
+                        }
                     }
                 }, 100);
             } catch (e) {
@@ -1170,6 +1326,7 @@
         ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
     };
 
+
     // ============================================================================
     // 6. INICIALIZACIÓN
     // ============================================================================
@@ -1178,14 +1335,14 @@
         // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
         setTimeout(() => {
             DiscourseGraphToolkit.initializeProjectsSync();
-        }, 2000);
+        }, 5000);
 
         // Cargar config desde Roam si existe
         setTimeout(() => {
             DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
                 if (data) console.log("Configuración cargada desde Roam.");
             });
-        }, 2500);
+        }, 5500);
 
         // Registrar Comandos
         window.roamAlphaAPI.ui.commandPalette.addCommand({
@@ -1217,4 +1374,3 @@
     }
 
 })();
-
