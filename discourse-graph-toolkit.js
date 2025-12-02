@@ -43,7 +43,8 @@
 
     // Constantes de Roam
     DiscourseGraphToolkit.ROAM = {
-        PROJECTS_PAGE: "roam/js/discourse-graph/projects"
+        PROJECTS_PAGE: "roam/js/discourse-graph/projects",
+        CONFIG_PAGE: "roam/js/discourse-graph/config"
     };
 
     // Configuración de Archivos y Exportación
@@ -151,6 +152,54 @@
 
     DiscourseGraphToolkit.saveTemplates = function (templates) {
         localStorage.setItem(this.STORAGE.TEMPLATES, JSON.stringify(templates));
+    };
+
+    // --- Persistencia en Roam (Config + Templates) ---
+    DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
+        try {
+            let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?page :block/uid ?uid]]`);
+            if (!pageUid || pageUid.length === 0) {
+                pageUid = window.roamAlphaAPI.util.generateUID();
+                await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
+            } else {
+                pageUid = pageUid[0][0];
+            }
+
+            // Guardar como un bloque JSON
+            const data = JSON.stringify({ config, templates });
+            const blockUid = window.roamAlphaAPI.util.generateUID();
+
+            // Limpiar hijos anteriores
+            const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
+            for (let child of children) {
+                await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
+            }
+
+            await window.roamAlphaAPI.data.block.create({
+                location: { "parent-uid": pageUid, order: 0 },
+                block: { string: data }
+            });
+            console.log("Configuración guardada en Roam.");
+            return true;
+        } catch (e) {
+            console.error("Error guardando config en Roam:", e);
+            return false;
+        }
+    };
+
+    DiscourseGraphToolkit.loadConfigFromRoam = async function () {
+        try {
+            const results = await window.roamAlphaAPI.data.async.q(`[:find ?string :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?child :block/parents ?page] [?child :block/string ?string]]`);
+            if (results && results.length > 0) {
+                const data = JSON.parse(results[0][0]);
+                if (data.config) this.saveConfig(data.config);
+                if (data.templates) this.saveTemplates(data.templates);
+                return data;
+            }
+        } catch (e) {
+            console.error("Error cargando config de Roam:", e);
+        }
+        return null;
     };
 
     // --- Proyectos (Gestión Robusta con Sincronización) ---
@@ -668,12 +717,13 @@
         };
 
         // --- Handlers Config ---
-        const handleSaveConfig = () => {
+        const handleSaveConfig = async () => {
             DiscourseGraphToolkit.saveConfig(config);
             DiscourseGraphToolkit.saveTemplates(templates);
             DiscourseGraphToolkit.saveProjects(projects);
-            DiscourseGraphToolkit.syncProjectsToRoam(projects); // Sync on save
-            DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada.', 'success');
+            await DiscourseGraphToolkit.syncProjectsToRoam(projects);
+            await DiscourseGraphToolkit.saveConfigToRoam(config, templates); // Save to Roam Page
+            DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada en Roam.', 'success');
         };
 
         const handleExportConfig = () => {
@@ -938,11 +988,11 @@
 
                         suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
                             React.createElement('strong', { style: { display: 'block', marginBottom: '5px', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
-                            React.createElement('div', { style: { maxHeight: '100px', overflowY: 'auto' } },
+                            React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
                                 suggestions.map(s =>
-                                    React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' } },
+                                    React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' } },
                                         React.createElement('span', null, s),
-                                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '2px 6px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
+                                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
                                     )
                                 )
                             )
@@ -1058,10 +1108,15 @@
                 ReactDOM.unmountComponentAtNode(div);
                 if (div.parentNode) div.parentNode.removeChild(div);
 
-                // Restaurar foco a Roam
+                // Restaurar foco a Roam (Agresivo)
                 setTimeout(() => {
-                    const article = document.querySelector('.roam-article') || document.querySelector('.rm-article-wrapper');
-                    if (article) article.focus();
+                    const article = document.querySelector('.roam-article') || document.querySelector('.rm-article-wrapper') || document.querySelector('textarea.rm-block-input');
+                    if (article) {
+                        article.focus();
+                        article.click();
+                    } else {
+                        window.focus();
+                    }
                 }, 100);
             } catch (e) {
                 console.error("Error closing modal:", e);
@@ -1080,6 +1135,10 @@
     if (window.roamAlphaAPI) {
         // Inicializar sincronización
         DiscourseGraphToolkit.initializeProjectsSync();
+        // Cargar config desde Roam si existe
+        DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
+            if (data) console.log("Configuración cargada desde Roam.");
+        });
 
         // Registrar Comandos
         window.roamAlphaAPI.ui.commandPalette.addCommand({
