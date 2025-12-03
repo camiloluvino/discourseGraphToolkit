@@ -1,0 +1,1308 @@
+[
+  {
+    "uid": "fYhOADSd_",
+    "title": "[[CLM]] - El desafío de evitar que la IA funcione como intermediario inadecuado requiere mantener contacto directo con material original, especialmente cuando genera resistencia emocional",
+    "edit-time": 1761279718102,
+    "create-time": 1761279718101,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "3uyX0ujYw",
+        "edit-time": 1764776846431,
+        "create-time": 1761279723104,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "Las consecuencias de trabajar exclusivamente sobre interpretaciones de la IA son múltiples. Primero, la IA elabora y da peso semántico donde el original puede ser escueto - dos líneas de críticas se transforman en párrafos de análisis, creando la impresión de profundidad donde no necesariamente existe. Segundo, se pierden juicios cualitativos importantes que un lector humano haría naturalmente (\"esto no es una crítica substantiva\", \"aquí la mayoría es contexto no evaluación\"). Tercero, se generan inferencias y conexiones que pueden estar completamente ausentes en el documento original.",
+        "uid": "iuSRLNX4R",
+        "edit-time": 1761279726901,
+        "create-time": 1761279726901,
+        "order": 2
+      },
+      {
+        "string": "La paradoja fundamental es que este proceso de mediación genera significativamente más trabajo que la lectura directa del material original, y además es trabajo construido sobre bases potencialmente erróneas. Conversaciones enteras pueden desarrollarse sobre interpretaciones que divergen substancialmente del contenido real, resultando en elaboraciones conceptuales que luego deben descartarse o revisarse radicalmente al acceder finalmente al documento original.",
+        "uid": "pp6YhnexB",
+        "edit-time": 1761279726901,
+        "create-time": 1761279726901,
+        "order": 3
+      },
+      {
+        "string": "El desafío consiste en reconocer cuándo la resistencia a leer un documento directamente está motivada por ansiedad y no por razones de eficiencia, y desarrollar la disciplina de acceder al material original particularmente en casos donde el documento tiene función evaluativa o crítica. La IA puede seguir siendo útil después de la lectura directa para ayudar a procesar e integrar la información, pero no debe sustituir el contacto inicial con el material fuente.",
+        "uid": "tR0sW4_It",
+        "edit-time": 1761279726901,
+        "create-time": 1761279726901,
+        "order": 4
+      },
+      {
+        "string": "La IA puede funcionar inadvertidamente como escudo emocional ante documentos que generan ansiedad, particularmente revisiones y evaluaciones académicas. El mecanismo opera mediante la delegación de la lectura inicial a la IA, solicitando que sintetice o interprete el contenido antes de enfrentarlo directamente. Esta mediación crea una distancia psicológica que reduce la ansiedad inmediata pero genera problemas substantivos de comprensión.",
+        "uid": "4BjQmTUbj",
+        "edit-time": 1761279726901,
+        "create-time": 1761279726901,
+        "order": 1
+      }
+    ]
+  },
+  {
+    "uid": "G9K5V5KF7",
+    "title": "[[QUE]] - ¿Qué desafíos supone usar la inteligencia artificial en mi flujo de trabajo intelectual?",
+    "edit-time": 1761276407390,
+    "create-time": 1761184313675,
+    ":block/refs": [
+      {
+        ":block/uid": "CbmbUmYOP"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "CbmbUmYOP"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "mxll12yF2",
+        "edit-time": 1764776846431,
+        "create-time": 1761184317209,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "#RespondedBy",
+        "uid": "o0MVz60-W",
+        "edit-time": 1761184317213,
+        "create-time": 1761184317213,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "A-WmxXqVD"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "A-WmxXqVD"
+          }
+        ],
+        "children": [
+          {
+            "string": "[[[[CLM]] - El límite de la **ventana de contexto** impone desafíos en la selección y gestión de información para proyectos con IA]]",
+            "uid": "SD3bChx87",
+            "order": 0,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "KlAv9TTJ9"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "KlAv9TTJ9"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "okyQqKv3s",
+    "title": "[[EVD]] - Divulgación Progresiva de Contexto: Se implementa mediante técnicas específicas que gestionan la complejidad informacional sin sacrificar acceso a la granularidad necesaria",
+    "edit-time": 1761278474902,
+    "create-time": 1757707474005,
+    ":block/refs": [
+      {
+        ":block/uid": "rMCSBOThv"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "rMCSBOThv"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "wWXNnKUI7",
+        "edit-time": 1764776846431,
+        "create-time": 1757707239713,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "La [Divulgación Progresiva](((zci1NqMmI))) de Contexto trasciende el nivel de principio general para materializarse en un conjunto articulado de técnicas operativas específicas que permiten gestionar eficientemente la complejidad informacional sin sacrificar acceso a la granularidad necesaria. Estas técnicas funcionan de manera complementaria para implementar una arquitectura de memoria que imita los procesos cognitivos biológicos de retención y acceso diferenciado.",
+        "uid": "ObY_NzLYq",
+        "edit-time": 1757707313735,
+        "create-time": 1757707307069,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "zci1NqMmI"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "zci1NqMmI"
+          }
+        ]
+      },
+      {
+        "string": "Los resúmenes rodantes con fidelidad decreciente temporal constituyen la técnica central para gestionar el volumen histórico de conversaciones. Esta implementación mantiene un resumen persistente que se actualiza incrementalmente, fusionando contenido de fragmentos conversacionales antiguos que se van descartando, pero con un principio clave: la información más reciente conserva mayor granularidad y especificidad mientras que la información más antigua se degrada gradualmente hacia niveles de abstracción creciente. Este \"Modelo de Huella Desvanecida\" permite conservar la trayectoria histórica del proyecto sin saturar la capacidad de procesamiento, replicando cómo la memoria humana preserva lo esencial del pasado sin el detalle exhaustivo.",
+        "uid": "ZNS1EY_kZ",
+        "edit-time": 1757707307069,
+        "create-time": 1757707307069,
+        "order": 2
+      },
+      {
+        "string": "La [[gestión de estado estructurado]] para datos críticos implementa una estrategia diferenciada para elementos que requieren fidelidad absoluta y están especialmente vulnerables a la deriva conceptual. Objetivos de investigación, definiciones operacionales, criterios metodológicos y decisiones fundamentales se preservan en formatos estructurados que evitan la ambiguedad interpretativa del lenguaje natural. Esta técnica transforma elementos críticos en \"objetos de memoria\" inmunes a variaciones probabilísticas en la generación de texto, utilizando formatos como bloques estructurados en Markdown que mantienen precisión semántica a través de iteraciones sucesivas.",
+        "uid": "PaIwkPYPa",
+        "edit-time": 1757783500375,
+        "create-time": 1757707307069,
+        "order": 3,
+        ":block/refs": [
+          {
+            ":block/uid": "aR7EhI-uS"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "aR7EhI-uS"
+          }
+        ]
+      },
+      {
+        "string": "Los protocolos duales de consolidación constituyen la técnica de síntesis al cierre de cada sesión, implementando un sistema híbrido que combina dos tipos fundamentalmente diferentes de preservación de conocimiento. La bitácora factual registra decisiones, cambios, estados y elementos críticos con fidelidad perfecta, funcionando como el componente \"inmutable\" del registro. El resumen narrativo preserva la trayectoria conceptual, la lógica del desarrollo de ideas, los insights emergentes y las tensiones no resueltas, funcionando como el componente \"dinámico\" que captura la evolución del pensamiento.",
+        "uid": "PRiPORDG6",
+        "edit-time": 1757707307069,
+        "create-time": 1757707307069,
+        "order": 4
+      },
+      {
+        "string": "La articulación de estas tres técnicas implementa una arquitectura de memoria multinivel donde cada tipo de información recibe el tratamiento específico que optimiza su preservación y recuperación. La información histórica se gestiona mediante degradación controlada, los elementos críticos mediante preservación estructural absoluta, y el conocimiento emergente mediante consolidación dual que balancea fidelidad factual con riqueza contextual. Esta implementación técnica específica transforma la Divulgación Progresiva de Contexto de un principio abstracto en un sistema operativo concreto para la colaboración intelectual humano-IA sostenible.",
+        "uid": "Dcae_ibo7",
+        "edit-time": 1757707307069,
+        "create-time": 1757707307069,
+        "order": 5
+      }
+    ]
+  },
+  {
+    "uid": "VRZME53rM",
+    "title": "[[EVD]] - Exocortex: Funciona como memoria externa estructurada que amplifica las capacidades cognitivas del sistema humano-IA",
+    "edit-time": 1761278493170,
+    "create-time": 1757709045533,
+    ":block/refs": [
+      {
+        ":block/uid": "rMCSBOThv"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "rMCSBOThv"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "b_7N7TZjY",
+        "edit-time": 1764776846431,
+        "create-time": 1757709045554,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "La función específica del Exocortex trasciende el rol de repositorio pasivo para convertirse en un componente activo del proceso intelectual. Proporciona almacenamiento persistente para el conocimiento procesado que emerge de la colaboración humano-IA, pero lo hace mediante estructuras organizacionales que preservan las relaciones lógicas, las jerarquías conceptuales y los metadatos contextuales que facilitan la recuperación selectiva y la reutilización estratégica. Esta organización estructural transforma la información almacenada en conocimiento operativamente accesible.",
+        "uid": "kMOAdF_Gd",
+        "edit-time": 1757709297669,
+        "create-time": 1757709297669,
+        "order": 2
+      },
+      {
+        "string": "Las características arquitectónicas del Exocortex incluyen la capacidad de mantener múltiples niveles de granularidad simultáneamente, desde visiones panorámicas hasta detalles técnicos específicos; la implementación de sistemas de vinculación semántica que preservan las conexiones conceptuales entre elementos aparentemente dispares; y la integración de metadatos temporales y contextuales que permiten la navegación diacrónica del desarrollo intelectual. Estas características lo distinguen fundamentalmente de sistemas de archivo tradicionales al crear una memoria externa que replica y amplifica los procesos de asociación y recuperación de la cognición humana.",
+        "uid": "NxGIDkWaD",
+        "edit-time": 1757709297669,
+        "create-time": 1757709297669,
+        "order": 3
+      },
+      {
+        "string": "La integración del Exocortex con los sistemas de IA opera mediante principios de divulgación progresiva, donde el sistema humano actúa como curador que selecciona y estructura la información relevante desde la memoria externa hacia la memoria de trabajo limitada de la IA. Esta arquitectura resuelve la paradoja fundamental de la colaboración intelectual con IA: la necesidad de acceso a vastos repositorios de conocimiento versus las limitaciones técnicas de procesamiento contextual simultáneo.",
+        "uid": "frPPvM4e9",
+        "edit-time": 1757709297669,
+        "create-time": 1757709297669,
+        "order": 4
+      },
+      {
+        "string": "El Exocortex representa así la materialización técnica del concepto de memoria distribuida, donde las capacidades cognitivas del sistema emergen no de un componente individual sino de la articulación inteligente entre memoria humana, memoria artificial, y memoria externa estructurada. Esta arquitectura distribuida permite mantener la continuidad intelectual a través de múltiples sesiones de trabajo, preservar la complejidad conceptual sin saturación técnica, y evolucionar el conocimiento de manera incremental y coherente. El Exocortex establece que la solución efectiva al problema de la gestión de contexto no reside en mejoras técnicas aisladas sino en la construcción deliberada de infraestructuras cognitivas híbridas que optimizan las fortalezas complementarias de humanos y sistemas de IA.",
+        "uid": "KdFX21X6D",
+        "edit-time": 1757709297669,
+        "create-time": 1757709297669,
+        "order": 5
+      },
+      {
+        "string": "Reintentar",
+        "uid": "ZPwkKPGAl",
+        "edit-time": 1757709297669,
+        "create-time": 1757709297669,
+        "order": 6
+      },
+      {
+        "string": "El [Exocortex ](((Xontov6sZ)))constituye la infraestructura arquitectónica fundamental que materializa la simbiosis entre curaduría humana y procesamiento de IA, funcionando como una extensión cognitiva externa que supera las limitaciones inherentes de la memoria de trabajo de los sistemas de inteligencia artificial. A diferencia del simple almacenamiento de información, el Exocortex implementa una memoria estructurada, semánticamente organizada y dinámicamente accesible que amplifica las capacidades analíticas del sistema cognitivo híbrido.",
+        "uid": "SRsiSMspS",
+        "edit-time": 1757709320950,
+        "create-time": 1757709297669,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "Xontov6sZ"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "Xontov6sZ"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "bGr745enj",
+    "title": "[[CLM]] - El desafío de **mantener el ejercicio intelectual activo** requiere distinguir entre automatización legítima y delegación inadecuada del pensamiento",
+    "edit-time": 1761279575282,
+    "create-time": 1761279498657,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "8SMvtXxfh",
+        "edit-time": 1764776846431,
+        "create-time": 1761279509455,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "#SupportedBy",
+        "uid": "ZOZUjPGkq",
+        "edit-time": 1761279509461,
+        "create-time": 1761279509461,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "a65w7dV5i"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "a65w7dV5i"
+          }
+        ]
+      },
+      {
+        "string": "Sin embargo, surge un riesgo específico cuando se intercalan interacciones con la IA con actividades que demandan atención parcial (tareas domésticas, ordenar, limpiar). Existe una automatización legítima en ciertas fases: los mensajes iniciales de contextualización donde se pasan documentos, se verifica comprensión, se piden resúmenes iniciales. Estas son operaciones preparatorias antes de la conversación real que no requieren ejercicio intelectual profundo.",
+        "uid": "n1P2Sz2HT",
+        "edit-time": 1761279566334,
+        "create-time": 1761279566334,
+        "order": 3
+      },
+      {
+        "string": "El problema emerge cuando se extiende ese modo automático a la conversación misma. Las manifestaciones incluyen no leer realmente las respuestas de la IA, replicar de manera superficial sin reflexión genuina, y producir conversaciones de las que posteriormente no se tiene memoria clara ni acuerdo con las conclusiones alcanzadas. En estos casos se cruza el umbral de la coconstrucción hacia la sustitución del pensamiento propio por el de la IA.",
+        "uid": "D-y6euUm5",
+        "edit-time": 1761279566334,
+        "create-time": 1761279566334,
+        "order": 4
+      },
+      {
+        "string": "El desafío central consiste en mantener conciencia de cuándo el modo automático es funcional (preparación de contexto) y cuándo se está delegando inadecuadamente el ejercicio intelectual que debería permanecer activo. La solución no reside en eliminar la automatización sino en reconocer sus límites apropiados y preservar la atención plena durante las fases conversacionales donde se construye conocimiento genuino.",
+        "uid": "bKpIyJTzc",
+        "edit-time": 1761279566334,
+        "create-time": 1761279566334,
+        "order": 5
+      },
+      {
+        "string": "La integración profunda de la IA en el flujo de trabajo intelectual produce un desplazamiento de las tareas cognitivas: actividades que antes realizaba directamente (como hacer resúmenes) ahora las delega en la IA, concentrando mi inteligencia en la conversación crítica sobre esos productos. Este desplazamiento en sí mismo no es problemático cuando se mantiene una relación activa y crítica con los outputs de la IA, cuestionando, seleccionando y coconstruyendo ideas en diálogo genuino.",
+        "uid": "w-OJiy9Nm",
+        "edit-time": 1761279566334,
+        "create-time": 1761279566334,
+        "order": 2
+      }
+    ]
+  },
+  {
+    "uid": "l1Xk8V_TU",
+    "title": "[[CLM]] - El desafío de gestionar **conocimiento conversacional** acumulado se manifiesta en tres formas de degradación y se aborda mediante una arquitectura de memoria distribuida",
+    "edit-time": 1761278522618,
+    "create-time": 1761277693343,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "8eUVctbSd",
+        "edit-time": 1764776846431,
+        "create-time": 1761277698296,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "#SupportedBy",
+        "uid": "8FnI_5npQ",
+        "edit-time": 1761277698301,
+        "create-time": 1761277698301,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "a65w7dV5i"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "a65w7dV5i"
+          }
+        ],
+        "children": [
+          {
+            "string": "[[[[EVD]] - Context Rot: El fenómeno de \"Context Rot\" se manifiesta como deterioro progresivo de la capacidad de procesamiento cuando la información acumulada excede los umbrales técnicos de gestión]]",
+            "uid": "foVNCG-5r",
+            "order": 1,
+            ":block/refs": [
+              {
+                ":block/uid": "rMCSBOThv"
+              },
+              {
+                ":block/uid": "7S2ekw0zK"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "rMCSBOThv"
+              },
+              {
+                "uid": "7S2ekw0zK"
+              }
+            ]
+          },
+          {
+            "string": "[[[[EVD]] - Deriva conceptual: El conocimiento dinámico sufre \"deriva conceptual\" donde la precisión de conceptos clave se degrada gradualmente a través de iteraciones sucesivas]]",
+            "uid": "4i017w1MY",
+            "order": 2,
+            ":block/refs": [
+              {
+                ":block/uid": "rMCSBOThv"
+              },
+              {
+                ":block/uid": "JXFE-yXmo"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "rMCSBOThv"
+              },
+              {
+                "uid": "JXFE-yXmo"
+              }
+            ]
+          },
+          {
+            "string": "[[[[EVD]] - Resume hasta Desaparecer: El riesgo de \"Resume hasta Desaparecer\" representa la pérdida de información crítica por síntesis excesiva]]",
+            "uid": "ksqZCoipA",
+            "order": 3,
+            ":block/refs": [
+              {
+                ":block/uid": "rMCSBOThv"
+              },
+              {
+                ":block/uid": "X-0Pgjgs5"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "rMCSBOThv"
+              },
+              {
+                "uid": "X-0Pgjgs5"
+              }
+            ]
+          },
+          {
+            "string": "**Manifestaciones del problema:**",
+            "uid": "UXtQEupC1",
+            "order": 0
+          },
+          {
+            "string": "**Estrategias de solución:**",
+            "uid": "9UmJuVpMy",
+            "order": 4
+          },
+          {
+            "string": "[[[[EVD]] - Divulgación Progresiva de Contexto: Se implementa mediante técnicas específicas que gestionan la complejidad informacional sin sacrificar acceso a la granularidad necesaria]]",
+            "uid": "tot2CmJ6m",
+            "order": 5,
+            ":block/refs": [
+              {
+                ":block/uid": "rMCSBOThv"
+              },
+              {
+                ":block/uid": "okyQqKv3s"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "rMCSBOThv"
+              },
+              {
+                "uid": "okyQqKv3s"
+              }
+            ]
+          },
+          {
+            "string": "[[[[EVD]] - Exocortex: Funciona como memoria externa estructurada que amplifica las capacidades cognitivas del sistema humano-IA]]",
+            "uid": "aulLRxzDj",
+            "order": 6,
+            ":block/refs": [
+              {
+                ":block/uid": "rMCSBOThv"
+              },
+              {
+                ":block/uid": "VRZME53rM"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "rMCSBOThv"
+              },
+              {
+                "uid": "VRZME53rM"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "string": "[[bitácora]]",
+        "uid": "SKrlVQp2k",
+        "edit-time": 1761278647072,
+        "create-time": 1761278643997,
+        "order": 2,
+        ":block/refs": [
+          {
+            ":block/uid": "erj-AT9j1"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "erj-AT9j1"
+          }
+        ],
+        "children": [
+          {
+            "string": "**problemas**",
+            "uid": "ZUVCkGXVr",
+            "order": 0,
+            "children": [
+              {
+                "string": "La gestión de documentos estáticos mantiene una relación clara y manejable entre elementos. Un proyecto de tesis original y sus informes de evaluación establecen vínculos directos y predecibles que pueden procesarse eficientemente por sistemas de IA sin generar problemas de contexto significativos. La complejidad emerge cuando se desarrolla una capa adicional de conocimiento procesado a través del diálogo con IA: respuestas integradas a críticas, modificaciones iterativas al proyecto original, tomas de posición respecto a observaciones, justificaciones de decisiones metodológicas, y todo el andamiaje intelectual que se desarrolla dialógicamente.",
+                "uid": "DLTFfjnda",
+                "order": 1
+              },
+              {
+                "string": "Este conocimiento conversacional se vuelve exponencialmente voluminoso y desestructurado, pero paradójicamente constituye el activo de mayor valor para el proyecto. Representa la evolución del pensamiento, el registro de la toma de decisiones, y la sedimentación de insights que emergen únicamente del proceso dialógico. Sin embargo, por su naturaleza dinámica y su crecimiento exponencial, excede sistemáticamente la capacidad de procesamiento eficiente de los sistemas de IA, generando el fenómeno de \"Context Rot\" donde la calidad del contexto se deteriora progresivamente cuando la información acumulada supera los umbrales técnicos de gestión.",
+                "uid": "IQXZWN_0v",
+                "order": 2
+              },
+              {
+                "string": "La evidencia empírica de este diagnóstico se manifiesta en la incapacidad recurrente de los sistemas de IA para mantener distinciones precisas entre conversaciones similares, la pérdida de granularidad en el procesamiento de información compleja, y la tendencia a \"aplanar\" la riqueza estructural de intercambios dialógicos extensos. El conocimiento dinámico generado en la conversación se convierte así en el principal obstáculo para la continuidad del proyecto, precisamente porque es su componente más valioso.",
+                "uid": "J7oMFeJPQ",
+                "order": 3
+              },
+              {
+                "string": "El problema de la gestión de contexto en colaboraciones intelectuales humano-IA presenta una paradoja fundamental: mientras más productiva se vuelve la colaboración, mayor es el volumen de conocimiento generado, y por tanto mayor la dificultad para mantener la continuidad del trabajo intelectual. Esta paradoja revela que la verdadera complejidad no reside en la gestión de la información de entrada al sistema.",
+                "uid": "Zp8RMoXt8",
+                "order": 0
+              }
+            ]
+          },
+          {
+            "string": "**soluciones**",
+            "uid": "9tzkcbTi7",
+            "order": 1,
+            "children": [
+              {
+                "string": "El humano funciona como arquitecto del espacio de información, responsable de estructurar el conocimiento en una memoria externa organizada y de seleccionar el contexto relevante para cada etapa del trabajo. Esta función curatorial no es pasiva sino activamente estratégica: implica la clasificación semántica de información según relevancia dinámica, la construcción de índices anotados que funcionan como herramientas de direccionamiento, y la implementación de técnicas de \"divulgación progresiva de contexto\" que evitan la sobrecarga informacional mientras mantienen acceso a la complejidad necesaria.",
+                "uid": "-znqs0cPu",
+                "order": 1
+              },
+              {
+                "string": "La IA opera como procesador especializado que recibe contexto curado y proporciona análisis, síntesis y desarrollo de ideas dentro de marcos estructurados. Su fortaleza reside en el procesamiento intensivo de información bien delimitada, no en la navegación autónoma de vastos repositorios desestructurados. Esta división de roles optimiza las capacidades distintivas de cada componente sin sobrecargar las limitaciones técnicas de los sistemas actuales.",
+                "uid": "uXTY8Hbwd",
+                "order": 2
+              },
+              {
+                "string": "La arquitectura operativa se basa en tres niveles jerárquicos: un Núcleo Argumental denso que funciona como ancla conceptual constante; Índices Anotados que mapean temáticamente conversaciones pasadas como solución intermedia entre resumen y transcripción completa; y un Archivo Bruto Organizado que preserva la información original para consulta específica. Este sistema implementa el principio de \"Relevancia Dinámica\", reconociendo que la importancia de la información no es una propiedad estática sino una cualidad relacional que emerge contextualmente.",
+                "uid": "VWSxEopKk",
+                "order": 3
+              },
+              {
+                "string": "La validación empírica de esta arquitectura se observa en herramientas como Roam Research, donde la estructuración jerárquica de información, la vinculación semántica activa, y los metadatos de contextualización demuestran que es posible mantener sistemas complejos de conocimiento mediante curaduría humana sofisticada. La efectividad del modelo simbiótico reside en transformar las limitaciones técnicas de la IA en oportunidades para desarrollar metodologías más reflexivas y arquitectónicamente conscientes de gestión de conocimiento.",
+                "uid": "FYBB5Z3g6",
+                "order": 4
+              },
+              {
+                "string": "La gestión efectiva de contexto en proyectos intelectuales complejos no puede resolverse esperando desarrollos tecnológicos que proporcionen a la IA memoria infinita, sino construyendo un sistema cognitivo híbrido donde cada componente cumple roles especializados y complementarios. Esta arquitectura simbiótica reconoce que las capacidades humanas de estructuración, curaduría y selección estratégica de información son fundamentalmente diferentes y complementarias a las capacidades de procesamiento, análisis y síntesis de los sistemas de IA.",
+                "uid": "8RzYxzgN7",
+                "order": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "X-0Pgjgs5",
+    "title": "[[EVD]] - Resume hasta Desaparecer: El riesgo de \"Resume hasta Desaparecer\" representa la pérdida de información crítica por síntesis excesiva",
+    "edit-time": 1761278426194,
+    "create-time": 1757708534789,
+    ":block/refs": [
+      {
+        ":block/uid": "rMCSBOThv"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "rMCSBOThv"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "ZXx1G1YZJ",
+        "edit-time": 1764776846431,
+        "create-time": 1757708534838,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "La dinámica del fenómeno sigue un patrón de compresión iterativa donde cada ciclo de síntesis elimina matices, especificidades técnicas y conexiones lógicas que parecen secundarias en el momento de la compresión pero que resultan fundamentales para la coherencia y utilidad del conocimiento procesado. Una evaluación metodológica compleja puede reducirse a \"mejorar la metodología\", perdiendo completamente las dimensiones específicas de la crítica, los autores movilizados para responderla, y la lógica argumental que sustentaba la respuesta original.",
+        "uid": "y7CEJxk56",
+        "edit-time": 1757708687525,
+        "create-time": 1757708687525,
+        "order": 2
+      },
+      {
+        "string": "La insidiosidad del \"Resume hasta Desaparecer\" reside en que cada paso individual de síntesis parece razonable y eficiente. La información eliminada aparenta ser redundante o accesoria, creando una falsa economía donde la ganancia aparente en eficiencia oculta la pérdida real en capacidad analítica. El resultado final es un conocimiento aparentemente preservado pero funcionalmente inutilizable, donde se mantiene la estructura superficial pero se ha perdido la sustancia que permitía su aplicación efectiva.",
+        "uid": "7xBbtAoDZ",
+        "edit-time": 1757708687525,
+        "create-time": 1757708687525,
+        "order": 3
+      },
+      {
+        "string": "Las manifestaciones específicas incluyen la pérdida de trazabilidad argumental, donde se preservan las conclusiones pero se eliminan los pasos lógicos que las sustentan; la eliminación de matices críticos que distinguen posiciones aparentemente similares; y la reducción de conexiones conceptuales complejas a relaciones simples que distorsionan el significado original. Este tipo de degradación es particularmente devastador en trabajo intelectual de precisión, donde la pérdida de granularidad conceptual puede invalidar completamente la utilidad del conocimiento procesado.",
+        "uid": "BmWaYiHdR",
+        "edit-time": 1757708687525,
+        "create-time": 1757708687525,
+        "order": 4
+      },
+      {
+        "string": "La identificación de este riesgo justifica la implementación de técnicas de fidelidad absoluta que preservan elementos críticos en su formulación original, inmunes a procesos de síntesis iterativa. Estas técnicas incluyen la gestión de estado estructurado para datos no negociables, protocolos de preservación literal para formulaciones técnicas específicas, y sistemas de versionado que mantienen tanto la versión comprimida como la versión completa de elementos fundamentales. El \"Resume hasta Desaparecer\" establece así que la eficiencia en la gestión de contexto no puede medirse únicamente por la reducción de volumen, sino por la preservación de la capacidad analítica y operativa del conocimiento procesado.",
+        "uid": "SnK3ILYGb",
+        "edit-time": 1757708687525,
+        "create-time": 1757708687525,
+        "order": 5
+      },
+      {
+        "string": "El fenómeno \"Resume hasta Desaparecer\" constituye una manifestación específica de degradación informacional que opera mediante compresión progresiva excesiva, donde la búsqueda de eficiencia en la gestión de contexto termina eliminando precisamente los elementos de mayor valor intelectual. A diferencia del Context Rot, que surge por sobrecarga informacional, y de la deriva conceptual, que altera gradualmente el significado, este riesgo emerge de una aproximación de síntesis que privilegia la reducción de volumen por encima de la preservación de contenido crítico.",
+        "uid": "neF7aj9v0",
+        "edit-time": 1757708687525,
+        "create-time": 1757708687525,
+        "order": 1
+      }
+    ]
+  },
+  {
+    "uid": "JXFE-yXmo",
+    "title": "[[EVD]] - Deriva conceptual: El conocimiento dinámico sufre \"deriva conceptual\" donde la precisión de conceptos clave se degrada gradualmente a través de iteraciones sucesivas",
+    "edit-time": 1761278408720,
+    "create-time": 1757706859336,
+    ":block/refs": [
+      {
+        ":block/uid": "rMCSBOThv"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "rMCSBOThv"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "KEDOSCOeW",
+        "edit-time": 1764776846431,
+        "create-time": 1757706859359,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "Este fenómeno se manifiesta principalmente en la modificación incremental de formulaciones críticas a través de iteraciones conversacionales sucesivas. La IA, al regenerar conceptos previamente establecidos, introduce variaciones lexicales aparentemente menores que alteran gradualmente el significado técnico sin advertir explícitamente que se está modificando una formulación previamente acordada. Un objetivo de investigación puede transformarse de \"mapear las configuraciones de amistad\" a \"describir las redes de amistad\" y posteriormente a \"analizar las dinámicas relacionales\", manteniendo coherencia narrativa local mientras se desdibuja la especificidad metodológica original.",
+        "uid": "zo2Vvc56w",
+        "edit-time": 1757706947597,
+        "create-time": 1757706947597,
+        "order": 2
+      },
+      {
+        "string": "La insidiosidad de la deriva conceptual reside en su carácter imperceptible y aparentemente lógico. Cada modificación individual parece razonable y coherente con el contexto inmediato, creando una ilusión de continuidad conceptual que enmascara la transformación acumulativa del significado. La ausencia de señales explícitas de modificación hace que el fenómeno pase desapercibido hasta que la divergencia respecto al concepto original se vuelve evidente, momento en el cual puede haberse perdido la trazabilidad del proceso de degradación.",
+        "uid": "9GeKsnCvv",
+        "edit-time": 1757706947597,
+        "create-time": 1757706947597,
+        "order": 3
+      },
+      {
+        "string": "Las causas técnicas del fenómeno incluyen la naturaleza probabilística de la generación de texto en sistemas de IA, donde conceptos similares compiten por expresión sin mecanismos de fidelidad absoluta a formulaciones previas. La ausencia de memoria estructurada específica para elementos críticos permite que variaciones estilísticas aparentemente menores alteren gradualmente la sustancia conceptual sin activar mecanismos de preservación o alerta.",
+        "uid": "sf6QyhvSB",
+        "edit-time": 1757706947597,
+        "create-time": 1757706947597,
+        "order": 4
+      },
+      {
+        "string": "La deriva conceptual representa una amenaza particular para el trabajo intelectual de precisión porque compromete la integridad longitudinal de construcciones conceptuales complejas. En contextos donde la exactitud terminológica es fundamental, como la formulación de objetivos de investigación, definiciones operacionales, o criterios metodológicos, la degradación semántica gradual puede comprometer la coherencia y rigor de todo el proyecto intelectual sin que el deterioro sea evidente hasta etapas avanzadas del proceso.",
+        "uid": "x9qQnZ3kb",
+        "edit-time": 1757706947597,
+        "create-time": 1757706947597,
+        "order": 5
+      },
+      {
+        "string": "La deriva [conceptual constituye](((IwaI1eeMP))) un fenómeno específico de degradación semántica que opera de manera fundamentalmente distinta al Context Rot o la simple pérdida de información. Mientras el Context Rot implica confusión entre elementos diferentes y la pérdida informacional representa ausencia de contenido, la deriva conceptual mantiene la apariencia de continuidad mientras erosiona sistemáticamente la precisión técnica de conceptos establecidos.",
+        "uid": "Rsj3DAgSw",
+        "edit-time": 1757706952856,
+        "create-time": 1757706947597,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "IwaI1eeMP"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "IwaI1eeMP"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "QXkZEaczD",
+    "title": "[[CLM]] - En el caso de **fuentes documentales**, el desafío es curar qué materiales incluir sin degradar la calidad de procesamiento",
+    "edit-time": 1761278639544,
+    "create-time": 1761277741758,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "gzgdKVs4i",
+        "edit-time": 1764776846431,
+        "create-time": 1761277753437,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "#SupportedBy",
+        "uid": "pQ2GqYXu0",
+        "edit-time": 1761277753440,
+        "create-time": 1761277753440,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "a65w7dV5i"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "a65w7dV5i"
+          }
+        ],
+        "children": [
+          {
+            "uid": "q0GANPqJe",
+            "order": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "7S2ekw0zK",
+    "title": "[[EVD]] - Context Rot: El fenómeno de \"Context Rot\" se manifiesta como deterioro progresivo de la capacidad de procesamiento cuando la información acumulada excede los umbrales técnicos de gestión",
+    "edit-time": 1761278399186,
+    "create-time": 1757705331550,
+    ":block/refs": [
+      {
+        ":block/uid": "rMCSBOThv"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "rMCSBOThv"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "UoNK4ItlS",
+        "edit-time": 1764776846431,
+        "create-time": 1757705331571,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "Las manifestaciones específicas del Context Rot incluyen la confusión sistemática entre elementos similares pero funcionalmente distintos, como conversaciones de fechas próximas con nomenclaturas semejantes, donde el sistema pierde la capacidad de mantener distinciones precisas a pesar de disponer técnicamente de la información completa. Se observa también la pérdida progresiva de granularidad analítica, donde el sistema tiende a recuperar información densa y reciente en lugar de información específica y pertinente para la tarea actual, evidenciando que la sobrecarga no solo afecta la memoria sino los procesos de selección y priorización.",
+        "uid": "w1TmMnW-T",
+        "edit-time": 1757705733864,
+        "create-time": 1757705733864,
+        "order": 2
+      },
+      {
+        "string": "Una manifestación particularmente crítica es el \"aplanamiento estructural\" de información jerárquica compleja. Los sistemas afectados por Context Rot tienden a procesar información estructurada en viñetas y esquemas anidados como flujos narrativos continuos, perdiendo la rica información relacional que la jerarquía proporciona. Este aplanamiento destruye precisamente el tipo de estructuración que facilita la navegación eficiente en proyectos complejos.",
+        "uid": "VD3J5CjvV",
+        "edit-time": 1757705733864,
+        "create-time": 1757705733864,
+        "order": 3
+      },
+      {
+        "string": "La evidencia empírica del fenómeno se documenta en errores de recuperación específicos: cuando se solicita contenido de una conversación particular, el sistema puede recuperar contenido de conversaciones similares pero distintas, confirmando que el problema no es ausencia de información sino degradación en los mecanismos de discriminación contextual. La progresividad del deterioro sugiere que existe un umbral crítico de densidad informacional más allá del cual la capacidad de procesamiento selectivo se deteriora exponencialmente.",
+        "uid": "N0X2wycwi",
+        "edit-time": 1757705733864,
+        "create-time": 1757705733864,
+        "order": 4
+      },
+      {
+        "string": "El Context Rot **representa así la manifestación técnica concreta del problema general de gestión de conocimiento dinámico**, estableciendo que la solución no puede basarse en el incremento bruto de capacidad de procesamiento sino en arquitecturas que prevengan la sobrecarga mediante estrategias de estructuración y curaduría preventiva.",
+        "uid": "ewHL3oWoK",
+        "edit-time": 1757705773639,
+        "create-time": 1757705733864,
+        "order": 5
+      },
+      {
+        "string": "El \"[Context Rot\" o \"Putrefacción del](((HxKOyXA3F))) Contexto\" constituye un fenómeno técnico específico que emerge cuando la densidad y complejidad informacional de un proyecto excede la capacidad de procesamiento eficiente de los sistemas de IA. No se trata de una limitación absoluta de memoria, sino de una degradación cualitativa en la capacidad de discriminación, jerarquización y recuperación selectiva de información relevante dentro de contextos sobrecargados.",
+        "uid": "IW1RknC3u",
+        "edit-time": 1757705744142,
+        "create-time": 1757705733864,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "HxKOyXA3F"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "HxKOyXA3F"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "sqGzI1Tpx",
+    "title": "[[CLM]] - El desafío de formular **instrucciones efectivas** a la IA se resuelve mediante práctica sostenida que desarrolla familiaridad con las capacidades y limitaciones del sistema",
+    "edit-time": 1761279752444,
+    "create-time": 1761279734832,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "La superación de este desafío no se logra principalmente mediante el estudio teórico de principios de prompting sino a través de la práctica sostenida y reflexiva. La familiaridad con las capacidades específicas del sistema, sus limitaciones, y los tipos de formulaciones que producen mejores resultados se desarrolla experimentalmente mediante iteraciones sucesivas de interacción.",
+        "uid": "Tc5adBiSs",
+        "edit-time": 1761279739782,
+        "create-time": 1761279739782,
+        "order": 2
+      },
+      {
+        "string": "Con suficiente práctica, la formulación de prompts efectivos se vuelve una habilidad naturalizada que deja de requerir atención consciente intensiva. Este desafío tiende a resolverse relativamente pronto en la trayectoria de uso, aunque mantiene relevancia como competencia fundamental que habilita el uso productivo de la IA.",
+        "uid": "g03vt_hk5",
+        "edit-time": 1761279739782,
+        "create-time": 1761279739782,
+        "order": 3
+      },
+      {
+        "string": "La ingeniería de prompts constituye uno de los desafíos iniciales al integrar la IA en el flujo de trabajo intelectual. Implica desarrollar la habilidad de formular instrucciones que sean suficientemente claras, específicas y contextualizadas para que la IA produzca outputs útiles y alineados con las necesidades reales del proyecto.",
+        "uid": "jOZRioETK",
+        "edit-time": 1761279739782,
+        "create-time": 1761279739782,
+        "order": 1
+      },
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "IvJ1j_oAg",
+        "edit-time": 1764776846431,
+        "create-time": 1761279743992,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "uid": "KlAv9TTJ9",
+    "title": "[[CLM]] - El límite de la **ventana de contexto** impone desafíos en la selección y gestión de información para proyectos con IA",
+    "edit-time": 1761277684309,
+    "create-time": 1757704385537,
+    ":block/refs": [
+      {
+        ":block/uid": "LDHdsRWLy"
+      }
+    ],
+    "refs": [
+      {
+        "uid": "LDHdsRWLy"
+      }
+    ],
+    ":create/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    ":edit/user": {
+      ":user/uid": "OWvhPDheCLO2uHfdJAuk6s2A1Bj1"
+    },
+    "children": [
+      {
+        "string": "Proyecto Asociado:: [[área/inteligencia artificial]]",
+        "uid": "X92JrGT5E",
+        "edit-time": 1764776846431,
+        "create-time": 1757704385567,
+        "order": 0,
+        ":block/refs": [
+          {
+            ":block/uid": "M6d4miU1v"
+          },
+          {
+            ":block/uid": "8GGL7G1XH"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "M6d4miU1v"
+          },
+          {
+            "uid": "8GGL7G1XH"
+          }
+        ]
+      },
+      {
+        "string": "#SupportedBy",
+        "uid": "V8rZyI1sP",
+        "edit-time": 1761278786571,
+        "create-time": 1757704385573,
+        "order": 1,
+        ":block/refs": [
+          {
+            ":block/uid": "a65w7dV5i"
+          }
+        ],
+        "refs": [
+          {
+            "uid": "a65w7dV5i"
+          }
+        ],
+        "children": [
+          {
+            "string": "[[[[CLM]] - El desafío de gestionar **conocimiento conversacional** acumulado se manifiesta en tres formas de degradación y se aborda mediante una arquitectura de memoria distribuida]]",
+            "uid": "hISzrvHeR",
+            "order": 1,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "l1Xk8V_TU"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "l1Xk8V_TU"
+              }
+            ]
+          },
+          {
+            "string": "[[[[CLM]] - En el caso de **fuentes documentales**, el desafío es curar qué materiales incluir sin degradar la calidad de procesamiento]]",
+            "uid": "XgC0PQQ8i",
+            "order": 2,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "QXkZEaczD"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "QXkZEaczD"
+              }
+            ],
+            "children": [
+              {
+                "string": "#comentario tal vez deba fusionarlo con la clm anterior",
+                "uid": "VmngDwWH2",
+                "order": 0,
+                ":block/refs": [
+                  {
+                    ":block/uid": "wXvUIEfMy"
+                  }
+                ],
+                "refs": [
+                  {
+                    "uid": "wXvUIEfMy"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "string": "[[[[CLM]] - El desafío de **mantener el ejercicio intelectual activo** requiere distinguir entre automatización legítima y delegación inadecuada del pensamiento]]",
+            "uid": "D1v86H1eD",
+            "order": 3,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "bGr745enj"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "bGr745enj"
+              }
+            ]
+          },
+          {
+            "string": "[[[[CLM]] - El desafío de evitar que la IA funcione como intermediario inadecuado requiere mantener contacto directo con material original, especialmente cuando genera resistencia emocional]]",
+            "uid": "wnQFPgHs8",
+            "order": 4,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "fYhOADSd_"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "fYhOADSd_"
+              }
+            ]
+          },
+          {
+            "string": "[[[[CLM]] - El desafío de formular **instrucciones efectivas** a la IA se resuelve mediante práctica sostenida que desarrolla familiaridad con las capacidades y limitaciones del sistema]]",
+            "uid": "7tT-RSREJ",
+            "order": 0,
+            ":block/refs": [
+              {
+                ":block/uid": "LDHdsRWLy"
+              },
+              {
+                ":block/uid": "sqGzI1Tpx"
+              }
+            ],
+            "refs": [
+              {
+                "uid": "LDHdsRWLy"
+              },
+              {
+                "uid": "sqGzI1Tpx"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

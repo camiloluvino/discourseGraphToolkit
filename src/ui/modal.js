@@ -22,6 +22,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [isScanning, setIsScanning] = React.useState(false);
     const [history, setHistory] = React.useState([]);
 
+    // Estado para Dashboard de Nodos
+    const [nodeCounts, setNodeCounts] = React.useState({ QUE: 0, CLM: 0, EVD: 0 });
+
     // Init
     React.useEffect(() => {
         const loadData = async () => {
@@ -42,6 +45,19 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         };
         loadData();
     }, []);
+
+    // Efecto para cargar cuentas de nodos cuando cambia el proyecto
+    React.useEffect(() => {
+        const loadCounts = async () => {
+            if (config.defaultProject) {
+                const counts = await DiscourseGraphToolkit.countNodesByProject(config.defaultProject);
+                setNodeCounts(counts);
+            } else {
+                setNodeCounts({ QUE: 0, CLM: 0, EVD: 0 });
+            }
+        };
+        loadCounts();
+    }, [config.defaultProject]);
 
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
@@ -236,7 +252,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['general', 'nodos', 'relaciones', 'exportar', 'proyectos', 'historial'].map(t =>
+                ['general', 'nodos', 'relaciones', 'exportar', 'importar', 'proyectos', 'historial'].map(t =>
                     React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
@@ -275,15 +291,73 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 ),
 
                 activeTab === 'nodos' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Templates de Nodos'),
-                    ['QUE', 'CLM', 'EVD'].map(type =>
-                        React.createElement('div', { key: type, style: { marginBottom: '20px' } },
-                            React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
-                            React.createElement('textarea', {
-                                value: templates[type],
-                                onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
-                                style: { width: '100%', height: '100px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
-                            })
+                    React.createElement('h3', null, 'Dashboard de Nodos'),
+
+                    // Selector de Proyecto
+                    React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' } },
+                        React.createElement('label', { style: { fontWeight: 'bold', display: 'block', marginBottom: '8px' } }, 'Proyecto Activo:'),
+                        React.createElement('select', {
+                            value: config.defaultProject || "",
+                            onChange: (e) => {
+                                const newProj = e.target.value;
+                                setConfig({ ...config, defaultProject: newProj });
+                                // Guardar cambio de config inmediatamente para mejor UX
+                                DiscourseGraphToolkit.saveConfig({ ...config, defaultProject: newProj });
+                            },
+                            style: { width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }
+                        },
+                            React.createElement('option', { value: "" }, "-- Seleccionar Proyecto --"),
+                            projects.map(p => React.createElement('option', { key: p, value: p }, p))
+                        )
+                    ),
+
+                    // Stats Cards
+                    React.createElement('div', { style: { display: 'flex', gap: '20px', marginBottom: '30px' } },
+                        ['QUE', 'CLM', 'EVD'].map(type => {
+                            const typeInfo = DiscourseGraphToolkit.TYPES[type];
+                            const count = nodeCounts[type];
+
+                            return React.createElement('div', {
+                                key: type,
+                                onClick: () => {
+                                    if (config.defaultProject) {
+                                        DiscourseGraphToolkit.openQueryPage(type, config.defaultProject);
+                                        onClose(); // Cerrar modal al navegar
+                                    } else {
+                                        alert("Por favor selecciona un proyecto primero.");
+                                    }
+                                },
+                                style: {
+                                    flex: 1,
+                                    backgroundColor: typeInfo.color,
+                                    color: 'white',
+                                    padding: '20px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                    transition: 'transform 0.2s',
+                                    textAlign: 'center'
+                                }
+                            },
+                                React.createElement('div', { style: { fontSize: '14px', opacity: 0.9 } }, typeInfo.label),
+                                React.createElement('div', { style: { fontSize: '36px', fontWeight: 'bold', margin: '10px 0' } }, count),
+                                React.createElement('div', { style: { fontSize: '12px', opacity: 0.8 } }, 'Click para ver detalles')
+                            );
+                        })
+                    ),
+
+                    // Templates Section (Collapsible or moved below)
+                    React.createElement('details', { style: { marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' } },
+                        React.createElement('summary', { style: { cursor: 'pointer', fontWeight: 'bold', color: '#666' } }, 'Configuración de Templates (Avanzado)'),
+                        ['QUE', 'CLM', 'EVD'].map(type =>
+                            React.createElement('div', { key: type, style: { marginTop: '15px' } },
+                                React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
+                                React.createElement('textarea', {
+                                    value: templates[type],
+                                    onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
+                                    style: { width: '100%', height: '80px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
+                                })
+                            )
                         )
                     )
                 ),
@@ -413,6 +487,55 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                             previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
                         )
                     )
+                ),
+
+                activeTab === 'importar' && React.createElement('div', null,
+                    React.createElement('h3', null, 'Importar Grafos'),
+                    React.createElement('p', { style: { color: '#666' } }, 'Restaura copias de seguridad o importa grafos de otros usuarios. Los elementos existentes no se sobrescribirán.'),
+
+                    React.createElement('div', { style: { marginTop: '20px', padding: '20px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center' } },
+                        React.createElement('input', {
+                            type: 'file',
+                            accept: '.json',
+                            id: 'import-file-input',
+                            style: { display: 'none' },
+                            onChange: (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = async (event) => {
+                                        setExportStatus("Importando...");
+                                        try {
+                                            const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setExportStatus(msg));
+
+                                            let statusMsg = `✅ Importación finalizada. Páginas: ${result.pages}. Saltados: ${result.skipped}.`;
+                                            if (result.errors && result.errors.length > 0) {
+                                                statusMsg += `\n❌ Errores (${result.errors.length}):\n` + result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? '\n...' : '');
+                                                DiscourseGraphToolkit.showToast(`Importación con ${result.errors.length} errores.`, 'warning');
+                                            } else {
+                                                DiscourseGraphToolkit.showToast(`Importación exitosa: ${result.pages} páginas.`, 'success');
+                                            }
+                                            setExportStatus(statusMsg);
+
+                                        } catch (err) {
+                                            console.error(err);
+                                            setExportStatus(`❌ Error fatal: ${err.message}`);
+                                            DiscourseGraphToolkit.showToast("Error en importación.", "error");
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }
+                            }
+                        }),
+                        React.createElement('label', {
+                            htmlFor: 'import-file-input',
+                            style: {
+                                display: 'inline-block', padding: '10px 20px', backgroundColor: '#2196F3', color: 'white',
+                                borderRadius: '4px', cursor: 'pointer', fontSize: '16px'
+                            }
+                        }, 'Seleccionar Archivo JSON')
+                    ),
+                    exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
                 ),
 
                 activeTab === 'historial' && React.createElement('div', null,

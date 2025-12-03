@@ -2,6 +2,9 @@
 // 1. CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
 
+window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
+DiscourseGraphToolkit.VERSION = "1.1.1";
+
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
     CONFIG: "discourseGraphToolkit_config",

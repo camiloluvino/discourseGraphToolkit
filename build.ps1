@@ -12,6 +12,7 @@ $files = @(
     "src/core/nodes.js",
     "src/core/projects.js",
     "src/core/export.js",
+    "src/core/import.js",
     "src/ui/modal.js",
     "src/index.js"
 )

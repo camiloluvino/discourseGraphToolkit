@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.1.0
- * Bundled build: 2025-12-02 18:49:48
+ * Bundled build: 2025-12-03 14:18:56
  */
 
 (function () {
@@ -13,6 +13,9 @@
 // ============================================================================
 // 1. CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
+
+window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
+DiscourseGraphToolkit.VERSION = "1.1.1";
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
@@ -638,6 +641,78 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
     }
 };
 
+// ============================================================================
+// 5. DASHBOARD HELPERS
+// ============================================================================
+
+DiscourseGraphToolkit.countNodesByProject = async function (project) {
+    const counts = { QUE: 0, CLM: 0, EVD: 0 };
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+    // Si no hay proyecto seleccionado, contar todo (opcional, o retornar 0)
+    // Asumimos que siempre hay un proyecto o "todos"
+
+    const projectFilter = project ? `[(clojure.string/includes? ?string "[[${project}]]")]` : "";
+
+    for (let type of ['QUE', 'CLM', 'EVD']) {
+        const prefix = this.TYPES[type].prefix;
+        const query = `[:find (count ?page) . :where 
+            [?page :node/title ?title] 
+            [(clojure.string/starts-with? ?title "[[${prefix}]]")]
+            [?block :block/page ?page]
+            [?block :block/string ?string]
+            [(clojure.string/includes? ?string "${fieldName}::")]
+            ${projectFilter}
+        ]`;
+
+        try {
+            const result = await window.roamAlphaAPI.data.async.q(query);
+            counts[type] = result || 0;
+        } catch (e) {
+            console.error(`Error counting ${type}:`, e);
+        }
+    }
+    return counts;
+};
+
+DiscourseGraphToolkit.openQueryPage = async function (type, project) {
+    const typeLabel = this.TYPES[type].label; // Pregunta, Afirmación...
+    const pageTitle = `DGT/Query/${typeLabel}`;
+    const prefix = this.TYPES[type].prefix;
+
+    // 1. Buscar o Crear Página
+    let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid . :where [?page :node/title "${pageTitle}"] [?page :block/uid ?uid]]`);
+
+    if (!pageUid) {
+        pageUid = window.roamAlphaAPI.util.generateUID();
+        await window.roamAlphaAPI.data.page.create({ page: { title: pageTitle, uid: pageUid } });
+    }
+
+    // 2. Construir Query
+    // {{[[query]]: {and: [[QUE]] [[Proyecto]]}}}
+    const queryString = `{{[[query]]: {and: [[${prefix}]] [[${project}]]}}}`;
+
+    // 3. Limpiar/Actualizar contenido
+    // Borrar hijos existentes para asegurar limpieza
+    const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
+    if (children) {
+        for (let child of children) {
+            await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
+        }
+    }
+
+    // Crear nuevo bloque con la query
+    const blockUid = window.roamAlphaAPI.util.generateUID();
+    await window.roamAlphaAPI.data.block.create({
+        location: { "parent-uid": pageUid, "order": 0 },
+        block: { "uid": blockUid, "string": queryString }
+    });
+
+    // 4. Abrir página
+    window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: pageUid } });
+};
+
 
 // --- MODULE: src/core/projects.js ---
 // This file is intentionally left empty as project logic is handled in api/roam.js and state.js
@@ -713,6 +788,182 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 };
 
 
+// --- MODULE: src/core/import.js ---
+// ============================================================================
+// 6. LÓGICA DE IMPORTACIÓN (CORE)
+// ============================================================================
+
+DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
+    console.log("🚀 STARTING IMPORT - VERSION 1.1.1 (FIXED)");
+    const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
+
+    report(`Leyendo archivo (${jsonContent.length} bytes)...`);
+
+    let data;
+    try {
+        data = JSON.parse(jsonContent);
+    } catch (e) {
+        console.error("JSON Parse Error:", e);
+        throw new Error("El archivo no es un JSON válido: " + e.message);
+    }
+
+    if (!Array.isArray(data)) {
+        throw new Error("El formato del JSON no es válido (debe ser un array de páginas).");
+    }
+
+    console.log("Import Data Length:", data.length);
+    if (data.length === 0) {
+        throw new Error("El archivo JSON contiene un array vacío (0 ítems).");
+    }
+
+    report(`Iniciando importación de ${data.length} ítems...`);
+    let createdPages = 0;
+    let skippedPages = 0;
+    let errors = [];
+
+    for (let i = 0; i < data.length; i++) {
+        const pageData = data[i];
+        // Normalizar claves (Soporte para exportaciones antiguas o raw)
+        const title = pageData.title || pageData[':node/title'] || pageData[':title'];
+        const uid = pageData.uid || pageData[':block/uid'] || pageData[':uid'];
+        const children = pageData.children || pageData[':block/children'] || pageData['children'];
+
+        if (!title) {
+            console.warn("Item sin título saltado:", pageData);
+            skippedPages++;
+            continue;
+        }
+
+        report(`Procesando página ${i + 1}/${data.length}: ${title}`);
+
+        try {
+            await DiscourseGraphToolkit.importPage({ ...pageData, title, uid, children });
+            createdPages++;
+        } catch (e) {
+            console.error(`Error importando página ${title}:`, e);
+            errors.push(`${title}: ${e.message}`);
+            report(`❌ Error en página ${title}: ${e.message}`);
+        }
+    }
+
+    // 3. Log en Daily Note
+    if (createdPages > 0) {
+        const importedTitles = data.map(p => p.title || p[':node/title'] || p[':title']).filter(t => t);
+        await DiscourseGraphToolkit.logImportToDailyNote(importedTitles);
+    }
+
+    return { pages: createdPages, skipped: skippedPages, errors: errors };
+};
+
+DiscourseGraphToolkit.logImportToDailyNote = async function (importedTitles) {
+    if (!importedTitles || importedTitles.length === 0) return;
+
+    const today = new Date();
+    const dailyNoteUid = window.roamAlphaAPI.util.dateToPageUid(today);
+    const dailyNoteTitle = window.roamAlphaAPI.util.dateToPageTitle(today);
+
+    // 1. Asegurar que la Daily Note existe
+    let page = window.roamAlphaAPI.data.pull("[:block/uid]", [":node/title", dailyNoteTitle]);
+    if (!page) {
+        await window.roamAlphaAPI.data.page.create({ "page": { "title": dailyNoteTitle, "uid": dailyNoteUid } });
+    }
+
+    // 2. Crear bloque padre #import
+    const importBlockUid = window.roamAlphaAPI.util.generateUID();
+    const timestamp = today.toLocaleTimeString();
+    await window.roamAlphaAPI.data.block.create({
+        "location": { "parent-uid": dailyNoteUid, "order": "last" },
+        "block": { "uid": importBlockUid, "string": `#import (${timestamp})` }
+    });
+
+    // 3. Crear hijos con los títulos
+    for (let i = 0; i < importedTitles.length; i++) {
+        const title = importedTitles[i];
+        await window.roamAlphaAPI.data.block.create({
+            "location": { "parent-uid": importBlockUid, "order": i },
+            "block": { "string": `[[${title}]]` }
+        });
+    }
+};
+
+DiscourseGraphToolkit.importPage = async function (pageData) {
+    if (!pageData.title) return;
+
+    // 1. Verificar si la página existe usando PULL (más robusto que Q)
+    let pageUid = pageData.uid;
+    // pull devuelve null si no encuentra la entidad
+    let existingPage = window.roamAlphaAPI.data.pull("[:block/uid]", [":node/title", pageData.title]);
+
+    if (existingPage && existingPage[':block/uid']) {
+        // La página existe, usamos su UID real
+        pageUid = existingPage[':block/uid'];
+    } else {
+        // La página no existe, la creamos
+        if (!pageUid) pageUid = window.roamAlphaAPI.util.generateUID();
+
+        try {
+            await window.roamAlphaAPI.data.page.create({
+                "page": { "title": pageData.title, "uid": pageUid }
+            });
+        } catch (e) {
+            console.warn(`Falló creación de página "${pageData.title}", intentando recuperar UID...`, e);
+            // Si falla, intentamos ver si existe ahora (race condition?)
+            let retry = window.roamAlphaAPI.data.pull("[:block/uid]", [":node/title", pageData.title]);
+            if (retry && retry[':block/uid']) {
+                pageUid = retry[':block/uid'];
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    // 2. Importar hijos (Bloques)
+    if (pageData.children && pageData.children.length > 0) {
+        await DiscourseGraphToolkit.importChildren(pageUid, pageData.children);
+    }
+};
+
+DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
+    // Ordenar por 'order' si existe, para mantener la estructura
+    const sortedChildren = children.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    for (let i = 0; i < sortedChildren.length; i++) {
+        const child = sortedChildren[i];
+        await DiscourseGraphToolkit.importBlock(parentUid, child, i);
+    }
+};
+
+DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order) {
+    // Normalizar claves de bloque
+    const blockUid = blockData.uid || blockData[':block/uid'] || blockData[':uid'] || window.roamAlphaAPI.util.generateUID();
+    const content = blockData.string || blockData[':block/string'] || blockData[':string'] || "";
+    const children = blockData.children || blockData[':block/children'] || blockData['children'];
+
+    // Verificar si el bloque ya existe (por UID) usando PULL
+    let exists = false;
+    if (blockData.uid || blockData[':block/uid']) {
+        const check = window.roamAlphaAPI.data.pull("[:block/uid]", [":block/uid", blockUid]);
+        exists = (check && check[':block/uid']);
+    }
+
+    if (!exists) {
+        // Crear bloque
+        await window.roamAlphaAPI.data.block.create({
+            "location": { "parent-uid": parentUid, "order": order },
+            "block": { "uid": blockUid, "string": content }
+        });
+    } else {
+        // El bloque existe.
+        // ESTRATEGIA: NO SOBRESCRIBIR contenido.
+    }
+
+    // Recursión para hijos del bloque
+    if (children && children.length > 0) {
+        await DiscourseGraphToolkit.importChildren(blockUid, children);
+    }
+};
+
+
 // --- MODULE: src/ui/modal.js ---
 // ============================================================================
 // 5. INTERFAZ DE USUARIO (REACT)
@@ -738,6 +989,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [isScanning, setIsScanning] = React.useState(false);
     const [history, setHistory] = React.useState([]);
 
+    // Estado para Dashboard de Nodos
+    const [nodeCounts, setNodeCounts] = React.useState({ QUE: 0, CLM: 0, EVD: 0 });
+
     // Init
     React.useEffect(() => {
         const loadData = async () => {
@@ -758,6 +1012,19 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         };
         loadData();
     }, []);
+
+    // Efecto para cargar cuentas de nodos cuando cambia el proyecto
+    React.useEffect(() => {
+        const loadCounts = async () => {
+            if (config.defaultProject) {
+                const counts = await DiscourseGraphToolkit.countNodesByProject(config.defaultProject);
+                setNodeCounts(counts);
+            } else {
+                setNodeCounts({ QUE: 0, CLM: 0, EVD: 0 });
+            }
+        };
+        loadCounts();
+    }, [config.defaultProject]);
 
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
@@ -952,7 +1219,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['general', 'nodos', 'relaciones', 'exportar', 'proyectos', 'historial'].map(t =>
+                ['general', 'nodos', 'relaciones', 'exportar', 'importar', 'proyectos', 'historial'].map(t =>
                     React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
@@ -991,15 +1258,73 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 ),
 
                 activeTab === 'nodos' && React.createElement('div', null,
-                    React.createElement('h3', null, 'Templates de Nodos'),
-                    ['QUE', 'CLM', 'EVD'].map(type =>
-                        React.createElement('div', { key: type, style: { marginBottom: '20px' } },
-                            React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
-                            React.createElement('textarea', {
-                                value: templates[type],
-                                onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
-                                style: { width: '100%', height: '100px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
-                            })
+                    React.createElement('h3', null, 'Dashboard de Nodos'),
+
+                    // Selector de Proyecto
+                    React.createElement('div', { style: { marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' } },
+                        React.createElement('label', { style: { fontWeight: 'bold', display: 'block', marginBottom: '8px' } }, 'Proyecto Activo:'),
+                        React.createElement('select', {
+                            value: config.defaultProject || "",
+                            onChange: (e) => {
+                                const newProj = e.target.value;
+                                setConfig({ ...config, defaultProject: newProj });
+                                // Guardar cambio de config inmediatamente para mejor UX
+                                DiscourseGraphToolkit.saveConfig({ ...config, defaultProject: newProj });
+                            },
+                            style: { width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }
+                        },
+                            React.createElement('option', { value: "" }, "-- Seleccionar Proyecto --"),
+                            projects.map(p => React.createElement('option', { key: p, value: p }, p))
+                        )
+                    ),
+
+                    // Stats Cards
+                    React.createElement('div', { style: { display: 'flex', gap: '20px', marginBottom: '30px' } },
+                        ['QUE', 'CLM', 'EVD'].map(type => {
+                            const typeInfo = DiscourseGraphToolkit.TYPES[type];
+                            const count = nodeCounts[type];
+
+                            return React.createElement('div', {
+                                key: type,
+                                onClick: () => {
+                                    if (config.defaultProject) {
+                                        DiscourseGraphToolkit.openQueryPage(type, config.defaultProject);
+                                        onClose(); // Cerrar modal al navegar
+                                    } else {
+                                        alert("Por favor selecciona un proyecto primero.");
+                                    }
+                                },
+                                style: {
+                                    flex: 1,
+                                    backgroundColor: typeInfo.color,
+                                    color: 'white',
+                                    padding: '20px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                    transition: 'transform 0.2s',
+                                    textAlign: 'center'
+                                }
+                            },
+                                React.createElement('div', { style: { fontSize: '14px', opacity: 0.9 } }, typeInfo.label),
+                                React.createElement('div', { style: { fontSize: '36px', fontWeight: 'bold', margin: '10px 0' } }, count),
+                                React.createElement('div', { style: { fontSize: '12px', opacity: 0.8 } }, 'Click para ver detalles')
+                            );
+                        })
+                    ),
+
+                    // Templates Section (Collapsible or moved below)
+                    React.createElement('details', { style: { marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' } },
+                        React.createElement('summary', { style: { cursor: 'pointer', fontWeight: 'bold', color: '#666' } }, 'Configuración de Templates (Avanzado)'),
+                        ['QUE', 'CLM', 'EVD'].map(type =>
+                            React.createElement('div', { key: type, style: { marginTop: '15px' } },
+                                React.createElement('label', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.TYPES[type].color } }, `Template ${type}`),
+                                React.createElement('textarea', {
+                                    value: templates[type],
+                                    onChange: e => setTemplates({ ...templates, [type]: e.target.value }),
+                                    style: { width: '100%', height: '80px', fontFamily: 'monospace', padding: '8px', marginTop: '5px' }
+                                })
+                            )
                         )
                     )
                 ),
@@ -1129,6 +1454,55 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                             previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
                         )
                     )
+                ),
+
+                activeTab === 'importar' && React.createElement('div', null,
+                    React.createElement('h3', null, 'Importar Grafos'),
+                    React.createElement('p', { style: { color: '#666' } }, 'Restaura copias de seguridad o importa grafos de otros usuarios. Los elementos existentes no se sobrescribirán.'),
+
+                    React.createElement('div', { style: { marginTop: '20px', padding: '20px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center' } },
+                        React.createElement('input', {
+                            type: 'file',
+                            accept: '.json',
+                            id: 'import-file-input',
+                            style: { display: 'none' },
+                            onChange: (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = async (event) => {
+                                        setExportStatus("Importando...");
+                                        try {
+                                            const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setExportStatus(msg));
+
+                                            let statusMsg = `✅ Importación finalizada. Páginas: ${result.pages}. Saltados: ${result.skipped}.`;
+                                            if (result.errors && result.errors.length > 0) {
+                                                statusMsg += `\n❌ Errores (${result.errors.length}):\n` + result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? '\n...' : '');
+                                                DiscourseGraphToolkit.showToast(`Importación con ${result.errors.length} errores.`, 'warning');
+                                            } else {
+                                                DiscourseGraphToolkit.showToast(`Importación exitosa: ${result.pages} páginas.`, 'success');
+                                            }
+                                            setExportStatus(statusMsg);
+
+                                        } catch (err) {
+                                            console.error(err);
+                                            setExportStatus(`❌ Error fatal: ${err.message}`);
+                                            DiscourseGraphToolkit.showToast("Error en importación.", "error");
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }
+                            }
+                        }),
+                        React.createElement('label', {
+                            htmlFor: 'import-file-input',
+                            style: {
+                                display: 'inline-block', padding: '10px 20px', backgroundColor: '#2196F3', color: 'white',
+                                borderRadius: '4px', cursor: 'pointer', fontSize: '16px'
+                            }
+                        }, 'Seleccionar Archivo JSON')
+                    ),
+                    exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
                 ),
 
                 activeTab === 'historial' && React.createElement('div', null,
