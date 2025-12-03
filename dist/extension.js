@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.1.0
- * Bundled build: 2025-12-03 14:18:56
+ * Bundled build: 2025-12-03 19:07:06
  */
 
 (function () {
@@ -724,7 +724,7 @@ DiscourseGraphToolkit.openQueryPage = async function (type, project) {
 // 4. LÓGICA DE EXPORTACIÓN (CORE ROBUSTO)
 // ============================================================================
 
-DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set()) {
+DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {
     if (!pullData) return null;
     if (depth > this.FILES.MAX_DEPTH) return { 'uid': pullData[':block/uid'], '_truncated': true };
 
@@ -735,7 +735,8 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     if (uid) newVisited.add(uid);
 
     const transformed = {};
-    if (pullData[':block/string']) transformed['string'] = pullData[':block/string'];
+    // FIX: Check for undefined to allow empty strings
+    if (pullData[':block/string'] !== undefined) transformed['string'] = pullData[':block/string'];
     if (pullData[':block/uid']) transformed['uid'] = pullData[':block/uid'];
     if (pullData[':node/title']) transformed['title'] = pullData[':node/title'];
     if (pullData[':edit/time']) transformed['edit-time'] = this.convertTimestamp(pullData[':edit/time']);
@@ -754,29 +755,37 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     if (pullData[':create/user']) transformed[':create/user'] = { ':user/uid': pullData[':create/user'][':user/uid'] };
     if (pullData[':edit/user']) transformed[':edit/user'] = { ':user/uid': pullData[':edit/user'][':user/uid'] };
 
-    if (pullData[':block/children'] && Array.isArray(pullData[':block/children'])) {
+    // Solo procesar hijos si includeContent es true O si es el nivel raíz (depth 0 es la página, sus hijos son los bloques)
+    // Pero espera, si depth 0 es la página, sus hijos son el contenido.
+    // Si includeContent es false, queremos la página (título, uid) pero NO sus hijos.
+    if (includeContent && pullData[':block/children'] && Array.isArray(pullData[':block/children'])) {
         transformed['children'] = pullData[':block/children'].map(child =>
-            this.transformToNativeFormat(child, depth + 1, newVisited)
+            this.transformToNativeFormat(child, depth + 1, newVisited, includeContent)
         );
     }
     return transformed;
 };
 
 // --- Lógica de Exportación Nativa Robusta ---
-DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress) {
+DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress, includeContent = true) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
-    report(`Iniciando exportación de ${pageUids.length} páginas...`);
+    report(`Iniciando exportación de ${pageUids.length} páginas (Incluir contenido: ${includeContent})...`);
 
     const eids = pageUids.map(uid => [':block/uid', uid]);
 
     try {
-        const rawData = await window.roamAlphaAPI.data.async.pull_many(this.ROAM_PULL_PATTERN, eids);
+        // Si no incluimos contenido, el patrón de pull podría ser más simple, pero usaremos el mismo y filtraremos en transform
+        // Esto es menos eficiente en red pero más simple en código.
+        // Opcional: Usar un patrón diferente si includeContent es false.
+        const pattern = includeContent ? this.ROAM_PULL_PATTERN : `[:block/uid :node/title :edit/time :create/time :block/string]`;
+
+        const rawData = await window.roamAlphaAPI.data.async.pull_many(pattern, eids);
 
         const exportData = rawData
             .filter(d => d !== null)
             .map((d, i) => {
                 if ((i + 1) % 5 === 0) report(`Procesando ${i + 1}/${rawData.length}...`);
-                return this.transformToNativeFormat(d);
+                return this.transformToNativeFormat(d, 0, new Set(), includeContent);
             });
 
         this.downloadJSON(exportData, filename);
@@ -981,6 +990,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
+    const [includeContent, setIncludeContent] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -988,6 +998,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [suggestions, setSuggestions] = React.useState([]);
     const [isScanning, setIsScanning] = React.useState(false);
     const [history, setHistory] = React.useState([]);
+    const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
 
     // Estado para Dashboard de Nodos
     const [nodeCounts, setNodeCounts] = React.useState({ QUE: 0, CLM: 0, EVD: 0 });
@@ -1077,12 +1088,29 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handleRemoveProject = async (p) => {
-        if (confirm(`¿Eliminar proyecto "${p}"?`)) {
-            const updated = projects.filter(x => x !== p);
-            setProjects(updated);
-            DiscourseGraphToolkit.saveProjects(updated);
-            await DiscourseGraphToolkit.syncProjectsToRoam(updated);
-        }
+        // Sin confirmación, borrado directo
+        const updated = projects.filter(x => x !== p);
+        setProjects(updated);
+        DiscourseGraphToolkit.saveProjects(updated);
+        await DiscourseGraphToolkit.syncProjectsToRoam(updated);
+    };
+
+    const handleBulkDeleteProjects = async () => {
+        const toDelete = Object.keys(selectedProjectsForDelete).filter(k => selectedProjectsForDelete[k]);
+        if (toDelete.length === 0) return;
+
+        const updated = projects.filter(p => !selectedProjectsForDelete[p]);
+        setProjects(updated);
+        setSelectedProjectsForDelete({}); // Reset selection
+        DiscourseGraphToolkit.saveProjects(updated);
+        await DiscourseGraphToolkit.syncProjectsToRoam(updated);
+    };
+
+    const toggleSelectAllProjects = () => {
+        const allSelected = projects.every(p => selectedProjectsForDelete[p]);
+        const newSelection = {};
+        projects.forEach(p => newSelection[p] = !allSelected);
+        setSelectedProjectsForDelete(newSelection);
     };
 
     const handleValidate = async () => {
@@ -1176,7 +1204,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
 
-            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg));
+            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent);
 
             setExportStatus(`✅ Exportación completada: ${previewPages.length} páginas.`);
             DiscourseGraphToolkit.addToExportHistory({
@@ -1253,6 +1281,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('div', { style: { display: 'flex', gap: '10px' } },
                             React.createElement('button', { onClick: handleExportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↓ Exportar Config'),
                             React.createElement('button', { onClick: handleImportConfig, style: { padding: '8px 16px', border: '1px solid #2196F3', color: '#2196F3', background: 'white', borderRadius: '4px' } }, '↑ Importar Config')
+                        )
+                    ),
+
+                    React.createElement('div', { style: { marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' } },
+                        React.createElement('h4', null, 'Atajos de Teclado'),
+                        React.createElement('ul', { style: { listStyle: 'none', padding: 0 } },
+                            React.createElement('li', { style: { marginBottom: '5px' } }, React.createElement('strong', null, 'Ctrl + Shift + Q'), ': Crear Pregunta (QUE)'),
+                            React.createElement('li', { style: { marginBottom: '5px' } }, React.createElement('strong', null, 'Ctrl + Shift + C'), ': Crear Afirmación (CLM)'),
+                            React.createElement('li', { style: { marginBottom: '5px' } }, React.createElement('strong', null, 'Ctrl + Shift + E'), ': Crear Evidencia (EVD)')
                         )
                     )
                 ),
@@ -1380,14 +1417,43 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         )
                     ),
 
-                    React.createElement('ul', { style: { listStyle: 'none', padding: 0 } },
+                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' } },
+                        React.createElement('label', null,
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
+                                onChange: toggleSelectAllProjects,
+                                style: { marginRight: '5px' }
+                            }),
+                            'Seleccionar Todo'
+                        ),
+                        React.createElement('button', {
+                            onClick: handleBulkDeleteProjects,
+                            disabled: !Object.values(selectedProjectsForDelete).some(v => v),
+                            style: {
+                                padding: '5px 10px',
+                                backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? '#f44336' : '#ccc',
+                                color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
+                            }
+                        }, 'Eliminar Seleccionados')
+                    ),
+
+                    React.createElement('ul', { style: { listStyle: 'none', padding: 0, maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' } },
                         projects.map(p =>
-                            React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
-                                React.createElement('span', null,
-                                    p,
-                                    validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
+                            React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                                React.createElement('label', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
+                                    React.createElement('input', {
+                                        type: 'checkbox',
+                                        checked: !!selectedProjectsForDelete[p],
+                                        onChange: (e) => setSelectedProjectsForDelete({ ...selectedProjectsForDelete, [p]: e.target.checked }),
+                                        style: { marginRight: '10px' }
+                                    }),
+                                    React.createElement('span', null,
+                                        p,
+                                        validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
+                                    )
                                 ),
-                                React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'Eliminar')
+                                React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
                             )
                         )
                     )
@@ -1435,6 +1501,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                         onChange: e => setIncludeReferenced(e.target.checked)
                                     }),
                                     ' Incluir nodos referenciados'
+                                )
+                            ),
+                            React.createElement('div', { style: { marginTop: '10px' } },
+                                React.createElement('label', null,
+                                    React.createElement('input', {
+                                        type: 'checkbox',
+                                        checked: includeContent,
+                                        onChange: e => setIncludeContent(e.target.checked)
+                                    }),
+                                    ' Incluir Contenido de Páginas'
                                 )
                             )
                         )
