@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.0
- * Bundled build: 2025-12-03 19:07:06
+ * DISCOURSE GRAPH TOOLKIT v1.1.4
+ * Bundled build: 2025-12-04 15:47:50
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.0";
+    DiscourseGraphToolkit.VERSION = "1.1.4";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -159,6 +159,35 @@ DiscourseGraphToolkit.countBlocks = function (pageData) {
 
 DiscourseGraphToolkit.convertTimestamp = function (timestamp) {
     return timestamp || Date.now();
+};
+
+DiscourseGraphToolkit.cleanText = function (text) {
+    if (!text || typeof text !== 'string') return "";
+    // Eliminar marcadores de Roam Research
+    text = text.replace(/\[\[/g, "").replace(/\]\]/g, "");
+    // Eliminar marcadores de formato Markdown
+    text = text.replace(/\*\*/g, "");
+    return text.trim();
+};
+
+DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+DiscourseGraphToolkit.getNodeType = function (title) {
+    if (!title) return null;
+    if (title.includes('[[QUE]]')) return 'QUE';
+    if (title.includes('[[CLM]]')) return 'CLM';
+    if (title.includes('[[EVD]]')) return 'EVD';
+    return null;
 };
 
 
@@ -767,7 +796,7 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
 };
 
 // --- Lógica de Exportación Nativa Robusta ---
-DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress, includeContent = true) {
+DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress, includeContent = true, download = true) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
     report(`Iniciando exportación de ${pageUids.length} páginas (Incluir contenido: ${includeContent})...`);
 
@@ -788,8 +817,11 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
                 return this.transformToNativeFormat(d, 0, new Set(), includeContent);
             });
 
-        this.downloadJSON(exportData, filename);
-        return { count: exportData.length };
+        if (download) {
+            this.downloadJSON(exportData, filename);
+        }
+
+        return { count: exportData.length, data: exportData };
     } catch (e) {
         console.error("Error exportando:", e);
         throw e;
@@ -969,6 +1001,993 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
     // Recursión para hijos del bloque
     if (children && children.length > 0) {
         await DiscourseGraphToolkit.importChildren(blockUid, children);
+    }
+};
+
+
+// --- MODULE: src/core/contentProcessor.js ---
+// ============================================================================
+// CORE: Content Processor
+// Ported from roamMap/core/content_processor.py
+// ============================================================================
+
+DiscourseGraphToolkit.ContentProcessor = {
+    MAX_RECURSION_DEPTH: 20,
+
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH) {
+        let content = "";
+
+        if (!visitedBlocks) visitedBlocks = new Set();
+
+        if (indentLevel > maxDepth) {
+            console.warn(`⚠ Profundidad máxima alcanzada (${maxDepth}), deteniendo recursión`);
+            return content;
+        }
+
+        try {
+            if (!block || typeof block !== 'object') return content;
+
+            const blockUid = block.uid || block[':block/uid'] || "";
+            const blockString = block.string || block[':block/string'] || "";
+
+            // Identificador simple para JS (UID es suficiente en Roam)
+            const blockIdentifier = blockUid;
+
+            if (blockIdentifier && visitedBlocks.has(blockIdentifier)) {
+                // console.warn(`⚠ Ciclo detectado en bloque: ${blockString.substring(0, 30)}..., saltando`);
+                return content;
+            }
+
+            if (blockIdentifier) visitedBlocks.add(blockIdentifier);
+
+            // Lógica de metadatos
+            const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+            const isStructural = structuralMarkers.includes(blockString);
+
+            if (skipMetadata && (!blockString || isStructural)) {
+                // Pass
+            } else {
+                if (blockString) {
+                    const indent = "  ".repeat(indentLevel);
+                    content += `${indent}- ${blockString}\n`;
+                }
+            }
+
+            const children = block.children || block[':block/children'] || [];
+            if (Array.isArray(children)) {
+                for (const child of children) {
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    if (childContent) content += childContent;
+                }
+            }
+
+            if (blockIdentifier) visitedBlocks.delete(blockIdentifier);
+
+        } catch (e) {
+            console.warn(`⚠ Error extrayendo contenido de bloque: ${e}`);
+        }
+
+        return content;
+    },
+
+    extractEvdContent: function (nodeData, extractAdditionalContent = false) {
+        let detailedContent = "";
+
+        try {
+            if (!nodeData) return detailedContent;
+
+            const children = nodeData.children || nodeData[':block/children'] || [];
+            if (Array.isArray(children) && children.length > 0) {
+                for (const child of children) {
+                    const childString = child.string || child[':block/string'] || "";
+                    const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+
+                    const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
+
+                    if (!isStructuralMetadata && childString) {
+                        const childContent = this.extractBlockContent(child, 0, false);
+                        if (childContent) detailedContent += childContent;
+                    } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
+                        const subChildren = child.children || child[':block/children'] || [];
+                        for (const subChild of subChildren) {
+                            const subChildContent = this.extractBlockContent(subChild, 0, false);
+                            if (subChildContent) detailedContent += subChildContent;
+                        }
+                    }
+                }
+            }
+
+            if (!detailedContent) {
+                // Fallback: contenido directo o título
+                const mainString = nodeData.string || nodeData[':block/string'] || "";
+                if (mainString) {
+                    detailedContent += `- ${mainString}\n`;
+                } else {
+                    const title = nodeData.title || nodeData[':node/title'] || "";
+                    if (title) {
+                        const cleanTitle = title.replace("[[EVD]] - ", "").trim();
+                        if (cleanTitle) detailedContent += `- ${cleanTitle}\n`;
+                    }
+                }
+            }
+
+        } catch (e) {
+            console.error(`❌ Error extrayendo contenido EVD: ${e}`);
+        }
+
+        return detailedContent;
+    }
+};
+
+
+// --- MODULE: src/core/relationshipMapper.js ---
+// ============================================================================
+// CORE: Relationship Mapper
+// Ported from roamMap/core/relationship_mapper.py
+// ============================================================================
+
+DiscourseGraphToolkit.RelationshipMapper = {
+    mapRelationships: function (allNodes) {
+        console.log("Mapeando relaciones entre nodos...");
+
+        // Paso 1: Crear mapas de búsqueda
+        const { clmTitleMap, evdTitleMap } = this._createTitleMaps(allNodes);
+
+        // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
+        this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
+
+        // Paso 3: Mapear CLM -> EVD/CLM (estructura estándar y relaciones laterales)
+        this._mapClmRelationships(allNodes, evdTitleMap, clmTitleMap);
+
+        // Paso 4: Mapear relaciones CLM-CLM y CLM-EVD vía #RelatedTo
+        this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
+    },
+
+    _createTitleMaps: function (allNodes) {
+        const clmTitleMap = {};
+        const evdTitleMap = {};
+
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            try {
+                if (node.type === "CLM") {
+                    this._addToTitleMap(clmTitleMap, node, uid, "[[CLM]] - ");
+                } else if (node.type === "EVD") {
+                    this._addToTitleMap(evdTitleMap, node, uid, "[[EVD]] - ");
+                }
+            } catch (e) {
+                console.warn(`⚠ Error creando mapa para nodo ${uid}: ${e}`);
+            }
+        }
+
+        console.log(`Mapas creados: ${Object.keys(clmTitleMap).length} CLMs, ${Object.keys(evdTitleMap).length} EVDs`);
+        return { clmTitleMap, evdTitleMap };
+    },
+
+    _addToTitleMap: function (titleMap, node, uid, prefix) {
+        const title = node.title || "";
+        if (!title) return;
+
+        // Guardar tanto el título completo como una versión limpia
+        titleMap[title] = uid;
+        const cleanTitle = DiscourseGraphToolkit.cleanText(title.replace(prefix, ""));
+        titleMap[cleanTitle] = uid;
+    },
+
+    _mapQueRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            if (node.type !== "QUE") continue;
+
+            // Inicializar arrays si no existen
+            if (!node.related_clms) node.related_clms = [];
+            if (!node.direct_evds) node.direct_evds = [];
+
+            try {
+                const data = node.data;
+                let respondedByFound = false;
+
+                // Buscar hijos con el string "#RespondedBy" (flexible)
+                const children = data.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#RespondedBy")) {
+                        respondedByFound = true;
+                        this._processRespondedByChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                    }
+                }
+
+                if (!respondedByFound) {
+                    // console.warn(`  ADVERTENCIA: No se encontró '#RespondedBy' en QUE: ${node.title.substring(0, 50)}...`);
+                }
+
+            } catch (e) {
+                console.error(`❌ Error mapeando relaciones para QUE ${uid}: ${e}`);
+            }
+        }
+    },
+
+    _processRespondedByChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
+        const children = parentChild.children || [];
+        for (const response of children) {
+            try {
+                const responseText = response.string || "";
+
+                // A. Buscar relaciones por referencias directas (UID)
+                const refsToCheck = [];
+
+                if (response.refs) {
+                    refsToCheck.push(...response.refs);
+                }
+
+                if (response[':block/refs']) {
+                    const blockRefs = response[':block/refs'];
+                    for (const ref of blockRefs) {
+                        if (ref[':block/uid']) {
+                            refsToCheck.push({ uid: ref[':block/uid'] });
+                        }
+                    }
+                }
+
+                for (const ref of refsToCheck) {
+                    const refUid = ref.uid || "";
+                    if (allNodes[refUid]) {
+                        if (allNodes[refUid].type === "CLM") {
+                            if (!node.related_clms.includes(refUid)) {
+                                node.related_clms.push(refUid);
+                            }
+                        } else if (allNodes[refUid].type === "EVD") {
+                            if (!node.direct_evds.includes(refUid)) {
+                                node.direct_evds.push(refUid);
+                            }
+                        }
+                    }
+                }
+
+                // B. Buscar relaciones incrustadas en el texto
+                this._findEmbeddedRelationships(responseText, node, uid, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+
+            } catch (e) {
+                console.warn(`⚠ Error procesando respuesta en QUE ${uid}: ${e}`);
+            }
+        }
+    },
+
+    _findEmbeddedRelationships: function (responseText, node, uid, clmTitleMap, evdTitleMap, clmField, evdField) {
+        try {
+            // Extraer todas las referencias [[...]] del texto
+            const pattern = /\[\[([^\]]+)\]\]/g;
+            const references = [];
+            let match;
+            while ((match = pattern.exec(responseText)) !== null) {
+                references.push(match[1]); // match[1] es el contenido dentro de los corchetes
+            }
+
+            if (references.length === 0) return;
+
+            // Buscar CLMs
+            if (references.some(ref => ref.includes('CLM'))) {
+                for (const ref of references) {
+                    if (clmTitleMap[ref]) {
+                        const clmUid = clmTitleMap[ref];
+                        if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                            node[clmField].push(clmUid);
+                        }
+                    } else if (ref.includes('CLM')) {
+                        // Búsqueda parcial
+                        for (const titleFragment in clmTitleMap) {
+                            if (ref.includes(titleFragment)) {
+                                const clmUid = clmTitleMap[titleFragment];
+                                if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                                    node[clmField].push(clmUid);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Buscar EVDs
+            if (references.some(ref => ref.includes('EVD'))) {
+                for (const ref of references) {
+                    if (evdTitleMap[ref]) {
+                        const evdUid = evdTitleMap[ref];
+                        if (!node[evdField].includes(evdUid)) {
+                            node[evdField].push(evdUid);
+                        }
+                    } else if (ref.includes('EVD')) {
+                        // Búsqueda parcial
+                        for (const titleFragment in evdTitleMap) {
+                            if (ref.includes(titleFragment)) {
+                                const evdUid = evdTitleMap[titleFragment];
+                                if (!node[evdField].includes(evdUid)) {
+                                    node[evdField].push(evdUid);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } catch (e) {
+            console.warn(`⚠ Error buscando relaciones incrustadas: ${e}`);
+        }
+    },
+
+    _mapClmRelationships: function (allNodes, evdTitleMap, clmTitleMap) {
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            if (node.type !== "CLM") continue;
+
+            if (!node.related_evds) node.related_evds = [];
+            if (!node.connected_clms) node.connected_clms = [];
+            if (!node.supporting_clms) node.supporting_clms = [];
+
+            try {
+                const data = node.data;
+                let supportedByFound = false;
+
+                const children = data.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#SupportedBy")) {
+                        supportedByFound = true;
+                        this._processSupportedByChildren(child, node, uid, allNodes, evdTitleMap, clmTitleMap);
+                    }
+                }
+
+                if (!supportedByFound) {
+                    // console.warn(`  ADVERTENCIA: No se encontró '#SupportedBy' en CLM: ${node.title.substring(0, 50)}...`);
+                }
+
+            } catch (e) {
+                console.error(`❌ Error mapeando relaciones para CLM ${uid}: ${e}`);
+            }
+        }
+    },
+
+    _processSupportedByChildren: function (parentChild, node, uid, allNodes, evdTitleMap, clmTitleMap) {
+        const children = parentChild.children || [];
+        for (const evidence of children) {
+            try {
+                // A. Buscar relaciones por referencias directas (UID)
+                const refsToCheck = [];
+
+                if (evidence.refs) refsToCheck.push(...evidence.refs);
+                if (evidence[':block/refs']) {
+                    for (const ref of evidence[':block/refs']) {
+                        if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
+                    }
+                }
+
+                for (const ref of refsToCheck) {
+                    const refUid = ref.uid || "";
+                    if (allNodes[refUid]) {
+                        const referencedNode = allNodes[refUid];
+                        if (referencedNode.type === "EVD") {
+                            if (!node.related_evds.includes(refUid)) {
+                                node.related_evds.push(refUid);
+                            }
+                        } else if (referencedNode.type === "CLM") {
+                            if (!node.supporting_clms.includes(refUid)) {
+                                node.supporting_clms.push(refUid);
+                            }
+                        }
+                    }
+                }
+
+                // B. Buscar relaciones incrustadas en el texto
+                const evidenceText = evidence.string || "";
+                this._findEmbeddedRelationships(evidenceText, node, uid, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+
+            } catch (e) {
+                console.warn(`⚠ Error procesando evidencia en CLM ${uid}: ${e}`);
+            }
+        }
+    },
+
+    _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            if (node.type !== "CLM") continue;
+
+            try {
+                const data = node.data;
+                const children = data.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#RelatedTo")) {
+                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                    }
+                }
+            } catch (e) {
+                console.error(`❌ Error mapeando relaciones #RelatedTo para CLM ${uid}: ${e}`);
+            }
+        }
+    },
+
+    _processRelatedToChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
+        const children = parentChild.children || [];
+        for (const relatedItem of children) {
+            try {
+                const refsToCheck = [];
+                if (relatedItem.refs) refsToCheck.push(...relatedItem.refs);
+                if (relatedItem[':block/refs']) {
+                    for (const ref of relatedItem[':block/refs']) {
+                        if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
+                    }
+                }
+
+                for (const ref of refsToCheck) {
+                    const refUid = ref.uid || "";
+                    if (allNodes[refUid] && refUid !== uid) {
+                        const referencedNode = allNodes[refUid];
+                        if (referencedNode.type === "CLM") {
+                            if (!node.connected_clms.includes(refUid)) {
+                                node.connected_clms.push(refUid);
+                            }
+                        } else if (referencedNode.type === "EVD") {
+                            if (!node.related_evds.includes(refUid)) {
+                                node.related_evds.push(refUid);
+                            }
+                        }
+                    }
+                }
+
+                const relatedText = relatedItem.string || "";
+                this._findEmbeddedRelationships(relatedText, node, uid, clmTitleMap, evdTitleMap, "connected_clms", "related_evds");
+
+            } catch (e) {
+                console.warn(`⚠ Error procesando item #RelatedTo en CLM ${uid}: ${e}`);
+            }
+        }
+    },
+
+    collectDependencies: function (nodes) {
+        const dependencies = new Set();
+
+        for (const node of nodes) {
+            try {
+                const data = node.data;
+                const children = data.children || [];
+
+                // QUE -> #RespondedBy
+                if (node.type === "QUE") {
+                    for (const child of children) {
+                        if ((child.string || "").includes("#RespondedBy")) {
+                            this._collectRefsFromBlock(child, dependencies);
+                        }
+                    }
+                }
+                // CLM -> #SupportedBy / #RelatedTo
+                else if (node.type === "CLM") {
+                    for (const child of children) {
+                        const str = child.string || "";
+                        if (str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+                            this._collectRefsFromBlock(child, dependencies);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn(`Error collecting dependencies for ${node.uid}:`, e);
+            }
+        }
+        return dependencies;
+    },
+
+    _collectRefsFromBlock: function (block, dependencies) {
+        const children = block.children || [];
+        for (const child of children) {
+            // Direct refs
+            if (child.refs) child.refs.forEach(r => dependencies.add(r.uid));
+            if (child[':block/refs']) {
+                child[':block/refs'].forEach(r => {
+                    if (r[':block/uid']) dependencies.add(r[':block/uid']);
+                });
+            }
+            // Embedded refs [[UID]] - we can't easily parse UID from text unless we have a map.
+            // But usually structural links use block refs or page refs which show up in metadata.
+            // For now, rely on explicit refs.
+        }
+    }
+};
+
+
+// --- MODULE: src/core/htmlGenerator.js ---
+// ============================================================================
+// CORE: HTML Generator
+// Ported from roamMap/core/html_generator.py
+// ============================================================================
+
+DiscourseGraphToolkit.HtmlGenerator = {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", extractAdditionalContent = false) {
+        const css = this._getCSS();
+        const js = this._getJS();
+
+        let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    ${css}
+</head>
+<body>
+    <h1>${title}</h1>
+    
+    <div class="controls">
+        <button id="expandAll" class="btn">Expandir Todo</button>
+        <button id="collapseAll" class="btn">Contraer Todo</button>
+        <button id="copyAll" class="btn btn-copy">Copiar Texto</button>
+        <button id="exportMarkdown" class="btn btn-export">Exportar Markdown</button>
+    </div>
+`;
+
+        for (let i = 0; i < questions.length; i++) {
+            try {
+                const question = questions[i];
+                const qId = `q${i}`;
+                const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
+
+                html += `<div id="${qId}" class="node que-node">`;
+                html += `<h2 class="collapsible">`;
+                html += `<span class="node-tag">[[QUE]]</span> - ${qTitle}`;
+                html += `<button class="btn-copy-individual" onclick="copyIndividualQuestion('${qId}')">Copiar</button>`;
+                html += `<button class="btn-reorder btn-reorder-up" onclick="moveQuestionUp('${qId}')" title="Mover hacia arriba">↑</button>`;
+                html += `<button class="btn-reorder btn-reorder-down" onclick="moveQuestionDown('${qId}')" title="Mover hacia abajo">↓</button>`;
+                html += `</h2>`;
+                html += `<div class="content">`;
+
+                // Metadata
+                const metadata = question.project_metadata || {};
+                html += this._generateMetadataHtml(metadata);
+
+                const hasClms = question.related_clms && question.related_clms.length > 0;
+                const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+
+                if (!hasClms && !hasDirectEvds) {
+                    html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+                    html += '</div></div>';
+                    continue;
+                }
+
+                // CLMs
+                if (question.related_clms) {
+                    for (let j = 0; j < question.related_clms.length; j++) {
+                        const clmUid = question.related_clms[j];
+                        if (allNodes[clmUid]) {
+                            const clm = allNodes[clmUid];
+                            const clmId = `q${i}_c${j}`;
+                            const clmTitle = DiscourseGraphToolkit.cleanText(clm.title.replace("[[CLM]] - ", ""));
+
+                            html += `<div id="${clmId}" class="node clm-node">`;
+                            html += `<h3 class="collapsible">`;
+                            html += `<span class="node-tag">[[CLM]]</span> - ${clmTitle}`;
+                            html += `<button class="btn-copy-individual" onclick="copyIndividualCLM('${clmId}')">Copiar</button>`;
+                            html += `</h3>`;
+                            html += `<div class="content">`;
+
+                            html += this._generateMetadataHtml(clm.project_metadata || {});
+
+                            // Supporting CLMs
+                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+                                html += '<div class="supporting-clms">';
+                                html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
+
+                                for (let suppIdx = 0; suppIdx < clm.supporting_clms.length; suppIdx++) {
+                                    const suppUid = clm.supporting_clms[suppIdx];
+                                    if (allNodes[suppUid]) {
+                                        const suppClm = allNodes[suppUid];
+                                        const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
+
+                                        html += `<div class="supporting-clm-item">`;
+                                        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${suppTitle}</h5>`;
+                                        html += `<div class="content">`;
+                                        html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
+
+                                        // Evidencias de soporte
+                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
+                                            html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
+                                            for (const evdUid of suppClm.related_evds) {
+                                                if (allNodes[evdUid]) {
+                                                    const evd = allNodes[evdUid];
+                                                    const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+                                                    html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
+                                                    html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
+                                                    html += `<div class="content">`;
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                                    if (detailedContent) {
+                                                        html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
+                                                        html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
+                                                        html += '</div>';
+                                                    }
+                                                    html += `</div></div>`;
+                                                }
+                                            }
+                                        }
+                                        html += `</div></div>`;
+                                    }
+                                }
+                                html += '</div>';
+                            }
+
+                            // Connected CLMs
+                            if (clm.connected_clms && clm.connected_clms.length > 0) {
+                                html += '<div class="connected-clms">';
+                                html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
+                                for (const connUid of clm.connected_clms) {
+                                    if (allNodes[connUid] && connUid !== clmUid) {
+                                        const connClm = allNodes[connUid];
+                                        const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
+                                        html += `<div class="connected-clm-item">`;
+                                        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${connTitle}</h5>`;
+                                        html += `<div class="content">`;
+                                        html += this._generateMetadataHtml(connClm.project_metadata || {}, true);
+                                        html += `</div></div>`;
+                                    }
+                                }
+                                html += '</div>';
+                            }
+
+                            // EVDs
+                            if (clm.related_evds && clm.related_evds.length > 0) {
+                                html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
+                                for (let k = 0; k < clm.related_evds.length; k++) {
+                                    const evdUid = clm.related_evds[k];
+                                    if (allNodes[evdUid]) {
+                                        const evd = allNodes[evdUid];
+                                        const evdId = `q${i}_c${j}_e${k}`;
+                                        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+
+                                        html += `<div id="${evdId}" class="node evd-node">`;
+                                        html += `<h4 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h4>`;
+                                        html += `<div class="content">`;
+                                        html += this._generateMetadataHtml(evd.project_metadata || {});
+
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        if (detailedContent) {
+                                            html += '<div class="node content-node">';
+                                            html += '<p><strong>Contenido detallado:</strong></p>';
+                                            html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
+                                            html += '</div>';
+                                        }
+                                        html += `</div></div>`;
+                                    }
+                                }
+                            } else if ((!clm.connected_clms || clm.connected_clms.length === 0) && (!clm.supporting_clms || clm.supporting_clms.length === 0)) {
+                                html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
+                            }
+
+                            html += `</div></div>`;
+                        }
+                    }
+                }
+
+                // Direct EVDs
+                if (question.direct_evds) {
+                    for (let j = 0; j < question.direct_evds.length; j++) {
+                        const evdUid = question.direct_evds[j];
+                        if (allNodes[evdUid]) {
+                            const evd = allNodes[evdUid];
+                            const evdId = `q${i}_de${j}`;
+                            const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+
+                            html += `<div id="${evdId}" class="node direct-evd-node">`;
+                            html += `<h3 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h3>`;
+                            html += `<div class="content">`;
+                            html += this._generateMetadataHtml(evd.project_metadata || {});
+
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            if (detailedContent) {
+                                html += '<div class="node direct-content-node">';
+                                html += '<p><strong>Contenido detallado:</strong></p>';
+                                html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
+                                html += '</div>';
+                            }
+                            html += `</div></div>`;
+                        }
+                    }
+                }
+
+                html += `</div></div>`;
+
+            } catch (e) {
+                console.error(`Error procesando pregunta ${i}: ${e}`);
+                html += `<div class="error-message">Error procesando pregunta: ${e}</div>`;
+            }
+        }
+
+        html += `
+    ${js}
+</body>
+</html>`;
+        return html;
+    },
+
+    _generateMetadataHtml: function (metadata, small = false) {
+        if (!metadata || Object.keys(metadata).length === 0) return "";
+
+        const proyecto = metadata.proyecto_asociado;
+        const seccion = metadata.seccion_tesis;
+
+        if (!proyecto && !seccion) return "";
+
+        let html = '<div class="project-metadata"';
+        if (small) html += ' style="font-size: 10px; padding: 6px 8px; margin: 6px 0 8px 0;"';
+        html += '>';
+
+        if (proyecto) html += `<div class="metadata-item"><span class="metadata-label">Proyecto Asociado:</span><span class="metadata-value">${proyecto}</span></div>`;
+        if (seccion) html += `<div class="metadata-item"><span class="metadata-label">Sección Narrativa:</span><span class="metadata-value">${seccion}</span></div>`;
+
+        html += '</div>';
+        return html;
+    },
+
+    _formatContentForHtml: function (content) {
+        if (!content) return "";
+        // Simple escape and newline to br
+        return content
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;")
+            .replace(/\n/g, "<br>");
+    },
+
+    _getCSS: function () {
+        return `
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.5; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+        h1 { font-size: 24px; font-weight: 300; margin: 0 0 30px 0; padding-bottom: 8px; border-bottom: 1px solid #e8e8e8; }
+        h2 { font-size: 16px; font-weight: 500; margin: 20px 0 10px 0; position: relative; }
+        h3 { font-size: 14px; font-weight: 500; margin: 15px 0 8px 0; }
+        h4 { font-size: 13px; font-weight: 500; margin: 12px 0 6px 0; }
+        h5 { font-size: 12px; font-weight: 500; margin: 10px 0 5px 0; color: #555; }
+        h6 { font-size: 11px; font-weight: 500; margin: 8px 0 4px 0; color: #666; }
+        .node { margin-bottom: 8px; padding-left: 12px; }
+        .que-node { border-left: 2px solid #000; margin-bottom: 15px; }
+        .clm-node { margin-left: 20px; border-left: 1px solid #d0d0d0; }
+        .evd-node { margin-left: 40px; border-left: 1px solid #e0e0e0; }
+        .direct-evd-node { margin-left: 20px; border-left: 1px solid #c8c8c8; background-color: #fafafa; border-radius: 3px; padding: 8px 12px; }
+        .content-node, .direct-content-node { margin-left: 60px; border-left: 1px solid #f0f0f0; font-size: 12px; color: #4a4a4a; }
+        .project-metadata { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 8px 12px; margin: 8px 0 12px 0; font-size: 11px; color: #6c757d; }
+        .connected-clms { margin-left: 40px; background-color: #f9f9f9; border-left: 2px solid #b0b0b0; border-radius: 3px; padding: 8px 12px; margin-bottom: 10px; }
+        .supporting-clms { margin-left: 40px; background-color: #f0f7ff; border-left: 2px solid #007acc; border-radius: 3px; padding: 8px 12px; margin-bottom: 10px; }
+        .connected-clm-item, .supporting-clm-item { margin-left: 10px; border-left: 1px solid #d8d8d8; padding: 6px 8px; margin-bottom: 8px; background-color: #fff; border-radius: 2px; }
+        .collapsible { cursor: pointer; position: relative; padding-right: 25px; user-select: none; }
+        .collapsible::after { content: '+'; position: absolute; right: 8px; top: 0; font-size: 14px; color: #888; }
+        .active::after { content: '−'; }
+        .content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding-right: 15px; }
+        .show-content { max-height: none; overflow: visible; }
+        .controls { position: sticky; top: 10px; background: rgba(255,255,255,0.95); padding: 12px 0; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; z-index: 100; }
+        .btn { background: #fff; border: 1px solid #e0e0e0; padding: 6px 12px; margin-right: 8px; cursor: pointer; border-radius: 4px; }
+        .btn:hover { background-color: #f8f8f8; }
+        .btn-copy { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+        .btn-export { background: #007acc; color: #fff; border-color: #007acc; }
+        .btn-copy-individual, .btn-reorder { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 2px 6px; margin-left: 8px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .node-tag { font-weight: 600; font-family: monospace; font-size: 11px; }
+        .error-message { color: #777; font-style: italic; background-color: #f8f8f8; padding: 8px; }
+        .copy-success { position: fixed; top: 20px; right: 20px; background: #1a1a1a; color: #fff; padding: 8px 16px; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
+        .copy-success.show { opacity: 1; }
+    </style>`;
+    },
+
+    _getJS: function () {
+        return `
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var coll = document.getElementsByClassName("collapsible");
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function(e) {
+                    if (e.target.tagName === 'BUTTON') return;
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+                    if (content.classList.contains("show-content")) {
+                        content.classList.remove("show-content");
+                        content.style.maxHeight = "0";
+                    } else {
+                        content.classList.add("show-content");
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        setTimeout(function() { if (content.classList.contains("show-content")) content.style.maxHeight = "none"; }, 300);
+                    }
+                });
+            }
+            
+            document.getElementById('expandAll').addEventListener('click', function() {
+                document.querySelectorAll('.content').forEach(function(c) { c.classList.add('show-content'); c.style.maxHeight = "none"; });
+                document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.add('active'); });
+            });
+            
+            document.getElementById('collapseAll').addEventListener('click', function() {
+                document.querySelectorAll('.content').forEach(function(c) { c.classList.remove('show-content'); c.style.maxHeight = "0"; });
+                document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.remove('active'); });
+            });
+
+            document.getElementById('copyAll').addEventListener('click', function() {
+                var text = document.body.innerText; // Simplificado para este ejemplo
+                copyToClipboard(text);
+            });
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showCopySuccess();
+            }, function(err) {
+                console.error('Async: Could not copy text: ', err);
+            });
+        }
+
+        function showCopySuccess(msg) {
+            var div = document.createElement('div');
+            div.className = 'copy-success show';
+            div.textContent = msg || 'Copiado!';
+            document.body.appendChild(div);
+            setTimeout(function() { document.body.removeChild(div); }, 2000);
+        }
+        
+        function copyIndividualQuestion(id) { copyToClipboard(document.getElementById(id).innerText); }
+        function copyIndividualCLM(id) { copyToClipboard(document.getElementById(id).innerText); }
+        function moveQuestionUp(id) { 
+            var el = document.getElementById(id);
+            if (el.previousElementSibling && el.previousElementSibling.classList.contains('que-node')) 
+                el.parentNode.insertBefore(el, el.previousElementSibling);
+        }
+        function moveQuestionDown(id) {
+            var el = document.getElementById(id);
+            if (el.nextElementSibling && el.nextElementSibling.classList.contains('que-node'))
+                el.parentNode.insertBefore(el.nextElementSibling, el);
+        }
+    </script>`;
+    }
+};
+
+
+// --- MODULE: src/core/markdownGenerator.js ---
+// ============================================================================
+// CORE: Markdown Generator
+// Ported from roamMap/core/markdown_generator.py
+// ============================================================================
+
+DiscourseGraphToolkit.MarkdownGenerator = {
+    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false) {
+        let result = "# Estructura de Investigación\n\n";
+
+        for (const question of questions) {
+            try {
+                const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
+                result += `## [[QUE]] - ${qTitle}\n\n`;
+
+                // Metadata
+                const metadata = question.project_metadata || {};
+                if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+                    result += "**Información del proyecto:**\n";
+                    if (metadata.proyecto_asociado) result += `- Proyecto Asociado: ${metadata.proyecto_asociado}\n`;
+                    if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
+                    result += "\n";
+                }
+
+                const hasClms = question.related_clms && question.related_clms.length > 0;
+                const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+
+                if (!hasClms && !hasDirectEvds) {
+                    result += `*No se encontraron respuestas relacionadas con esta pregunta.*\n\n`;
+                    continue;
+                }
+
+                // CLMs
+                if (question.related_clms) {
+                    for (const clmUid of question.related_clms) {
+                        if (allNodes[clmUid]) {
+                            const clm = allNodes[clmUid];
+                            const clmTitle = DiscourseGraphToolkit.cleanText(clm.title.replace("[[CLM]] - ", ""));
+                            result += `### [[CLM]] - ${clmTitle}\n\n`;
+
+                            const clmMetadata = clm.project_metadata || {};
+                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
+                                result += "**Información del proyecto:**\n";
+                                if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
+                                if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
+                                result += "\n";
+                            }
+
+                            // Supporting CLMs
+                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+                                result += "**CLMs de soporte (SupportedBy):**\n\n";
+                                for (const suppUid of clm.supporting_clms) {
+                                    if (allNodes[suppUid]) {
+                                        const suppClm = allNodes[suppUid];
+                                        const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
+                                        result += `- [[CLM]] - ${suppTitle}\n`;
+                                    }
+                                }
+                                result += "\n";
+                            }
+
+                            // Connected CLMs
+                            if (clm.connected_clms && clm.connected_clms.length > 0) {
+                                result += "**CLMs relacionados:**\n\n";
+                                for (const connUid of clm.connected_clms) {
+                                    if (allNodes[connUid]) {
+                                        const connClm = allNodes[connUid];
+                                        const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
+                                        result += `- [[CLM]] - ${connTitle}\n`;
+                                    }
+                                }
+                                result += "\n";
+                            }
+
+                            // EVDs
+                            if (!clm.related_evds || clm.related_evds.length === 0) {
+                                if ((!clm.connected_clms || clm.connected_clms.length === 0) && (!clm.supporting_clms || clm.supporting_clms.length === 0)) {
+                                    result += `*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n`;
+                                }
+                            } else {
+                                result += "**Evidencias que respaldan esta afirmación:**\n\n";
+                                for (const evdUid of clm.related_evds) {
+                                    if (allNodes[evdUid]) {
+                                        const evd = allNodes[evdUid];
+                                        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+                                        result += `#### [[EVD]] - ${evdTitle}\n\n`;
+
+                                        const evdMetadata = evd.project_metadata || {};
+                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                            result += "**Información del proyecto:**\n";
+                                            if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                            if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                            result += "\n";
+                                        }
+
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        if (detailedContent) {
+                                            result += "**Contenido detallado:**\n\n";
+                                            result += detailedContent + "\n";
+                                        } else {
+                                            result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Direct EVDs
+                if (question.direct_evds) {
+                    for (const evdUid of question.direct_evds) {
+                        if (allNodes[evdUid]) {
+                            const evd = allNodes[evdUid];
+                            const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+                            result += `### [[EVD]] - ${evdTitle}\n\n`;
+
+                            const evdMetadata = evd.project_metadata || {};
+                            if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                result += "**Información del proyecto:**\n";
+                                if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                result += "\n";
+                            }
+
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            if (detailedContent) {
+                                result += "**Contenido detallado:**\n\n";
+                                result += detailedContent + "\n";
+                            } else {
+                                result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
+                            }
+                        }
+                    }
+                }
+
+            } catch (e) {
+                result += `*Error procesando pregunta: ${e}*\n\n`;
+            }
+        }
+
+        return result;
     }
 };
 
@@ -1214,6 +2233,158 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 status: 'success'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportHtml = async () => {
+        if (previewPages.length === 0) {
+            await handlePreview();
+            if (previewPages.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const uids = previewPages.map(p => p.pageUid);
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
+
+            setExportStatus("Obteniendo datos...");
+            // Obtener datos sin descargar JSON
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+
+            setExportStatus("Procesando relaciones...");
+            // Convertir array a mapa por UID para el mapper y NORMALIZAR
+            const allNodes = {};
+            result.data.forEach(node => {
+                if (node.uid) {
+                    // Normalización crítica para RelationshipMapper y ContentProcessor
+                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                    node.data = node; // El nodo mismo contiene los hijos
+                    allNodes[node.uid] = node;
+                }
+            });
+
+            // --- NUEVO: Buscar y cargar dependencias faltantes (CLMs/EVDs referenciados) ---
+            setExportStatus("Analizando dependencias...");
+            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
+
+            if (missingUids.length > 0) {
+                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
+                // Fetch missing nodes
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                extraData.data.forEach(node => {
+                    if (node.uid) {
+                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                        node.data = node;
+                        allNodes[node.uid] = node;
+                    }
+                });
+            }
+            // -------------------------------------------------------------------------------
+
+            // Mapear relaciones
+            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            // Filtrar preguntas para el reporte
+            const questions = result.data.filter(node => {
+                const type = DiscourseGraphToolkit.getNodeType(node.title);
+                return type === 'QUE';
+            });
+
+            setExportStatus("Generando HTML...");
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent);
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
+
+            setExportStatus(`✅ Exportación HTML completada.`);
+            DiscourseGraphToolkit.addToExportHistory({
+                date: new Date().toISOString(),
+                projects: pNames,
+                count: previewPages.length,
+                status: 'success (HTML)'
+            });
+            setHistory(DiscourseGraphToolkit.getExportHistory());
+
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportMarkdown = async () => {
+        if (previewPages.length === 0) {
+            await handlePreview();
+            if (previewPages.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const uids = previewPages.map(p => p.pageUid);
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
+
+            setExportStatus("Obteniendo datos...");
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+
+            setExportStatus("Procesando relaciones...");
+            const allNodes = {};
+            result.data.forEach(node => {
+                if (node.uid) {
+                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                    node.data = node;
+                    allNodes[node.uid] = node;
+                }
+            });
+
+            // --- NUEVO: Buscar y cargar dependencias faltantes ---
+            setExportStatus("Analizando dependencias...");
+            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
+
+            if (missingUids.length > 0) {
+                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                extraData.data.forEach(node => {
+                    if (node.uid) {
+                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                        node.data = node;
+                        allNodes[node.uid] = node;
+                    }
+                });
+            }
+            // -------------------------------------------------------------------------------
+
+            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            const questions = result.data.filter(node => {
+                const type = DiscourseGraphToolkit.getNodeType(node.title);
+                return type === 'QUE';
+            });
+
+            setExportStatus("Generando Markdown...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent);
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
+
+            setExportStatus(`✅ Exportación Markdown completada.`);
+            DiscourseGraphToolkit.addToExportHistory({
+                date: new Date().toISOString(),
+                projects: pNames,
+                count: previewPages.length,
+                status: 'success (MD)'
+            });
+            setHistory(DiscourseGraphToolkit.getExportHistory());
+
         } catch (e) {
             console.error(e);
             setExportStatus("❌ Error: " + e.message);
@@ -1520,8 +2691,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('button', {
                             onClick: handleExport,
                             disabled: isExporting,
-                            style: { padding: '10px 20px', backgroundColor: isExporting ? '#ccc' : '#2196F3', color: 'white', border: 'none', borderRadius: '4px' }
-                        }, isExporting ? 'Exportando...' : 'Exportar JSON')
+                            style: { padding: '10px 20px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar JSON'),
+                        React.createElement('button', {
+                            onClick: handleExportHtml,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar HTML'),
+                        React.createElement('button', {
+                            onClick: handleExportMarkdown,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' }
+                        }, 'Exportar Markdown')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
                     previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },

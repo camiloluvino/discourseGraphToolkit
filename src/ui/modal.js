@@ -246,6 +246,158 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
+    const handleExportHtml = async () => {
+        if (previewPages.length === 0) {
+            await handlePreview();
+            if (previewPages.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const uids = previewPages.map(p => p.pageUid);
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
+
+            setExportStatus("Obteniendo datos...");
+            // Obtener datos sin descargar JSON
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+
+            setExportStatus("Procesando relaciones...");
+            // Convertir array a mapa por UID para el mapper y NORMALIZAR
+            const allNodes = {};
+            result.data.forEach(node => {
+                if (node.uid) {
+                    // Normalización crítica para RelationshipMapper y ContentProcessor
+                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                    node.data = node; // El nodo mismo contiene los hijos
+                    allNodes[node.uid] = node;
+                }
+            });
+
+            // --- NUEVO: Buscar y cargar dependencias faltantes (CLMs/EVDs referenciados) ---
+            setExportStatus("Analizando dependencias...");
+            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
+
+            if (missingUids.length > 0) {
+                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
+                // Fetch missing nodes
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                extraData.data.forEach(node => {
+                    if (node.uid) {
+                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                        node.data = node;
+                        allNodes[node.uid] = node;
+                    }
+                });
+            }
+            // -------------------------------------------------------------------------------
+
+            // Mapear relaciones
+            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            // Filtrar preguntas para el reporte
+            const questions = result.data.filter(node => {
+                const type = DiscourseGraphToolkit.getNodeType(node.title);
+                return type === 'QUE';
+            });
+
+            setExportStatus("Generando HTML...");
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent);
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
+
+            setExportStatus(`✅ Exportación HTML completada.`);
+            DiscourseGraphToolkit.addToExportHistory({
+                date: new Date().toISOString(),
+                projects: pNames,
+                count: previewPages.length,
+                status: 'success (HTML)'
+            });
+            setHistory(DiscourseGraphToolkit.getExportHistory());
+
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportMarkdown = async () => {
+        if (previewPages.length === 0) {
+            await handlePreview();
+            if (previewPages.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const uids = previewPages.map(p => p.pageUid);
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
+
+            setExportStatus("Obteniendo datos...");
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+
+            setExportStatus("Procesando relaciones...");
+            const allNodes = {};
+            result.data.forEach(node => {
+                if (node.uid) {
+                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                    node.data = node;
+                    allNodes[node.uid] = node;
+                }
+            });
+
+            // --- NUEVO: Buscar y cargar dependencias faltantes ---
+            setExportStatus("Analizando dependencias...");
+            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
+
+            if (missingUids.length > 0) {
+                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                extraData.data.forEach(node => {
+                    if (node.uid) {
+                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                        node.data = node;
+                        allNodes[node.uid] = node;
+                    }
+                });
+            }
+            // -------------------------------------------------------------------------------
+
+            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            const questions = result.data.filter(node => {
+                const type = DiscourseGraphToolkit.getNodeType(node.title);
+                return type === 'QUE';
+            });
+
+            setExportStatus("Generando Markdown...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent);
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
+
+            setExportStatus(`✅ Exportación Markdown completada.`);
+            DiscourseGraphToolkit.addToExportHistory({
+                date: new Date().toISOString(),
+                projects: pNames,
+                count: previewPages.length,
+                status: 'success (MD)'
+            });
+            setHistory(DiscourseGraphToolkit.getExportHistory());
+
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     // --- Render Helpers ---
     const tabStyle = (id) => ({
         padding: '10px 20px', cursor: 'pointer', borderBottom: activeTab === id ? '2px solid #2196F3' : 'none',
@@ -544,8 +696,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('button', {
                             onClick: handleExport,
                             disabled: isExporting,
-                            style: { padding: '10px 20px', backgroundColor: isExporting ? '#ccc' : '#2196F3', color: 'white', border: 'none', borderRadius: '4px' }
-                        }, isExporting ? 'Exportando...' : 'Exportar JSON')
+                            style: { padding: '10px 20px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar JSON'),
+                        React.createElement('button', {
+                            onClick: handleExportHtml,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar HTML'),
+                        React.createElement('button', {
+                            onClick: handleExportMarkdown,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' }
+                        }, 'Exportar Markdown')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
                     previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },

@@ -45,7 +45,7 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
 };
 
 // --- Lógica de Exportación Nativa Robusta ---
-DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress, includeContent = true) {
+DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, onProgress, includeContent = true, download = true) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
     report(`Iniciando exportación de ${pageUids.length} páginas (Incluir contenido: ${includeContent})...`);
 
@@ -66,8 +66,11 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
                 return this.transformToNativeFormat(d, 0, new Set(), includeContent);
             });
 
-        this.downloadJSON(exportData, filename);
-        return { count: exportData.length };
+        if (download) {
+            this.downloadJSON(exportData, filename);
+        }
+
+        return { count: exportData.length, data: exportData };
     } catch (e) {
         console.error("Error exportando:", e);
         throw e;

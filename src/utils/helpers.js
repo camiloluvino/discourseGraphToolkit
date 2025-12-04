@@ -49,3 +49,32 @@ DiscourseGraphToolkit.countBlocks = function (pageData) {
 DiscourseGraphToolkit.convertTimestamp = function (timestamp) {
     return timestamp || Date.now();
 };
+
+DiscourseGraphToolkit.cleanText = function (text) {
+    if (!text || typeof text !== 'string') return "";
+    // Eliminar marcadores de Roam Research
+    text = text.replace(/\[\[/g, "").replace(/\]\]/g, "");
+    // Eliminar marcadores de formato Markdown
+    text = text.replace(/\*\*/g, "");
+    return text.trim();
+};
+
+DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+DiscourseGraphToolkit.getNodeType = function (title) {
+    if (!title) return null;
+    if (title.includes('[[QUE]]')) return 'QUE';
+    if (title.includes('[[CLM]]')) return 'CLM';
+    if (title.includes('[[EVD]]')) return 'EVD';
+    return null;
+};

@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.1.0"
+$version = "1.1.4"
 $outputFile = "dist/extension.js"
 
 $files = @(
@@ -13,6 +13,10 @@ $files = @(
     "src/core/projects.js",
     "src/core/export.js",
     "src/core/import.js",
+    "src/core/contentProcessor.js",
+    "src/core/relationshipMapper.js",
+    "src/core/htmlGenerator.js",
+    "src/core/markdownGenerator.js",
     "src/ui/modal.js",
     "src/index.js"
 )
