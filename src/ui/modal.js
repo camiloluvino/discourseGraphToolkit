@@ -15,6 +15,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
     const [includeContent, setIncludeContent] = React.useState(true);
+    const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -306,7 +307,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando HTML...");
-            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent);
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
@@ -380,7 +381,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando Markdown...");
-            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent);
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
@@ -691,6 +692,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                         onChange: e => setIncludeContent(e.target.checked)
                                     }),
                                     ' Incluir Contenido de Páginas'
+                                ),
+                                includeContent && React.createElement('div', { style: { marginLeft: '20px', marginTop: '5px' } },
+                                    React.createElement('label', null,
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: excludeBitacora,
+                                            onChange: e => setExcludeBitacora(e.target.checked)
+                                        }),
+                                        ' Excluir contenido de [[bitácora]]'
+                                    )
                                 )
                             )
                         )

@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.1.6"
+$version = "1.1.8"
 $outputFile = "dist/extension.js"
 
 $files = @(

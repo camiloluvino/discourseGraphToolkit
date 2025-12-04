@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.6
- * Bundled build: 2025-12-04 18:09:06
+ * DISCOURSE GRAPH TOOLKIT v1.1.8
+ * Bundled build: 2025-12-04 18:22:52
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.6";
+    DiscourseGraphToolkit.VERSION = "1.1.8";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -1014,7 +1014,7 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -1040,6 +1040,11 @@ DiscourseGraphToolkit.ContentProcessor = {
 
             if (blockIdentifier) visitedBlocks.add(blockIdentifier);
 
+            // Excluir bloque de bitácora y sus hijos SI la opción está activada
+            if (excludeBitacora && blockString.toLowerCase().includes('[[bitácora]]')) {
+                return "";
+            }
+
             // Lógica de metadatos
             const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
             const isStructural = structuralMarkers.includes(blockString);
@@ -1056,7 +1061,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora);
                     if (childContent) content += childContent;
                 }
             }
@@ -1070,7 +1075,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD") {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true) {
         let detailedContent = "";
 
         try {
@@ -1085,12 +1090,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
                     if (!isStructuralMetadata && childString) {
-                        const childContent = this.extractBlockContent(child, 0, false);
+                        const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                         if (childContent) detailedContent += childContent;
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
                         const subChildren = child.children || child[':block/children'] || [];
                         for (const subChild of subChildren) {
-                            const subChildContent = this.extractBlockContent(subChild, 0, false);
+                            const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                             if (subChildContent) detailedContent += subChildContent;
                         }
                     }
@@ -1503,7 +1508,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
 // ============================================================================
 
 DiscourseGraphToolkit.HtmlGenerator = {
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", extractAdditionalContent = false) {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", extractAdditionalContent = false, excludeBitacora = true) {
         const css = this._getCSS();
         const js = this._getJS();
 
@@ -1573,7 +1578,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += this._generateMetadataHtml(clm.project_metadata || {});
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
                             if (clmContent) {
                                 html += `<div class="node content-node" style="margin-bottom: 10px;">`;
                                 html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
@@ -1607,7 +1612,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                                     html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
                                                     html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
                                                     html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                                                     if (detailedContent) {
                                                         html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
                                                         html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
@@ -1656,7 +1661,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                                         if (detailedContent) {
                                             html += '<div class="node content-node">';
                                             html += '<p><strong>Contenido detallado:</strong></p>';
@@ -1689,7 +1694,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += `<div class="content">`;
                             html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                             if (detailedContent) {
                                 html += '<div class="node direct-content-node">';
                                 html += '<p><strong>Contenido detallado:</strong></p>';
@@ -1863,7 +1868,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false) {
+    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false, excludeBitacora = true) {
         let result = "# Estructura de Investigación\n\n";
 
         for (const question of questions) {
@@ -1906,7 +1911,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                             }
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
                             if (clmContent) {
                                 result += "**Contenido:**\n\n";
                                 result += clmContent + "\n";
@@ -1960,7 +1965,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                                         if (detailedContent) {
                                             result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
@@ -1990,7 +1995,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                             if (detailedContent) {
                                 result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";
@@ -2029,6 +2034,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
     const [includeContent, setIncludeContent] = React.useState(true);
+    const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -2320,7 +2326,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando HTML...");
-            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent);
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
@@ -2394,7 +2400,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando Markdown...");
-            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent);
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
@@ -2705,6 +2711,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                         onChange: e => setIncludeContent(e.target.checked)
                                     }),
                                     ' Incluir Contenido de Páginas'
+                                ),
+                                includeContent && React.createElement('div', { style: { marginLeft: '20px', marginTop: '5px' } },
+                                    React.createElement('label', null,
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: excludeBitacora,
+                                            onChange: e => setExcludeBitacora(e.target.checked)
+                                        }),
+                                        ' Excluir contenido de [[bitácora]]'
+                                    )
                                 )
                             )
                         )

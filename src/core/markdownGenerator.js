@@ -4,7 +4,7 @@
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false) {
+    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false, excludeBitacora = true) {
         let result = "# Estructura de Investigación\n\n";
 
         for (const question of questions) {
@@ -47,7 +47,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                             }
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
                             if (clmContent) {
                                 result += "**Contenido:**\n\n";
                                 result += clmContent + "\n";
@@ -101,7 +101,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                                         if (detailedContent) {
                                             result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
@@ -131,7 +131,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
                             if (detailedContent) {
                                 result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";

@@ -6,7 +6,7 @@
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -32,6 +32,11 @@ DiscourseGraphToolkit.ContentProcessor = {
 
             if (blockIdentifier) visitedBlocks.add(blockIdentifier);
 
+            // Excluir bloque de bitácora y sus hijos SI la opción está activada
+            if (excludeBitacora && blockString.toLowerCase().includes('[[bitácora]]')) {
+                return "";
+            }
+
             // Lógica de metadatos
             const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
             const isStructural = structuralMarkers.includes(blockString);
@@ -48,7 +53,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora);
                     if (childContent) content += childContent;
                 }
             }
@@ -62,7 +67,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD") {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true) {
         let detailedContent = "";
 
         try {
@@ -77,12 +82,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
                     if (!isStructuralMetadata && childString) {
-                        const childContent = this.extractBlockContent(child, 0, false);
+                        const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                         if (childContent) detailedContent += childContent;
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
                         const subChildren = child.children || child[':block/children'] || [];
                         for (const subChild of subChildren) {
-                            const subChildContent = this.extractBlockContent(subChild, 0, false);
+                            const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                             if (subChildContent) detailedContent += subChildContent;
                         }
                     }
