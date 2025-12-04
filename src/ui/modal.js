@@ -214,27 +214,29 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
         setPreviewPages(uniquePages);
         setExportStatus(`Encontradas ${uniquePages.length} páginas.`);
+        return uniquePages;
     };
 
     const handleExport = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
 
             await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent);
 
-            setExportStatus(`✅ Exportación completada: ${previewPages.length} páginas.`);
+            setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -247,14 +249,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handleExportHtml = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
 
@@ -312,7 +315,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success (HTML)'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -326,14 +329,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handleExportMarkdown = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
 
@@ -385,7 +389,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success (MD)'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());

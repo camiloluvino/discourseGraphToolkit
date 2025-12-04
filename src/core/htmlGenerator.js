@@ -73,6 +73,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                             html += this._generateMetadataHtml(clm.project_metadata || {});
 
+                            // --- NUEVO: Contenido del CLM ---
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            if (clmContent) {
+                                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                                html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
+                                html += `</div>`;
+                            }
+                            // --------------------------------
+
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
                                 html += '<div class="supporting-clms">';
@@ -99,7 +108,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                                     html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
                                                     html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
                                                     html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                                     if (detailedContent) {
                                                         html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
                                                         html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
@@ -148,7 +157,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                         if (detailedContent) {
                                             html += '<div class="node content-node">';
                                             html += '<p><strong>Contenido detallado:</strong></p>';
@@ -181,7 +190,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += `<div class="content">`;
                             html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                             if (detailedContent) {
                                 html += '<div class="node direct-content-node">';
                                 html += '<p><strong>Contenido detallado:</strong></p>';

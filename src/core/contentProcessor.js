@@ -62,7 +62,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractEvdContent: function (nodeData, extractAdditionalContent = false) {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD") {
         let detailedContent = "";
 
         try {
@@ -97,14 +97,15 @@ DiscourseGraphToolkit.ContentProcessor = {
                 } else {
                     const title = nodeData.title || nodeData[':node/title'] || "";
                     if (title) {
-                        const cleanTitle = title.replace("[[EVD]] - ", "").trim();
+                        const prefix = `[[${nodeType}]] - `;
+                        const cleanTitle = title.replace(prefix, "").trim();
                         if (cleanTitle) detailedContent += `- ${cleanTitle}\n`;
                     }
                 }
             }
 
         } catch (e) {
-            console.error(`❌ Error extrayendo contenido EVD: ${e}`);
+            console.error(`❌ Error extrayendo contenido ${nodeType}: ${e}`);
         }
 
         return detailedContent;

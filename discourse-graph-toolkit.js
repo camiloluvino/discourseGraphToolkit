@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.4
- * Bundled build: 2025-12-04 15:47:50
+ * DISCOURSE GRAPH TOOLKIT v1.1.6
+ * Bundled build: 2025-12-04 18:09:06
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.4";
+    DiscourseGraphToolkit.VERSION = "1.1.6";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -1070,7 +1070,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractEvdContent: function (nodeData, extractAdditionalContent = false) {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD") {
         let detailedContent = "";
 
         try {
@@ -1105,14 +1105,15 @@ DiscourseGraphToolkit.ContentProcessor = {
                 } else {
                     const title = nodeData.title || nodeData[':node/title'] || "";
                     if (title) {
-                        const cleanTitle = title.replace("[[EVD]] - ", "").trim();
+                        const prefix = `[[${nodeType}]] - `;
+                        const cleanTitle = title.replace(prefix, "").trim();
                         if (cleanTitle) detailedContent += `- ${cleanTitle}\n`;
                     }
                 }
             }
 
         } catch (e) {
-            console.error(`❌ Error extrayendo contenido EVD: ${e}`);
+            console.error(`❌ Error extrayendo contenido ${nodeType}: ${e}`);
         }
 
         return detailedContent;
@@ -1571,6 +1572,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                             html += this._generateMetadataHtml(clm.project_metadata || {});
 
+                            // --- NUEVO: Contenido del CLM ---
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            if (clmContent) {
+                                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                                html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
+                                html += `</div>`;
+                            }
+                            // --------------------------------
+
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
                                 html += '<div class="supporting-clms">';
@@ -1597,7 +1607,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                                     html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
                                                     html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
                                                     html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                                     if (detailedContent) {
                                                         html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
                                                         html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
@@ -1646,7 +1656,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                         if (detailedContent) {
                                             html += '<div class="node content-node">';
                                             html += '<p><strong>Contenido detallado:</strong></p>';
@@ -1679,7 +1689,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += `<div class="content">`;
                             html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                             if (detailedContent) {
                                 html += '<div class="node direct-content-node">';
                                 html += '<p><strong>Contenido detallado:</strong></p>';
@@ -1892,7 +1902,16 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
                                 if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
                                 result += "\n";
+                                result += "\n";
                             }
+
+                            // --- NUEVO: Contenido del CLM ---
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            if (clmContent) {
+                                result += "**Contenido:**\n\n";
+                                result += clmContent + "\n";
+                            }
+                            // --------------------------------
 
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
@@ -1941,7 +1960,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                         if (detailedContent) {
                                             result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
@@ -1971,7 +1990,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                             if (detailedContent) {
                                 result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";
@@ -2209,27 +2228,29 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
         setPreviewPages(uniquePages);
         setExportStatus(`Encontradas ${uniquePages.length} páginas.`);
+        return uniquePages;
     };
 
     const handleExport = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
 
             await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent);
 
-            setExportStatus(`✅ Exportación completada: ${previewPages.length} páginas.`);
+            setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -2242,14 +2263,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handleExportHtml = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
 
@@ -2307,7 +2329,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success (HTML)'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -2321,14 +2343,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handleExportMarkdown = async () => {
-        if (previewPages.length === 0) {
-            await handlePreview();
-            if (previewPages.length === 0) return;
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
         }
 
         setIsExporting(true);
         try {
-            const uids = previewPages.map(p => p.pageUid);
+            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
 
@@ -2380,7 +2403,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.addToExportHistory({
                 date: new Date().toISOString(),
                 projects: pNames,
-                count: previewPages.length,
+                count: pagesToExport.length,
                 status: 'success (MD)'
             });
             setHistory(DiscourseGraphToolkit.getExportHistory());

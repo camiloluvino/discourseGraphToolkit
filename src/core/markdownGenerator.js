@@ -43,7 +43,16 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
                                 if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
                                 result += "\n";
+                                result += "\n";
                             }
+
+                            // --- NUEVO: Contenido del CLM ---
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM");
+                            if (clmContent) {
+                                result += "**Contenido:**\n\n";
+                                result += clmContent + "\n";
+                            }
+                            // --------------------------------
 
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
@@ -92,7 +101,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                                         if (detailedContent) {
                                             result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
@@ -122,7 +131,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractEvdContent(evd.data, extractAdditionalContent);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD");
                             if (detailedContent) {
                                 result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";
