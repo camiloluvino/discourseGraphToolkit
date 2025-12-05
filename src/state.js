@@ -145,3 +145,5 @@ DiscourseGraphToolkit.importConfig = function (fileContent) {
         return false;
     }
 };
+
+

@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.8
- * Bundled build: 2025-12-04 18:22:52
+ * DISCOURSE GRAPH TOOLKIT v1.1.10
+ * Bundled build: 2025-12-05 19:04:23
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.8";
+    DiscourseGraphToolkit.VERSION = "1.1.10";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -15,7 +15,7 @@
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
-DiscourseGraphToolkit.VERSION = "1.1.1";
+// DiscourseGraphToolkit.VERSION = "1.1.1"; // Managed by build script
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
@@ -108,6 +108,8 @@ DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
 };
 
 
+
+
 // --- MODULE: src/utils/helpers.js ---
 // ============================================================================
 // UTILS: Helpers
@@ -191,6 +193,8 @@ DiscourseGraphToolkit.getNodeType = function (title) {
 };
 
 
+
+
 // --- MODULE: src/utils/toast.js ---
 // ============================================================================
 // UTILS: Toast Notifications
@@ -211,6 +215,8 @@ DiscourseGraphToolkit.showToast = function (message, type = 'success') {
         setTimeout(() => document.body.removeChild(toastContainer), 300);
     }, 3000);
 };
+
+
 
 
 // --- MODULE: src/state.js ---
@@ -361,6 +367,8 @@ DiscourseGraphToolkit.importConfig = function (fileContent) {
         return false;
     }
 };
+
+
 
 
 // --- MODULE: src/api/roam.js ---
@@ -546,6 +554,8 @@ DiscourseGraphToolkit.findReferencedDiscoursePages = async function (pageUids, s
 
     return pageResults.map(r => ({ pageTitle: r[0], pageUid: r[1] }));
 };
+
+
 
 
 // --- MODULE: src/core/nodes.js ---
@@ -743,9 +753,13 @@ DiscourseGraphToolkit.openQueryPage = async function (type, project) {
 };
 
 
+
+
 // --- MODULE: src/core/projects.js ---
 // This file is intentionally left empty as project logic is handled in api/roam.js and state.js
 // It is kept for future expansion of core project business logic if needed.
+
+
 
 
 // --- MODULE: src/core/export.js ---
@@ -827,6 +841,8 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
         throw e;
     }
 };
+
+
 
 
 // --- MODULE: src/core/import.js ---
@@ -1005,6 +1021,8 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
 };
 
 
+
+
 // --- MODULE: src/core/contentProcessor.js ---
 // ============================================================================
 // CORE: Content Processor
@@ -1086,17 +1104,26 @@ DiscourseGraphToolkit.ContentProcessor = {
                 for (const child of children) {
                     const childString = child.string || child[':block/string'] || "";
                     const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
-
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
-                    if (!isStructuralMetadata && childString) {
+                    // Si extractAdditionalContent es true, extraemos TODO (salvo bitácora si aplica),
+                    // ignorando si es un marcador estructural o no. El usuario quiere "Todo el contenido".
+                    if (extractAdditionalContent) {
                         const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                         if (childContent) detailedContent += childContent;
-                    } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
-                        const subChildren = child.children || child[':block/children'] || [];
-                        for (const subChild of subChildren) {
-                            const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                            if (subChildContent) detailedContent += subChildContent;
+                    }
+                    // Si es false, aplicamos la lógica de filtrado inteligente
+                    else {
+                        if (!isStructuralMetadata && childString) {
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            if (childContent) detailedContent += childContent;
+                        } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
+                            // Logic especial para #RelatedTo: Extraer hijos directamente (container transparente)
+                            const subChildren = child.children || child[':block/children'] || [];
+                            for (const subChild of subChildren) {
+                                const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                                if (subChildContent) detailedContent += subChildContent;
+                            }
                         }
                     }
                 }
@@ -1124,6 +1151,8 @@ DiscourseGraphToolkit.ContentProcessor = {
         return detailedContent;
     }
 };
+
+
 
 
 // --- MODULE: src/core/relationshipMapper.js ---
@@ -1501,6 +1530,8 @@ DiscourseGraphToolkit.RelationshipMapper = {
 };
 
 
+
+
 // --- MODULE: src/core/htmlGenerator.js ---
 // ============================================================================
 // CORE: HTML Generator
@@ -1602,6 +1633,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
 
+                                        // --- NUEVO: Contenido CLM Soporte ---
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (suppContent) {
+                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
+                                            html += `<p>${this._formatContentForHtml(suppContent)}</p>`;
+                                            html += `</div>`;
+                                        }
+                                        // ------------------------------------
+
                                         // Evidencias de soporte
                                         if (suppClm.related_evds && suppClm.related_evds.length > 0) {
                                             html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
@@ -1640,6 +1680,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${connTitle}</h5>`;
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(connClm.project_metadata || {}, true);
+
+                                        // --- NUEVO: Contenido CLM Relacionado ---
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (connContent) {
+                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
+                                            html += `<p>${this._formatContentForHtml(connContent)}</p>`;
+                                            html += `</div>`;
+                                        }
+                                        // ------------------------------------
                                         html += `</div></div>`;
                                     }
                                 }
@@ -1861,6 +1910,8 @@ DiscourseGraphToolkit.HtmlGenerator = {
 };
 
 
+
+
 // --- MODULE: src/core/markdownGenerator.js ---
 // ============================================================================
 // CORE: Markdown Generator
@@ -1925,7 +1976,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     if (allNodes[suppUid]) {
                                         const suppClm = allNodes[suppUid];
                                         const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
-                                        result += `- [[CLM]] - ${suppTitle}\n`;
+                                        result += `#### [[CLM]] - ${suppTitle}\n`;
+
+                                        // --- NUEVO: Contenido del CLM de Soporte ---
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (suppContent) {
+                                            result += "\n" + suppContent + "\n";
+                                        }
+                                        // -------------------------------------------
                                     }
                                 }
                                 result += "\n";
@@ -1938,7 +1996,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     if (allNodes[connUid]) {
                                         const connClm = allNodes[connUid];
                                         const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
-                                        result += `- [[CLM]] - ${connTitle}\n`;
+                                        result += `#### [[CLM]] - ${connTitle}\n`;
+
+                                        // --- NUEVO: Contenido del CLM Relacionado ---
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (connContent) {
+                                            result += "\n" + connContent + "\n";
+                                        }
+                                        // -------------------------------------------
                                     }
                                 }
                                 result += "\n";
@@ -2014,6 +2079,8 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         return result;
     }
 };
+
+
 
 
 // --- MODULE: src/ui/modal.js ---
@@ -2866,6 +2933,8 @@ DiscourseGraphToolkit.openModal = function () {
 
     ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
 };
+
+
 
 
 // --- MODULE: src/index.js ---

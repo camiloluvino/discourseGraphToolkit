@@ -61,7 +61,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     if (allNodes[suppUid]) {
                                         const suppClm = allNodes[suppUid];
                                         const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
-                                        result += `- [[CLM]] - ${suppTitle}\n`;
+                                        result += `#### [[CLM]] - ${suppTitle}\n`;
+
+                                        // --- NUEVO: Contenido del CLM de Soporte ---
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (suppContent) {
+                                            result += "\n" + suppContent + "\n";
+                                        }
+                                        // -------------------------------------------
                                     }
                                 }
                                 result += "\n";
@@ -74,7 +81,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     if (allNodes[connUid]) {
                                         const connClm = allNodes[connUid];
                                         const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
-                                        result += `- [[CLM]] - ${connTitle}\n`;
+                                        result += `#### [[CLM]] - ${connTitle}\n`;
+
+                                        // --- NUEVO: Contenido del CLM Relacionado ---
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (connContent) {
+                                            result += "\n" + connContent + "\n";
+                                        }
+                                        // -------------------------------------------
                                     }
                                 }
                                 result += "\n";
@@ -150,3 +164,5 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         return result;
     }
 };
+
+

@@ -3,7 +3,7 @@
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
-DiscourseGraphToolkit.VERSION = "1.1.1";
+// DiscourseGraphToolkit.VERSION = "1.1.1"; // Managed by build script
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
@@ -94,3 +94,5 @@ DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
     -`,
     "EVD": `Proyecto Asociado:: {PROYECTO}`
 };
+
+

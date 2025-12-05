@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.1.8"
-$outputFile = "dist/extension.js"
+$version = "1.1.10"
+$outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
     "src/config.js",

@@ -17,3 +17,5 @@ DiscourseGraphToolkit.showToast = function (message, type = 'success') {
         setTimeout(() => document.body.removeChild(toastContainer), 300);
     }, 3000);
 };
+
+

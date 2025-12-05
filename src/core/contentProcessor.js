@@ -78,17 +78,26 @@ DiscourseGraphToolkit.ContentProcessor = {
                 for (const child of children) {
                     const childString = child.string || child[':block/string'] || "";
                     const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
-
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
-                    if (!isStructuralMetadata && childString) {
+                    // Si extractAdditionalContent es true, extraemos TODO (salvo bitácora si aplica),
+                    // ignorando si es un marcador estructural o no. El usuario quiere "Todo el contenido".
+                    if (extractAdditionalContent) {
                         const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                         if (childContent) detailedContent += childContent;
-                    } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
-                        const subChildren = child.children || child[':block/children'] || [];
-                        for (const subChild of subChildren) {
-                            const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                            if (subChildContent) detailedContent += subChildContent;
+                    }
+                    // Si es false, aplicamos la lógica de filtrado inteligente
+                    else {
+                        if (!isStructuralMetadata && childString) {
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            if (childContent) detailedContent += childContent;
+                        } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
+                            // Logic especial para #RelatedTo: Extraer hijos directamente (container transparente)
+                            const subChildren = child.children || child[':block/children'] || [];
+                            for (const subChild of subChildren) {
+                                const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                                if (subChildContent) detailedContent += subChildContent;
+                            }
                         }
                     }
                 }
@@ -116,3 +125,5 @@ DiscourseGraphToolkit.ContentProcessor = {
         return detailedContent;
     }
 };
+
+

@@ -847,3 +847,5 @@ DiscourseGraphToolkit.openModal = function () {
 
     ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
 };
+
+

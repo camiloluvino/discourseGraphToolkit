@@ -190,3 +190,5 @@ DiscourseGraphToolkit.openQueryPage = async function (type, project) {
     // 4. Abrir página
     window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: pageUid } });
 };
+
+

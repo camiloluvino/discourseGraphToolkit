@@ -78,3 +78,5 @@ DiscourseGraphToolkit.getNodeType = function (title) {
     if (title.includes('[[EVD]]')) return 'EVD';
     return null;
 };
+
+

@@ -98,6 +98,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
 
+                                        // --- NUEVO: Contenido CLM Soporte ---
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (suppContent) {
+                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
+                                            html += `<p>${this._formatContentForHtml(suppContent)}</p>`;
+                                            html += `</div>`;
+                                        }
+                                        // ------------------------------------
+
                                         // Evidencias de soporte
                                         if (suppClm.related_evds && suppClm.related_evds.length > 0) {
                                             html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
@@ -136,6 +145,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${connTitle}</h5>`;
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(connClm.project_metadata || {}, true);
+
+                                        // --- NUEVO: Contenido CLM Relacionado ---
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        if (connContent) {
+                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
+                                            html += `<p>${this._formatContentForHtml(connContent)}</p>`;
+                                            html += `</div>`;
+                                        }
+                                        // ------------------------------------
                                         html += `</div></div>`;
                                     }
                                 }
@@ -355,3 +373,5 @@ DiscourseGraphToolkit.HtmlGenerator = {
     </script>`;
     }
 };
+
+
