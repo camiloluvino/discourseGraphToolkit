@@ -136,10 +136,13 @@ DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
     // Ordenar por 'order' si existe, para mantener la estructura
     const sortedChildren = children.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    for (let i = 0; i < sortedChildren.length; i++) {
-        const child = sortedChildren[i];
-        await DiscourseGraphToolkit.importBlock(parentUid, child, i);
-    }
+    // Optimización: Importar hijos en paralelo usando Promise.all
+    // Roam API maneja el ordenamiento mediante la propiedad 'order', por lo que es seguro lanzarlos juntos.
+    const promises = sortedChildren.map((child, i) =>
+        DiscourseGraphToolkit.importBlock(parentUid, child, i)
+    );
+
+    await Promise.all(promises);
 };
 
 DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order) {

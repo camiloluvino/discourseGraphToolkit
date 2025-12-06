@@ -25,19 +25,24 @@ DiscourseGraphToolkit.parseTemplate = function (templateText) {
 };
 
 DiscourseGraphToolkit.createTemplateBlocks = async function (parentUid, templateItems, startOrder = 0, proyecto = "") {
-    for (let i = 0; i < templateItems.length; i++) {
-        let item = templateItems[i];
-        let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
+    try {
+        for (let i = 0; i < templateItems.length; i++) {
+            let item = templateItems[i];
+            let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
 
-        let blockUid = window.roamAlphaAPI.util.generateUID();
-        await window.roamAlphaAPI.data.block.create({
-            "location": { "parent-uid": parentUid, "order": startOrder + i },
-            "block": { "uid": blockUid, "string": processedText }
-        });
+            let blockUid = window.roamAlphaAPI.util.generateUID();
+            await window.roamAlphaAPI.data.block.create({
+                "location": { "parent-uid": parentUid, "order": startOrder + i },
+                "block": { "uid": blockUid, "string": processedText }
+            });
 
-        if (item.children && item.children.length > 0) {
-            await this.createTemplateBlocks(blockUid, item.children, 0, proyecto);
+            if (item.children && item.children.length > 0) {
+                await this.createTemplateBlocks(blockUid, item.children, 0, proyecto);
+            }
         }
+    } catch (e) {
+        console.error("Error creating template blocks:", e);
+        throw e; // Re-throw to be caught by caller
     }
 };
 

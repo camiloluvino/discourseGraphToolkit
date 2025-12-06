@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.12
- * Bundled build: 2025-12-05 19:54:28
+ * DISCOURSE GRAPH TOOLKIT v1.1.13
+ * Bundled build: 2025-12-06 04:28:02
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.12";
+    DiscourseGraphToolkit.VERSION = "1.1.13";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -586,19 +586,24 @@ DiscourseGraphToolkit.parseTemplate = function (templateText) {
 };
 
 DiscourseGraphToolkit.createTemplateBlocks = async function (parentUid, templateItems, startOrder = 0, proyecto = "") {
-    for (let i = 0; i < templateItems.length; i++) {
-        let item = templateItems[i];
-        let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
+    try {
+        for (let i = 0; i < templateItems.length; i++) {
+            let item = templateItems[i];
+            let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
 
-        let blockUid = window.roamAlphaAPI.util.generateUID();
-        await window.roamAlphaAPI.data.block.create({
-            "location": { "parent-uid": parentUid, "order": startOrder + i },
-            "block": { "uid": blockUid, "string": processedText }
-        });
+            let blockUid = window.roamAlphaAPI.util.generateUID();
+            await window.roamAlphaAPI.data.block.create({
+                "location": { "parent-uid": parentUid, "order": startOrder + i },
+                "block": { "uid": blockUid, "string": processedText }
+            });
 
-        if (item.children && item.children.length > 0) {
-            await this.createTemplateBlocks(blockUid, item.children, 0, proyecto);
+            if (item.children && item.children.length > 0) {
+                await this.createTemplateBlocks(blockUid, item.children, 0, proyecto);
+            }
         }
+    } catch (e) {
+        console.error("Error creating template blocks:", e);
+        throw e; // Re-throw to be caught by caller
     }
 };
 
@@ -991,10 +996,13 @@ DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
     // Ordenar por 'order' si existe, para mantener la estructura
     const sortedChildren = children.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    for (let i = 0; i < sortedChildren.length; i++) {
-        const child = sortedChildren[i];
-        await DiscourseGraphToolkit.importBlock(parentUid, child, i);
-    }
+    // Optimización: Importar hijos en paralelo usando Promise.all
+    // Roam API maneja el ordenamiento mediante la propiedad 'order', por lo que es seguro lanzarlos juntos.
+    const promises = sortedChildren.map((child, i) =>
+        DiscourseGraphToolkit.importBlock(parentUid, child, i)
+    );
+
+    await Promise.all(promises);
 };
 
 DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order) {
@@ -2114,12 +2122,24 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
-        DiscourseGraphToolkit.saveConfig(config);
-        DiscourseGraphToolkit.saveTemplates(templates);
-        DiscourseGraphToolkit.saveProjects(projects);
-        await DiscourseGraphToolkit.syncProjectsToRoam(projects);
-        await DiscourseGraphToolkit.saveConfigToRoam(config, templates); // Save to Roam Page
-        DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada en Roam.', 'success');
+        try {
+            DiscourseGraphToolkit.saveConfig(config);
+            DiscourseGraphToolkit.saveTemplates(templates);
+            DiscourseGraphToolkit.saveProjects(projects);
+
+            const syncResult = await DiscourseGraphToolkit.syncProjectsToRoam(projects);
+            const saveResult = await DiscourseGraphToolkit.saveConfigToRoam(config, templates);
+
+            if (syncResult && syncResult.success !== false && saveResult) {
+                DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada en Roam.', 'success');
+            } else {
+                console.warn("Sync result:", syncResult, "Save result:", saveResult);
+                DiscourseGraphToolkit.showToast('Guardado localmente, pero hubo advertencias al sincronizar con Roam.', 'warning');
+            }
+        } catch (e) {
+            console.error("Error saving config:", e);
+            DiscourseGraphToolkit.showToast('Error al guardar configuración: ' + e.message, 'error');
+        }
     };
 
     const handleExportConfig = () => {

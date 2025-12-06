@@ -65,12 +65,24 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
-        DiscourseGraphToolkit.saveConfig(config);
-        DiscourseGraphToolkit.saveTemplates(templates);
-        DiscourseGraphToolkit.saveProjects(projects);
-        await DiscourseGraphToolkit.syncProjectsToRoam(projects);
-        await DiscourseGraphToolkit.saveConfigToRoam(config, templates); // Save to Roam Page
-        DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada en Roam.', 'success');
+        try {
+            DiscourseGraphToolkit.saveConfig(config);
+            DiscourseGraphToolkit.saveTemplates(templates);
+            DiscourseGraphToolkit.saveProjects(projects);
+
+            const syncResult = await DiscourseGraphToolkit.syncProjectsToRoam(projects);
+            const saveResult = await DiscourseGraphToolkit.saveConfigToRoam(config, templates);
+
+            if (syncResult && syncResult.success !== false && saveResult) {
+                DiscourseGraphToolkit.showToast('Configuración guardada y sincronizada en Roam.', 'success');
+            } else {
+                console.warn("Sync result:", syncResult, "Save result:", saveResult);
+                DiscourseGraphToolkit.showToast('Guardado localmente, pero hubo advertencias al sincronizar con Roam.', 'warning');
+            }
+        } catch (e) {
+            console.error("Error saving config:", e);
+            DiscourseGraphToolkit.showToast('Error al guardar configuración: ' + e.message, 'error');
+        }
     };
 
     const handleExportConfig = () => {
