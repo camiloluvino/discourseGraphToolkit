@@ -4,7 +4,13 @@
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false, excludeBitacora = true) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+        // Compatibilidad hacia atrás: si contentConfig es booleano (bool legacy), lo convertimos a objeto
+        let config = contentConfig;
+        if (typeof contentConfig === 'boolean') {
+            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+        }
+
         let result = "# Estructura de Investigación\n\n";
 
         for (const question of questions) {
@@ -20,6 +26,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                     if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
                     result += "\n";
                 }
+
+                // --- Contenido de la Pregunta ---
+                // Se extrae si QUE está habilitado
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                if (queContent) {
+                    result += queContent + "\n";
+                }
+                // --------------------------------
 
                 const hasClms = question.related_clms && question.related_clms.length > 0;
                 const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
@@ -47,16 +61,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                             }
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                            // Se extrae si CLM está habilitado
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
                             if (clmContent) {
-                                result += "**Contenido:**\n\n";
                                 result += clmContent + "\n";
                             }
                             // --------------------------------
 
-                            // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                result += "**CLMs de soporte (SupportedBy):**\n\n";
                                 for (const suppUid of clm.supporting_clms) {
                                     if (allNodes[suppUid]) {
                                         const suppClm = allNodes[suppUid];
@@ -64,7 +76,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${suppTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM de Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (suppContent) {
                                             result += "\n" + suppContent + "\n";
                                         }
@@ -74,9 +86,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            // Connected CLMs
                             if (clm.connected_clms && clm.connected_clms.length > 0) {
-                                result += "**CLMs relacionados:**\n\n";
                                 for (const connUid of clm.connected_clms) {
                                     if (allNodes[connUid]) {
                                         const connClm = allNodes[connUid];
@@ -84,7 +94,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${connTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM Relacionado ---
-                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (connContent) {
                                             result += "\n" + connContent + "\n";
                                         }
@@ -100,7 +110,6 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     result += `*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n`;
                                 }
                             } else {
-                                result += "**Evidencias que respaldan esta afirmación:**\n\n";
                                 for (const evdUid of clm.related_evds) {
                                     if (allNodes[evdUid]) {
                                         const evd = allNodes[evdUid];
@@ -115,9 +124,8 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                         if (detailedContent) {
-                                            result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
                                         } else {
                                             result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
@@ -145,9 +153,8 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                             if (detailedContent) {
-                                result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";
                             } else {
                                 result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
@@ -164,5 +171,3 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         return result;
     }
 };
-
-

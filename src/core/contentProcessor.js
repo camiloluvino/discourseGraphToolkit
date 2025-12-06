@@ -80,25 +80,23 @@ DiscourseGraphToolkit.ContentProcessor = {
                     const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
-                    // Si extractAdditionalContent es true, extraemos TODO (salvo bitácora si aplica),
-                    // ignorando si es un marcador estructural o no. El usuario quiere "Todo el contenido".
-                    if (extractAdditionalContent) {
-                        const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                        if (childContent) detailedContent += childContent;
-                    }
-                    // Si es false, aplicamos la lógica de filtrado inteligente
-                    else {
-                        if (!isStructuralMetadata && childString) {
+                    // FIX: Always exclude structural metadata blocks from text content to avoid duplicates,
+                    // as these relationships are rendered structurally (e.g. headers/sub-sections).
+                    if (!isStructuralMetadata) {
+                        // Normal content block
+                        if (childString) {
                             const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                             if (childContent) detailedContent += childContent;
-                        } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
-                            // Logic especial para #RelatedTo: Extraer hijos directamente (container transparente)
-                            const subChildren = child.children || child[':block/children'] || [];
-                            for (const subChild of subChildren) {
-                                const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                                if (subChildContent) detailedContent += subChildContent;
-                            }
+                        } else {
+                            // Empty block with children (e.g. indentation wrapper) -> recurse?
+                            // extractBlockContent handles recursion.
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            if (childContent) detailedContent += childContent;
                         }
+                    } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
+                        // Only for RelatedTo, we might want to peek inside if it contains non-structural text?
+                        // But usually RelatedTo contains links. If we treat it as structural, we skip it.
+                        // Given the user instruction "only appear once", skipping structural blocks is safer.
                     }
                 }
             }

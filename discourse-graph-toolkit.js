@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.10
- * Bundled build: 2025-12-05 19:04:23
+ * DISCOURSE GRAPH TOOLKIT v1.1.12
+ * Bundled build: 2025-12-05 19:54:28
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.10";
+    DiscourseGraphToolkit.VERSION = "1.1.12";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -802,7 +802,14 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     // Pero espera, si depth 0 es la página, sus hijos son el contenido.
     // Si includeContent es false, queremos la página (título, uid) pero NO sus hijos.
     if (includeContent && pullData[':block/children'] && Array.isArray(pullData[':block/children'])) {
-        transformed['children'] = pullData[':block/children'].map(child =>
+        // SORTING FIX: Ensure children are processed in visual order
+        const sortedChildren = [...pullData[':block/children']].sort((a, b) => {
+            const orderA = a[':block/order'] !== undefined ? a[':block/order'] : 9999;
+            const orderB = b[':block/order'] !== undefined ? b[':block/order'] : 9999;
+            return orderA - orderB;
+        });
+
+        transformed['children'] = sortedChildren.map(child =>
             this.transformToNativeFormat(child, depth + 1, newVisited, includeContent)
         );
     }
@@ -1106,25 +1113,23 @@ DiscourseGraphToolkit.ContentProcessor = {
                     const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
-                    // Si extractAdditionalContent es true, extraemos TODO (salvo bitácora si aplica),
-                    // ignorando si es un marcador estructural o no. El usuario quiere "Todo el contenido".
-                    if (extractAdditionalContent) {
-                        const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                        if (childContent) detailedContent += childContent;
-                    }
-                    // Si es false, aplicamos la lógica de filtrado inteligente
-                    else {
-                        if (!isStructuralMetadata && childString) {
+                    // FIX: Always exclude structural metadata blocks from text content to avoid duplicates,
+                    // as these relationships are rendered structurally (e.g. headers/sub-sections).
+                    if (!isStructuralMetadata) {
+                        // Normal content block
+                        if (childString) {
                             const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
                             if (childContent) detailedContent += childContent;
-                        } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
-                            // Logic especial para #RelatedTo: Extraer hijos directamente (container transparente)
-                            const subChildren = child.children || child[':block/children'] || [];
-                            for (const subChild of subChildren) {
-                                const subChildContent = this.extractBlockContent(subChild, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
-                                if (subChildContent) detailedContent += subChildContent;
-                            }
+                        } else {
+                            // Empty block with children (e.g. indentation wrapper) -> recurse?
+                            // extractBlockContent handles recursion.
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            if (childContent) detailedContent += childContent;
                         }
+                    } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
+                        // Only for RelatedTo, we might want to peek inside if it contains non-structural text?
+                        // But usually RelatedTo contains links. If we treat it as structural, we skip it.
+                        // Given the user instruction "only appear once", skipping structural blocks is safer.
                     }
                 }
             }
@@ -1214,77 +1219,67 @@ DiscourseGraphToolkit.RelationshipMapper = {
             const node = allNodes[uid];
             if (node.type !== "QUE") continue;
 
-            // Inicializar arrays si no existen
             if (!node.related_clms) node.related_clms = [];
             if (!node.direct_evds) node.direct_evds = [];
 
             try {
                 const data = node.data;
-                let respondedByFound = false;
+                const children = data.children || []; // Sorted by export.js
 
-                // Buscar hijos con el string "#RespondedBy" (flexible)
-                const children = data.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#RespondedBy")) {
-                        respondedByFound = true;
-                        this._processRespondedByChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                        // Case 1: The block ITSELF is the response (e.g. "[[CLM]] - Title #RespondedBy")
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+
+                        // Case 2: The block is a header/container (e.g. "#RespondedBy" -> children are responses)
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                            }
+                        }
                     }
                 }
-
-                if (!respondedByFound) {
-                    // console.warn(`  ADVERTENCIA: No se encontró '#RespondedBy' en QUE: ${node.title.substring(0, 50)}...`);
-                }
-
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para QUE ${uid}: ${e}`);
             }
         }
     },
 
-    _processRespondedByChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
-        const children = parentChild.children || [];
-        for (const response of children) {
-            try {
-                const responseText = response.string || "";
+    // Helper genérico para extraer relaciones de un bloque (refs o texto)
+    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField) {
+        try {
+            const responseText = block.string || "";
 
-                // A. Buscar relaciones por referencias directas (UID)
-                const refsToCheck = [];
-
-                if (response.refs) {
-                    refsToCheck.push(...response.refs);
+            // A. Relaciones por Referencias (Direct UID refs)
+            const refsToCheck = [];
+            if (block.refs) refsToCheck.push(...block.refs);
+            if (block[':block/refs']) {
+                for (const ref of block[':block/refs']) {
+                    if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
                 }
-
-                if (response[':block/refs']) {
-                    const blockRefs = response[':block/refs'];
-                    for (const ref of blockRefs) {
-                        if (ref[':block/uid']) {
-                            refsToCheck.push({ uid: ref[':block/uid'] });
-                        }
-                    }
-                }
-
-                for (const ref of refsToCheck) {
-                    const refUid = ref.uid || "";
-                    if (allNodes[refUid]) {
-                        if (allNodes[refUid].type === "CLM") {
-                            if (!node.related_clms.includes(refUid)) {
-                                node.related_clms.push(refUid);
-                            }
-                        } else if (allNodes[refUid].type === "EVD") {
-                            if (!node.direct_evds.includes(refUid)) {
-                                node.direct_evds.push(refUid);
-                            }
-                        }
-                    }
-                }
-
-                // B. Buscar relaciones incrustadas en el texto
-                this._findEmbeddedRelationships(responseText, node, uid, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
-
-            } catch (e) {
-                console.warn(`⚠ Error procesando respuesta en QUE ${uid}: ${e}`);
             }
+
+            for (const ref of refsToCheck) {
+                const refUid = ref.uid || "";
+                if (allNodes[refUid]) {
+                    if (allNodes[refUid].type === "CLM") {
+                        if (!node[clmTargetField].includes(refUid)) {
+                            node[clmTargetField].push(refUid);
+                        }
+                    } else if (allNodes[refUid].type === "EVD") {
+                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
+                            node[evdTargetField].push(refUid);
+                        }
+                    }
+                }
+            }
+
+            // B. Relaciones por Texto ([[WikiLinks]])
+            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField);
+
+        } catch (e) {
+            console.warn(`⚠ Error processing block relationships: ${e}`);
         }
     },
 
@@ -1362,66 +1357,29 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             try {
                 const data = node.data;
-                let supportedByFound = false;
+                const children = data.children || []; // Sorted
 
-                const children = data.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
-                        supportedByFound = true;
-                        this._processSupportedByChildren(child, node, uid, allNodes, evdTitleMap, clmTitleMap);
+                        // Case 1: Direct #SupportedBy on the node line
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+
+                        // Case 2: Container #SupportedBy
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                            }
+                        }
                     }
                 }
-
-                if (!supportedByFound) {
-                    // console.warn(`  ADVERTENCIA: No se encontró '#SupportedBy' en CLM: ${node.title.substring(0, 50)}...`);
-                }
-
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para CLM ${uid}: ${e}`);
             }
         }
     },
 
-    _processSupportedByChildren: function (parentChild, node, uid, allNodes, evdTitleMap, clmTitleMap) {
-        const children = parentChild.children || [];
-        for (const evidence of children) {
-            try {
-                // A. Buscar relaciones por referencias directas (UID)
-                const refsToCheck = [];
-
-                if (evidence.refs) refsToCheck.push(...evidence.refs);
-                if (evidence[':block/refs']) {
-                    for (const ref of evidence[':block/refs']) {
-                        if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
-                    }
-                }
-
-                for (const ref of refsToCheck) {
-                    const refUid = ref.uid || "";
-                    if (allNodes[refUid]) {
-                        const referencedNode = allNodes[refUid];
-                        if (referencedNode.type === "EVD") {
-                            if (!node.related_evds.includes(refUid)) {
-                                node.related_evds.push(refUid);
-                            }
-                        } else if (referencedNode.type === "CLM") {
-                            if (!node.supporting_clms.includes(refUid)) {
-                                node.supporting_clms.push(refUid);
-                            }
-                        }
-                    }
-                }
-
-                // B. Buscar relaciones incrustadas en el texto
-                const evidenceText = evidence.string || "";
-                this._findEmbeddedRelationships(evidenceText, node, uid, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
-
-            } catch (e) {
-                console.warn(`⚠ Error procesando evidencia en CLM ${uid}: ${e}`);
-            }
-        }
-    },
+    // _processSupportedByChildren removed as it is replaced by generic helper logic above
 
     _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
         for (const uid in allNodes) {
@@ -1539,7 +1497,13 @@ DiscourseGraphToolkit.RelationshipMapper = {
 // ============================================================================
 
 DiscourseGraphToolkit.HtmlGenerator = {
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", extractAdditionalContent = false, excludeBitacora = true) {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true) {
+        // Compatibilidad legacy
+        let config = contentConfig;
+        if (typeof contentConfig === 'boolean') {
+            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+        }
+
         const css = this._getCSS();
         const js = this._getJS();
 
@@ -1581,6 +1545,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                 const metadata = question.project_metadata || {};
                 html += this._generateMetadataHtml(metadata);
 
+                // --- Contenido QUE ---
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                if (queContent) {
+                    html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                    html += `<p>${this._formatContentForHtml(queContent)}</p>`;
+                    html += `</div>`;
+                }
+                // ---------------------
+
                 const hasClms = question.related_clms && question.related_clms.length > 0;
                 const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
 
@@ -1609,7 +1582,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += this._generateMetadataHtml(clm.project_metadata || {});
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
                             if (clmContent) {
                                 html += `<div class="node content-node" style="margin-bottom: 10px;">`;
                                 html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
@@ -1620,7 +1593,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
                                 html += '<div class="supporting-clms">';
-                                html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
+                                // html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
 
                                 for (let suppIdx = 0; suppIdx < clm.supporting_clms.length; suppIdx++) {
                                     const suppUid = clm.supporting_clms[suppIdx];
@@ -1634,7 +1607,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
 
                                         // --- NUEVO: Contenido CLM Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (suppContent) {
                                             html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
                                             html += `<p>${this._formatContentForHtml(suppContent)}</p>`;
@@ -1644,7 +1617,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                                         // Evidencias de soporte
                                         if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
+                                            // html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
                                             for (const evdUid of suppClm.related_evds) {
                                                 if (allNodes[evdUid]) {
                                                     const evd = allNodes[evdUid];
@@ -1652,7 +1625,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                                     html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
                                                     html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
                                                     html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                                     if (detailedContent) {
                                                         html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
                                                         html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
@@ -1671,23 +1644,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             // Connected CLMs
                             if (clm.connected_clms && clm.connected_clms.length > 0) {
                                 html += '<div class="connected-clms">';
-                                html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
+                                // html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
                                 for (const connUid of clm.connected_clms) {
                                     if (allNodes[connUid] && connUid !== clmUid) {
                                         const connClm = allNodes[connUid];
-                                        const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
-                                        html += `<div class="connected-clm-item">`;
-                                        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${connTitle}</h5>`;
-                                        html += `<div class="content">`;
-                                        html += this._generateMetadataHtml(connClm.project_metadata || {}, true);
-
-                                        // --- NUEVO: Contenido CLM Relacionado ---
-                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
-                                        if (connContent) {
-                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
-                                            html += `<p>${this._formatContentForHtml(connContent)}</p>`;
-                                            html += `</div>`;
-                                        }
                                         // ------------------------------------
                                         html += `</div></div>`;
                                     }
@@ -1697,7 +1657,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                             // EVDs
                             if (clm.related_evds && clm.related_evds.length > 0) {
-                                html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
+                                // html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
                                 for (let k = 0; k < clm.related_evds.length; k++) {
                                     const evdUid = clm.related_evds[k];
                                     if (allNodes[evdUid]) {
@@ -1710,10 +1670,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                         if (detailedContent) {
                                             html += '<div class="node content-node">';
-                                            html += '<p><strong>Contenido detallado:</strong></p>';
+                                            // html += '<p><strong>Contenido detallado:</strong></p>';
                                             html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
                                             html += '</div>';
                                         }
@@ -1743,10 +1703,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += `<div class="content">`;
                             html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                             if (detailedContent) {
                                 html += '<div class="node direct-content-node">';
-                                html += '<p><strong>Contenido detallado:</strong></p>';
+                                // html += '<p><strong>Contenido detallado:</strong></p>';
                                 html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
                                 html += '</div>';
                             }
@@ -1910,8 +1870,6 @@ DiscourseGraphToolkit.HtmlGenerator = {
 };
 
 
-
-
 // --- MODULE: src/core/markdownGenerator.js ---
 // ============================================================================
 // CORE: Markdown Generator
@@ -1919,7 +1877,13 @@ DiscourseGraphToolkit.HtmlGenerator = {
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, extractAdditionalContent = false, excludeBitacora = true) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+        // Compatibilidad hacia atrás: si contentConfig es booleano (bool legacy), lo convertimos a objeto
+        let config = contentConfig;
+        if (typeof contentConfig === 'boolean') {
+            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+        }
+
         let result = "# Estructura de Investigación\n\n";
 
         for (const question of questions) {
@@ -1935,6 +1899,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                     if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
                     result += "\n";
                 }
+
+                // --- Contenido de la Pregunta ---
+                // Se extrae si QUE está habilitado
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                if (queContent) {
+                    result += queContent + "\n";
+                }
+                // --------------------------------
 
                 const hasClms = question.related_clms && question.related_clms.length > 0;
                 const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
@@ -1962,16 +1934,14 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                             }
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                            // Se extrae si CLM está habilitado
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
                             if (clmContent) {
-                                result += "**Contenido:**\n\n";
                                 result += clmContent + "\n";
                             }
                             // --------------------------------
 
-                            // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                result += "**CLMs de soporte (SupportedBy):**\n\n";
                                 for (const suppUid of clm.supporting_clms) {
                                     if (allNodes[suppUid]) {
                                         const suppClm = allNodes[suppUid];
@@ -1979,7 +1949,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${suppTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM de Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (suppContent) {
                                             result += "\n" + suppContent + "\n";
                                         }
@@ -1989,9 +1959,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            // Connected CLMs
                             if (clm.connected_clms && clm.connected_clms.length > 0) {
-                                result += "**CLMs relacionados:**\n\n";
                                 for (const connUid of clm.connected_clms) {
                                     if (allNodes[connUid]) {
                                         const connClm = allNodes[connUid];
@@ -1999,7 +1967,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${connTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM Relacionado ---
-                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (connContent) {
                                             result += "\n" + connContent + "\n";
                                         }
@@ -2015,7 +1983,6 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                     result += `*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n`;
                                 }
                             } else {
-                                result += "**Evidencias que respaldan esta afirmación:**\n\n";
                                 for (const evdUid of clm.related_evds) {
                                     if (allNodes[evdUid]) {
                                         const evd = allNodes[evdUid];
@@ -2030,9 +1997,8 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n";
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                         if (detailedContent) {
-                                            result += "**Contenido detallado:**\n\n";
                                             result += detailedContent + "\n";
                                         } else {
                                             result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
@@ -2060,9 +2026,8 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                             if (detailedContent) {
-                                result += "**Contenido detallado:**\n\n";
                                 result += detailedContent + "\n";
                             } else {
                                 result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
@@ -2079,8 +2044,6 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         return result;
     }
 };
-
-
 
 
 // --- MODULE: src/ui/modal.js ---
@@ -2100,7 +2063,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
-    const [includeContent, setIncludeContent] = React.useState(true);
+    // Configuración granular inicial (todo true por defecto o ajustar según preferencia)
+    const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
@@ -2316,8 +2280,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
+            const anyContent = Object.values(contentConfig).some(x => x);
 
-            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent);
+            // Nota: Para JSON nativo, la granularidad no se aplica tanto en la transformación, 
+            // ya que exportPagesNative devuelve la estructura cruda de Roam.
+            // Si includeContent es true, descarga el árbol. El filtrado fino ocurre en los generadores (MD/HTML).
+            // Aquí pasamos anyContent para decidir si traemos children o no.
+            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent);
 
             setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             DiscourseGraphToolkit.addToExportHistory({
@@ -2349,8 +2318,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
 
             setExportStatus("Obteniendo datos...");
+            const anyContent = Object.values(contentConfig).some(x => x);
             // Obtener datos sin descargar JSON
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
 
             setExportStatus("Procesando relaciones...");
             // Convertir array a mapa por UID para el mapper y NORMALIZAR
@@ -2372,7 +2342,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             if (missingUids.length > 0) {
                 setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
                 // Fetch missing nodes
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
                 extraData.data.forEach(node => {
                     if (node.uid) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -2393,7 +2363,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando HTML...");
-            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent, excludeBitacora);
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
@@ -2429,7 +2399,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
 
             setExportStatus("Obteniendo datos...");
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+            const anyContent = Object.values(contentConfig).some(x => x);
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
 
             setExportStatus("Procesando relaciones...");
             const allNodes = {};
@@ -2448,7 +2419,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
             if (missingUids.length > 0) {
                 setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
                 extraData.data.forEach(node => {
                     if (node.uid) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -2467,7 +2438,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando Markdown...");
-            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent, excludeBitacora);
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
@@ -2771,15 +2742,20 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                 )
                             ),
                             React.createElement('div', { style: { marginTop: '10px' } },
-                                React.createElement('label', null,
-                                    React.createElement('input', {
-                                        type: 'checkbox',
-                                        checked: includeContent,
-                                        onChange: e => setIncludeContent(e.target.checked)
-                                    }),
-                                    ' Incluir Contenido de Páginas'
+                                React.createElement('strong', { style: { display: 'block', marginBottom: '5px', fontSize: '12px' } }, 'Extraer Todo el Contenido:'),
+                                ['QUE', 'CLM', 'EVD'].map(type =>
+                                    React.createElement('div', { key: type, style: { marginLeft: '10px' } },
+                                        React.createElement('label', null,
+                                            React.createElement('input', {
+                                                type: 'checkbox',
+                                                checked: contentConfig[type],
+                                                onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
+                                            }),
+                                            ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
+                                        )
+                                    )
                                 ),
-                                includeContent && React.createElement('div', { style: { marginLeft: '20px', marginTop: '5px' } },
+                                React.createElement('div', { style: { marginTop: '10px' } },
                                     React.createElement('label', null,
                                         React.createElement('input', {
                                             type: 'checkbox',

@@ -14,7 +14,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
-    const [includeContent, setIncludeContent] = React.useState(true);
+    // Configuración granular inicial (todo true por defecto o ajustar según preferencia)
+    const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
@@ -230,8 +231,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
+            const anyContent = Object.values(contentConfig).some(x => x);
 
-            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent);
+            // Nota: Para JSON nativo, la granularidad no se aplica tanto en la transformación, 
+            // ya que exportPagesNative devuelve la estructura cruda de Roam.
+            // Si includeContent es true, descarga el árbol. El filtrado fino ocurre en los generadores (MD/HTML).
+            // Aquí pasamos anyContent para decidir si traemos children o no.
+            await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent);
 
             setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             DiscourseGraphToolkit.addToExportHistory({
@@ -263,8 +269,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
 
             setExportStatus("Obteniendo datos...");
+            const anyContent = Object.values(contentConfig).some(x => x);
             // Obtener datos sin descargar JSON
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
 
             setExportStatus("Procesando relaciones...");
             // Convertir array a mapa por UID para el mapper y NORMALIZAR
@@ -286,7 +293,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             if (missingUids.length > 0) {
                 setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
                 // Fetch missing nodes
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
                 extraData.data.forEach(node => {
                     if (node.uid) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -307,7 +314,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando HTML...");
-            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, includeContent, excludeBitacora);
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
@@ -343,7 +350,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
 
             setExportStatus("Obteniendo datos...");
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), includeContent, false);
+            const anyContent = Object.values(contentConfig).some(x => x);
+            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
 
             setExportStatus("Procesando relaciones...");
             const allNodes = {};
@@ -362,7 +370,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
             if (missingUids.length > 0) {
                 setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
                 extraData.data.forEach(node => {
                     if (node.uid) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -381,7 +389,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             });
 
             setExportStatus("Generando Markdown...");
-            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, includeContent, excludeBitacora);
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora);
 
             setExportStatus("Descargando...");
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
@@ -685,15 +693,20 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                 )
                             ),
                             React.createElement('div', { style: { marginTop: '10px' } },
-                                React.createElement('label', null,
-                                    React.createElement('input', {
-                                        type: 'checkbox',
-                                        checked: includeContent,
-                                        onChange: e => setIncludeContent(e.target.checked)
-                                    }),
-                                    ' Incluir Contenido de Páginas'
+                                React.createElement('strong', { style: { display: 'block', marginBottom: '5px', fontSize: '12px' } }, 'Extraer Todo el Contenido:'),
+                                ['QUE', 'CLM', 'EVD'].map(type =>
+                                    React.createElement('div', { key: type, style: { marginLeft: '10px' } },
+                                        React.createElement('label', null,
+                                            React.createElement('input', {
+                                                type: 'checkbox',
+                                                checked: contentConfig[type],
+                                                onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
+                                            }),
+                                            ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
+                                        )
+                                    )
                                 ),
-                                includeContent && React.createElement('div', { style: { marginLeft: '20px', marginTop: '5px' } },
+                                React.createElement('div', { style: { marginTop: '10px' } },
                                     React.createElement('label', null,
                                         React.createElement('input', {
                                             type: 'checkbox',

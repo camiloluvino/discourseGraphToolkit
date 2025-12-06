@@ -4,7 +4,13 @@
 // ============================================================================
 
 DiscourseGraphToolkit.HtmlGenerator = {
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", extractAdditionalContent = false, excludeBitacora = true) {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true) {
+        // Compatibilidad legacy
+        let config = contentConfig;
+        if (typeof contentConfig === 'boolean') {
+            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+        }
+
         const css = this._getCSS();
         const js = this._getJS();
 
@@ -46,6 +52,15 @@ DiscourseGraphToolkit.HtmlGenerator = {
                 const metadata = question.project_metadata || {};
                 html += this._generateMetadataHtml(metadata);
 
+                // --- Contenido QUE ---
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                if (queContent) {
+                    html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                    html += `<p>${this._formatContentForHtml(queContent)}</p>`;
+                    html += `</div>`;
+                }
+                // ---------------------
+
                 const hasClms = question.related_clms && question.related_clms.length > 0;
                 const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
 
@@ -74,7 +89,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += this._generateMetadataHtml(clm.project_metadata || {});
 
                             // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
                             if (clmContent) {
                                 html += `<div class="node content-node" style="margin-bottom: 10px;">`;
                                 html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
@@ -85,7 +100,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             // Supporting CLMs
                             if (clm.supporting_clms && clm.supporting_clms.length > 0) {
                                 html += '<div class="supporting-clms">';
-                                html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
+                                // html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
 
                                 for (let suppIdx = 0; suppIdx < clm.supporting_clms.length; suppIdx++) {
                                     const suppUid = clm.supporting_clms[suppIdx];
@@ -99,7 +114,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
 
                                         // --- NUEVO: Contenido CLM Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, extractAdditionalContent, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
                                         if (suppContent) {
                                             html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
                                             html += `<p>${this._formatContentForHtml(suppContent)}</p>`;
@@ -109,7 +124,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                                         // Evidencias de soporte
                                         if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
+                                            // html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
                                             for (const evdUid of suppClm.related_evds) {
                                                 if (allNodes[evdUid]) {
                                                     const evd = allNodes[evdUid];
@@ -117,7 +132,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                                     html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
                                                     html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
                                                     html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                                     if (detailedContent) {
                                                         html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
                                                         html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
@@ -136,23 +151,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             // Connected CLMs
                             if (clm.connected_clms && clm.connected_clms.length > 0) {
                                 html += '<div class="connected-clms">';
-                                html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
+                                // html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
                                 for (const connUid of clm.connected_clms) {
                                     if (allNodes[connUid] && connUid !== clmUid) {
                                         const connClm = allNodes[connUid];
-                                        const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
-                                        html += `<div class="connected-clm-item">`;
-                                        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${connTitle}</h5>`;
-                                        html += `<div class="content">`;
-                                        html += this._generateMetadataHtml(connClm.project_metadata || {}, true);
-
-                                        // --- NUEVO: Contenido CLM Relacionado ---
-                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, extractAdditionalContent, "CLM", excludeBitacora);
-                                        if (connContent) {
-                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
-                                            html += `<p>${this._formatContentForHtml(connContent)}</p>`;
-                                            html += `</div>`;
-                                        }
                                         // ------------------------------------
                                         html += `</div></div>`;
                                     }
@@ -162,7 +164,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                             // EVDs
                             if (clm.related_evds && clm.related_evds.length > 0) {
-                                html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
+                                // html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
                                 for (let k = 0; k < clm.related_evds.length; k++) {
                                     const evdUid = clm.related_evds[k];
                                     if (allNodes[evdUid]) {
@@ -175,10 +177,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `<div class="content">`;
                                         html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                                         if (detailedContent) {
                                             html += '<div class="node content-node">';
-                                            html += '<p><strong>Contenido detallado:</strong></p>';
+                                            // html += '<p><strong>Contenido detallado:</strong></p>';
                                             html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
                                             html += '</div>';
                                         }
@@ -208,10 +210,10 @@ DiscourseGraphToolkit.HtmlGenerator = {
                             html += `<div class="content">`;
                             html += this._generateMetadataHtml(evd.project_metadata || {});
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, extractAdditionalContent, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
                             if (detailedContent) {
                                 html += '<div class="node direct-content-node">';
-                                html += '<p><strong>Contenido detallado:</strong></p>';
+                                // html += '<p><strong>Contenido detallado:</strong></p>';
                                 html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
                                 html += '</div>';
                             }
@@ -373,5 +375,3 @@ DiscourseGraphToolkit.HtmlGenerator = {
     </script>`;
     }
 };
-
-

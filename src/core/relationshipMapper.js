@@ -56,77 +56,67 @@ DiscourseGraphToolkit.RelationshipMapper = {
             const node = allNodes[uid];
             if (node.type !== "QUE") continue;
 
-            // Inicializar arrays si no existen
             if (!node.related_clms) node.related_clms = [];
             if (!node.direct_evds) node.direct_evds = [];
 
             try {
                 const data = node.data;
-                let respondedByFound = false;
+                const children = data.children || []; // Sorted by export.js
 
-                // Buscar hijos con el string "#RespondedBy" (flexible)
-                const children = data.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#RespondedBy")) {
-                        respondedByFound = true;
-                        this._processRespondedByChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                        // Case 1: The block ITSELF is the response (e.g. "[[CLM]] - Title #RespondedBy")
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+
+                        // Case 2: The block is a header/container (e.g. "#RespondedBy" -> children are responses)
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                            }
+                        }
                     }
                 }
-
-                if (!respondedByFound) {
-                    // console.warn(`  ADVERTENCIA: No se encontró '#RespondedBy' en QUE: ${node.title.substring(0, 50)}...`);
-                }
-
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para QUE ${uid}: ${e}`);
             }
         }
     },
 
-    _processRespondedByChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
-        const children = parentChild.children || [];
-        for (const response of children) {
-            try {
-                const responseText = response.string || "";
+    // Helper genérico para extraer relaciones de un bloque (refs o texto)
+    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField) {
+        try {
+            const responseText = block.string || "";
 
-                // A. Buscar relaciones por referencias directas (UID)
-                const refsToCheck = [];
-
-                if (response.refs) {
-                    refsToCheck.push(...response.refs);
+            // A. Relaciones por Referencias (Direct UID refs)
+            const refsToCheck = [];
+            if (block.refs) refsToCheck.push(...block.refs);
+            if (block[':block/refs']) {
+                for (const ref of block[':block/refs']) {
+                    if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
                 }
-
-                if (response[':block/refs']) {
-                    const blockRefs = response[':block/refs'];
-                    for (const ref of blockRefs) {
-                        if (ref[':block/uid']) {
-                            refsToCheck.push({ uid: ref[':block/uid'] });
-                        }
-                    }
-                }
-
-                for (const ref of refsToCheck) {
-                    const refUid = ref.uid || "";
-                    if (allNodes[refUid]) {
-                        if (allNodes[refUid].type === "CLM") {
-                            if (!node.related_clms.includes(refUid)) {
-                                node.related_clms.push(refUid);
-                            }
-                        } else if (allNodes[refUid].type === "EVD") {
-                            if (!node.direct_evds.includes(refUid)) {
-                                node.direct_evds.push(refUid);
-                            }
-                        }
-                    }
-                }
-
-                // B. Buscar relaciones incrustadas en el texto
-                this._findEmbeddedRelationships(responseText, node, uid, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
-
-            } catch (e) {
-                console.warn(`⚠ Error procesando respuesta en QUE ${uid}: ${e}`);
             }
+
+            for (const ref of refsToCheck) {
+                const refUid = ref.uid || "";
+                if (allNodes[refUid]) {
+                    if (allNodes[refUid].type === "CLM") {
+                        if (!node[clmTargetField].includes(refUid)) {
+                            node[clmTargetField].push(refUid);
+                        }
+                    } else if (allNodes[refUid].type === "EVD") {
+                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
+                            node[evdTargetField].push(refUid);
+                        }
+                    }
+                }
+            }
+
+            // B. Relaciones por Texto ([[WikiLinks]])
+            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField);
+
+        } catch (e) {
+            console.warn(`⚠ Error processing block relationships: ${e}`);
         }
     },
 
@@ -204,66 +194,29 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             try {
                 const data = node.data;
-                let supportedByFound = false;
+                const children = data.children || []; // Sorted
 
-                const children = data.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
-                        supportedByFound = true;
-                        this._processSupportedByChildren(child, node, uid, allNodes, evdTitleMap, clmTitleMap);
+                        // Case 1: Direct #SupportedBy on the node line
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+
+                        // Case 2: Container #SupportedBy
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                            }
+                        }
                     }
                 }
-
-                if (!supportedByFound) {
-                    // console.warn(`  ADVERTENCIA: No se encontró '#SupportedBy' en CLM: ${node.title.substring(0, 50)}...`);
-                }
-
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para CLM ${uid}: ${e}`);
             }
         }
     },
 
-    _processSupportedByChildren: function (parentChild, node, uid, allNodes, evdTitleMap, clmTitleMap) {
-        const children = parentChild.children || [];
-        for (const evidence of children) {
-            try {
-                // A. Buscar relaciones por referencias directas (UID)
-                const refsToCheck = [];
-
-                if (evidence.refs) refsToCheck.push(...evidence.refs);
-                if (evidence[':block/refs']) {
-                    for (const ref of evidence[':block/refs']) {
-                        if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
-                    }
-                }
-
-                for (const ref of refsToCheck) {
-                    const refUid = ref.uid || "";
-                    if (allNodes[refUid]) {
-                        const referencedNode = allNodes[refUid];
-                        if (referencedNode.type === "EVD") {
-                            if (!node.related_evds.includes(refUid)) {
-                                node.related_evds.push(refUid);
-                            }
-                        } else if (referencedNode.type === "CLM") {
-                            if (!node.supporting_clms.includes(refUid)) {
-                                node.supporting_clms.push(refUid);
-                            }
-                        }
-                    }
-                }
-
-                // B. Buscar relaciones incrustadas en el texto
-                const evidenceText = evidence.string || "";
-                this._findEmbeddedRelationships(evidenceText, node, uid, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
-
-            } catch (e) {
-                console.warn(`⚠ Error procesando evidencia en CLM ${uid}: ${e}`);
-            }
-        }
-    },
+    // _processSupportedByChildren removed as it is replaced by generic helper logic above
 
     _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
         for (const uid in allNodes) {

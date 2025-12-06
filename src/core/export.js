@@ -37,7 +37,14 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     // Pero espera, si depth 0 es la página, sus hijos son el contenido.
     // Si includeContent es false, queremos la página (título, uid) pero NO sus hijos.
     if (includeContent && pullData[':block/children'] && Array.isArray(pullData[':block/children'])) {
-        transformed['children'] = pullData[':block/children'].map(child =>
+        // SORTING FIX: Ensure children are processed in visual order
+        const sortedChildren = [...pullData[':block/children']].sort((a, b) => {
+            const orderA = a[':block/order'] !== undefined ? a[':block/order'] : 9999;
+            const orderB = b[':block/order'] !== undefined ? b[':block/order'] : 9999;
+            return orderA - orderB;
+        });
+
+        transformed['children'] = sortedChildren.map(child =>
             this.transformToNativeFormat(child, depth + 1, newVisited, includeContent)
         );
     }
