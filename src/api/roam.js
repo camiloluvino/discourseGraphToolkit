@@ -181,4 +181,49 @@ DiscourseGraphToolkit.findReferencedDiscoursePages = async function (pageUids, s
     return pageResults.map(r => ({ pageTitle: r[0], pageUid: r[1] }));
 };
 
+DiscourseGraphToolkit.getIdsFromIndexPage = async function (pageTitle, selectedTypes) {
+    if (!pageTitle) return [];
+
+    const pageRes = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${pageTitle}"] [?page :block/uid ?uid]]`);
+    if (!pageRes || pageRes.length === 0) return [];
+    const pageUid = pageRes[0][0];
+
+    const pullPattern = `[
+        :block/uid 
+        :block/string 
+        :block/order 
+        {:block/refs [:node/title :block/uid]} 
+        {:block/children ...}
+    ]`;
+
+    const result = await window.roamAlphaAPI.data.async.pull(pullPattern, [`:block/uid`, pageUid]);
+
+    if (!result || !result[':block/children']) return [];
+
+    const orderedPages = [];
+    const targetPrefixes = selectedTypes.map(t => (this.TYPES && this.TYPES[t] ? this.TYPES[t].prefix : `[[${t}]]`));
+
+    const traverse = (blocks) => {
+        if (!blocks) return;
+        blocks.sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
+
+        for (const block of blocks) {
+            if (block[':block/refs']) {
+                const refs = block[':block/refs'];
+                refs.forEach(ref => {
+                    const title = ref[':node/title'];
+                    const uid = ref[':block/uid'];
+                    if (title && targetPrefixes.some(prefix => title.startsWith(prefix))) {
+                        orderedPages.push({ pageTitle: title, pageUid: uid });
+                    }
+                });
+            }
+            if (block[':block/children']) traverse(block[':block/children']);
+        }
+    };
+
+    traverse(result[':block/children']);
+    return orderedPages;
+};
+
 

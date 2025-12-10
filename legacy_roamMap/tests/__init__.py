@@ -1,3 +1,0 @@
-"""
-Tests unitarios para roamMap
-"""
