@@ -429,7 +429,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     },
         React.createElement('div', {
             style: {
-                backgroundColor: 'white', width: '1200px', height: '95vh', borderRadius: '8px',
+                backgroundColor: 'white', width: '90%', maxWidth: '1100px', height: '85vh', borderRadius: '8px',
                 display: 'flex', flexDirection: 'column', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                 fontSize: '14px'
             }
@@ -488,238 +488,238 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     )
                 ),
 
-            ),
-            // Removed 'nodos' block
-            // Removed 'relaciones' block
+                // Removed 'nodos' block
+                // Removed 'relaciones' block
 
-            activeTab === 'proyectos' && React.createElement('div', null,
-                React.createElement('h3', null, 'Gestión de Proyectos'),
-                React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
-                    React.createElement('input', {
-                        type: 'text', placeholder: 'Nuevo proyecto...',
-                        value: newProject, onChange: e => setNewProject(e.target.value),
-                        style: { flex: 1, padding: '8px' }
-                    }),
-                    React.createElement('button', { onClick: handleAddProject, style: { padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px' } }, 'Agregar')
-                ),
-                React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
-                    React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
-                    React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
-                    React.createElement('button', { onClick: handleForceSync, style: { padding: '5px 10px', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
-                ),
-
-                suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '5px', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
-                    React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
-                        suggestions.map(s =>
-                            React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' } },
-                                React.createElement('span', null, s),
-                                React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
-                            )
-                        )
-                    )
-                ),
-
-                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' } },
-                    React.createElement('label', null,
+                activeTab === 'proyectos' && React.createElement('div', null,
+                    React.createElement('h3', null, 'Gestión de Proyectos'),
+                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
                         React.createElement('input', {
-                            type: 'checkbox',
-                            checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
-                            onChange: toggleSelectAllProjects,
-                            style: { marginRight: '5px' }
+                            type: 'text', placeholder: 'Nuevo proyecto...',
+                            value: newProject, onChange: e => setNewProject(e.target.value),
+                            style: { flex: 1, padding: '8px' }
                         }),
-                        'Seleccionar Todo'
+                        React.createElement('button', { onClick: handleAddProject, style: { padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px' } }, 'Agregar')
                     ),
-                    React.createElement('button', {
-                        onClick: handleBulkDeleteProjects,
-                        disabled: !Object.values(selectedProjectsForDelete).some(v => v),
-                        style: {
-                            padding: '5px 10px',
-                            backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? '#f44336' : '#ccc',
-                            color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
-                        }
-                    }, 'Eliminar Seleccionados')
-                ),
+                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
+                        React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
+                        React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+                        React.createElement('button', { onClick: handleForceSync, style: { padding: '5px 10px', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
+                    ),
 
-                React.createElement('ul', { style: { listStyle: 'none', padding: 0, maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' } },
-                    projects.map(p =>
-                        React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: !!selectedProjectsForDelete[p],
-                                    onChange: (e) => setSelectedProjectsForDelete({ ...selectedProjectsForDelete, [p]: e.target.checked }),
-                                    style: { marginRight: '10px' }
-                                }),
-                                React.createElement('span', null,
-                                    p,
-                                    validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
-                                )
-                            ),
-                            React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
-                        )
-                    )
-                )
-            ),
-
-            activeTab === 'exportar' && React.createElement('div', null,
-                React.createElement('h3', null, 'Exportar Grafos'),
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' } },
-                    React.createElement('div', { style: { flex: 1 } },
-                        React.createElement('h4', null, '1. Proyectos'),
-                        React.createElement('div', { style: { height: '280px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
-                            projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
-                                React.createElement('div', { key: p },
-                                    React.createElement('label', null,
-                                        React.createElement('input', {
-                                            type: 'checkbox',
-                                            checked: selectedProjects[p] || false,
-                                            onChange: e => setSelectedProjects({ ...selectedProjects, [p]: e.target.checked })
-                                        }),
-                                        ' ' + p
-                                    )
+                    suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '20px', padding: '10px', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '4px' } },
+                        React.createElement('strong', { style: { display: 'block', marginBottom: '5px', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
+                        React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
+                            suggestions.map(s =>
+                                React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' } },
+                                    React.createElement('span', null, s),
+                                    React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '12px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' } }, '+ Añadir')
                                 )
                             )
                         )
                     ),
-                    React.createElement('div', { style: { flex: 1 } },
-                        React.createElement('h4', null, '2. Tipos'),
-                        ['QUE', 'CLM', 'EVD'].map(t =>
-                            React.createElement('div', { key: t },
-                                React.createElement('label', null,
+
+                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' } },
+                        React.createElement('label', null,
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
+                                onChange: toggleSelectAllProjects,
+                                style: { marginRight: '5px' }
+                            }),
+                            'Seleccionar Todo'
+                        ),
+                        React.createElement('button', {
+                            onClick: handleBulkDeleteProjects,
+                            disabled: !Object.values(selectedProjectsForDelete).some(v => v),
+                            style: {
+                                padding: '5px 10px',
+                                backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? '#f44336' : '#ccc',
+                                color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
+                            }
+                        }, 'Eliminar Seleccionados')
+                    ),
+
+                    React.createElement('ul', { style: { listStyle: 'none', padding: 0, maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' } },
+                        projects.map(p =>
+                            React.createElement('li', { key: p, style: { padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                                React.createElement('label', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
                                     React.createElement('input', {
                                         type: 'checkbox',
-                                        checked: selectedTypes[t],
-                                        onChange: e => setSelectedTypes({ ...selectedTypes, [t]: e.target.checked })
+                                        checked: !!selectedProjectsForDelete[p],
+                                        onChange: (e) => setSelectedProjectsForDelete({ ...selectedProjectsForDelete, [p]: e.target.checked }),
+                                        style: { marginRight: '10px' }
                                     }),
-                                    ` ${t}`
+                                    React.createElement('span', null,
+                                        p,
+                                        validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
+                                    )
+                                ),
+                                React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
+                            )
+                        )
+                    )
+                ),
+
+                activeTab === 'exportar' && React.createElement('div', null,
+                    React.createElement('h3', { style: { marginTop: 0, marginBottom: '20px' } }, 'Exportar Grafos'),
+                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' } },
+                        React.createElement('div', { style: { flex: 1 } },
+                            React.createElement('h4', { style: { marginTop: 0 } }, '1. Proyectos'),
+                            React.createElement('div', { style: { height: '280px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
+                                projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
+                                    React.createElement('div', { key: p },
+                                        React.createElement('label', null,
+                                            React.createElement('input', {
+                                                type: 'checkbox',
+                                                checked: selectedProjects[p] || false,
+                                                onChange: e => setSelectedProjects({ ...selectedProjects, [p]: e.target.checked })
+                                            }),
+                                            ' ' + p
+                                        )
+                                    )
                                 )
                             )
                         ),
-                        React.createElement('div', { style: { marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '10px' } },
-                            React.createElement('h4', { style: { marginTop: 0 } }, 'Opcional: Página Índice'),
-                            React.createElement('p', { style: { fontSize: '12px', color: '#666', marginBottom: '5px' } },
-                                'Si se especifica, se exportarán los nodos referenciados en esta página respetando su orden visual.'
-                            ),
-                            React.createElement('input', {
-                                type: 'text',
-                                placeholder: 'Ej: Tesis/Índice',
-                                value: indexPage,
-                                onChange: e => setIndexPage(e.target.value),
-                                style: { width: '100%', padding: '8px', boxSizing: 'border-box' }
-                            })
-                        ),
-                        React.createElement('div', { style: { marginTop: '10px' } },
-                            React.createElement('label', null,
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: includeReferenced,
-                                    onChange: e => setIncludeReferenced(e.target.checked)
-                                }),
-                                ' Incluir nodos referenciados'
-                            )
-                        ),
-                        React.createElement('div', { style: { marginTop: '10px' } },
-                            React.createElement('strong', { style: { display: 'block', marginBottom: '5px', fontSize: '12px' } }, 'Extraer Todo el Contenido:'),
-                            ['QUE', 'CLM', 'EVD'].map(type =>
-                                React.createElement('div', { key: type, style: { marginLeft: '10px' } },
+                        React.createElement('div', { style: { flex: 1 } },
+                            React.createElement('h4', { style: { marginTop: 0 } }, '2. Tipos'),
+                            ['QUE', 'CLM', 'EVD'].map(t =>
+                                React.createElement('div', { key: t },
                                     React.createElement('label', null,
                                         React.createElement('input', {
                                             type: 'checkbox',
-                                            checked: contentConfig[type],
-                                            onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
+                                            checked: selectedTypes[t],
+                                            onChange: e => setSelectedTypes({ ...selectedTypes, [t]: e.target.checked })
                                         }),
-                                        ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
+                                        ` ${t}`
                                     )
                                 )
+                            ),
+                            React.createElement('div', { style: { marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '10px' } },
+                                React.createElement('h4', { style: { marginTop: 0 } }, 'Opcional: Página Índice'),
+                                React.createElement('p', { style: { fontSize: '12px', color: '#666', marginBottom: '5px' } },
+                                    'Si se especifica, se exportarán los nodos referenciados en esta página respetando su orden visual.'
+                                ),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    placeholder: 'Ej: Tesis/Índice',
+                                    value: indexPage,
+                                    onChange: e => setIndexPage(e.target.value),
+                                    style: { width: '100%', padding: '8px', boxSizing: 'border-box' }
+                                })
                             ),
                             React.createElement('div', { style: { marginTop: '10px' } },
                                 React.createElement('label', null,
                                     React.createElement('input', {
                                         type: 'checkbox',
-                                        checked: excludeBitacora,
-                                        onChange: e => setExcludeBitacora(e.target.checked)
+                                        checked: includeReferenced,
+                                        onChange: e => setIncludeReferenced(e.target.checked)
                                     }),
-                                    ' Excluir contenido de [[bitácora]]'
+                                    ' Incluir nodos referenciados'
+                                )
+                            ),
+                            React.createElement('div', { style: { marginTop: '10px' } },
+                                React.createElement('strong', { style: { display: 'block', marginBottom: '5px', fontSize: '12px' } }, 'Extraer Todo el Contenido:'),
+                                ['QUE', 'CLM', 'EVD'].map(type =>
+                                    React.createElement('div', { key: type, style: { marginLeft: '10px' } },
+                                        React.createElement('label', null,
+                                            React.createElement('input', {
+                                                type: 'checkbox',
+                                                checked: contentConfig[type],
+                                                onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
+                                            }),
+                                            ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
+                                        )
+                                    )
+                                ),
+                                React.createElement('div', { style: { marginTop: '10px' } },
+                                    React.createElement('label', null,
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: excludeBitacora,
+                                            onChange: e => setExcludeBitacora(e.target.checked)
+                                        }),
+                                        ' Excluir contenido de [[bitácora]]'
+                                    )
                                 )
                             )
                         )
+                    ),
+                    React.createElement('div', { style: { marginTop: '20px' } },
+                        React.createElement('button', { onClick: handlePreview, style: { marginRight: '10px', padding: '10px' } }, "Vista Previa"),
+                        React.createElement('button', {
+                            onClick: handleExport,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar JSON'),
+                        React.createElement('button', {
+                            onClick: handleExportHtml,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', marginRight: '10px' }
+                        }, 'Exportar HTML'),
+                        React.createElement('button', {
+                            onClick: handleExportMarkdown,
+                            disabled: isExporting,
+                            style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' }
+                        }, 'Exportar Markdown')
+                    ),
+                    exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
+                    previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
+                        React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
+                        React.createElement('ul', { style: { paddingLeft: '20px' } },
+                            previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
+                        )
                     )
                 ),
-                React.createElement('div', { style: { marginTop: '20px' } },
-                    React.createElement('button', { onClick: handlePreview, style: { marginRight: '10px', padding: '10px' } }, "Vista Previa"),
-                    React.createElement('button', {
-                        onClick: handleExport,
-                        disabled: isExporting,
-                        style: { padding: '10px 20px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', marginRight: '10px' }
-                    }, 'Exportar JSON'),
-                    React.createElement('button', {
-                        onClick: handleExportHtml,
-                        disabled: isExporting,
-                        style: { padding: '10px 20px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', marginRight: '10px' }
-                    }, 'Exportar HTML'),
-                    React.createElement('button', {
-                        onClick: handleExportMarkdown,
-                        disabled: isExporting,
-                        style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' }
-                    }, 'Exportar Markdown')
-                ),
-                exportStatus && React.createElement('div', { style: { marginTop: '10px', fontWeight: 'bold' } }, exportStatus),
-                previewPages.length > 0 && React.createElement('div', { style: { marginTop: '15px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' } },
-                    React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
-                    React.createElement('ul', { style: { paddingLeft: '20px' } },
-                        previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
-                    )
-                )
-            ),
 
-            activeTab === 'importar' && React.createElement('div', null,
-                React.createElement('h3', null, 'Importar Grafos'),
-                React.createElement('p', { style: { color: '#666' } }, 'Restaura copias de seguridad o importa grafos de otros usuarios. Los elementos existentes no se sobrescribirán.'),
+                activeTab === 'importar' && React.createElement('div', null,
+                    React.createElement('h3', null, 'Importar Grafos'),
+                    React.createElement('p', { style: { color: '#666' } }, 'Restaura copias de seguridad o importa grafos de otros usuarios. Los elementos existentes no se sobrescribirán.'),
 
-                React.createElement('div', { style: { marginTop: '20px', padding: '20px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center' } },
-                    React.createElement('input', {
-                        type: 'file',
-                        accept: '.json',
-                        id: 'import-file-input',
-                        style: { display: 'none' },
-                        onChange: (e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = async (event) => {
-                                    setExportStatus("Importando...");
-                                    try {
-                                        const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setExportStatus(msg));
+                    React.createElement('div', { style: { marginTop: '20px', padding: '20px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center' } },
+                        React.createElement('input', {
+                            type: 'file',
+                            accept: '.json',
+                            id: 'import-file-input',
+                            style: { display: 'none' },
+                            onChange: (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = async (event) => {
+                                        setExportStatus("Importando...");
+                                        try {
+                                            const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setExportStatus(msg));
 
-                                        let statusMsg = `✅ Importación finalizada. Páginas: ${result.pages}. Saltados: ${result.skipped}.`;
-                                        if (result.errors && result.errors.length > 0) {
-                                            statusMsg += `\n❌ Errores (${result.errors.length}):\n` + result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? '\n...' : '');
-                                            DiscourseGraphToolkit.showToast(`Importación con ${result.errors.length} errores.`, 'warning');
-                                        } else {
-                                            DiscourseGraphToolkit.showToast(`Importación exitosa: ${result.pages} páginas.`, 'success');
+                                            let statusMsg = `✅ Importación finalizada. Páginas: ${result.pages}. Saltados: ${result.skipped}.`;
+                                            if (result.errors && result.errors.length > 0) {
+                                                statusMsg += `\n❌ Errores (${result.errors.length}):\n` + result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? '\n...' : '');
+                                                DiscourseGraphToolkit.showToast(`Importación con ${result.errors.length} errores.`, 'warning');
+                                            } else {
+                                                DiscourseGraphToolkit.showToast(`Importación exitosa: ${result.pages} páginas.`, 'success');
+                                            }
+                                            setExportStatus(statusMsg);
+
+                                        } catch (err) {
+                                            console.error(err);
+                                            setExportStatus(`❌ Error fatal: ${err.message}`);
+                                            DiscourseGraphToolkit.showToast("Error en importación.", "error");
                                         }
-                                        setExportStatus(statusMsg);
-
-                                    } catch (err) {
-                                        console.error(err);
-                                        setExportStatus(`❌ Error fatal: ${err.message}`);
-                                        DiscourseGraphToolkit.showToast("Error en importación.", "error");
-                                    }
-                                };
-                                reader.readAsText(file);
+                                    };
+                                    reader.readAsText(file);
+                                }
                             }
-                        }
-                    }),
-                    React.createElement('label', {
-                        htmlFor: 'import-file-input',
-                        style: {
-                            display: 'inline-block', padding: '10px 20px', backgroundColor: '#2196F3', color: 'white',
-                            borderRadius: '4px', cursor: 'pointer', fontSize: '16px'
-                        }
-                    }, 'Seleccionar Archivo JSON')
-                ),
-                exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
+                        }),
+                        React.createElement('label', {
+                            htmlFor: 'import-file-input',
+                            style: {
+                                display: 'inline-block', padding: '10px 20px', backgroundColor: '#2196F3', color: 'white',
+                                borderRadius: '4px', cursor: 'pointer', fontSize: '16px'
+                            }
+                        }, 'Seleccionar Archivo JSON')
+                    ),
+                    exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
+                )
             )
         )
     );
