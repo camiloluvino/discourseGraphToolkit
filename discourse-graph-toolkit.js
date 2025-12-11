@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.1.13
- * Bundled build: 2025-12-11 00:44:05
+ * Bundled build: 2025-12-11 01:25:24
  */
 
 (function () {
@@ -325,19 +325,6 @@ DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
     });
     if (history.length > 20) history = history.slice(0, 20);
     localStorage.setItem(this.STORAGE.HISTORY_NODES, JSON.stringify(history));
-};
-
-// --- Historial de Exportación ---
-DiscourseGraphToolkit.getExportHistory = function () {
-    const stored = localStorage.getItem(this.STORAGE.HISTORY_EXPORT);
-    return stored ? JSON.parse(stored) : [];
-};
-
-DiscourseGraphToolkit.addToExportHistory = function (entry) {
-    let history = this.getExportHistory();
-    history.unshift(entry);
-    if (history.length > 10) history = history.slice(0, 10);
-    localStorage.setItem(this.STORAGE.HISTORY_EXPORT, JSON.stringify(history));
 };
 
 // --- Backup & Restore Config ---
@@ -730,78 +717,6 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
     }
 };
 
-// ============================================================================
-// 5. DASHBOARD HELPERS
-// ============================================================================
-
-DiscourseGraphToolkit.countNodesByProject = async function (project) {
-    const counts = { QUE: 0, CLM: 0, EVD: 0 };
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
-
-    // Si no hay proyecto seleccionado, contar todo (opcional, o retornar 0)
-    // Asumimos que siempre hay un proyecto o "todos"
-
-    const projectFilter = project ? `[(clojure.string/includes? ?string "[[${project}]]")]` : "";
-
-    for (let type of ['QUE', 'CLM', 'EVD']) {
-        const prefix = this.TYPES[type].prefix;
-        const query = `[:find (count ?page) . :where 
-            [?page :node/title ?title] 
-            [(clojure.string/starts-with? ?title "[[${prefix}]]")]
-            [?block :block/page ?page]
-            [?block :block/string ?string]
-            [(clojure.string/includes? ?string "${fieldName}::")]
-            ${projectFilter}
-        ]`;
-
-        try {
-            const result = await window.roamAlphaAPI.data.async.q(query);
-            counts[type] = result || 0;
-        } catch (e) {
-            console.error(`Error counting ${type}:`, e);
-        }
-    }
-    return counts;
-};
-
-DiscourseGraphToolkit.openQueryPage = async function (type, project) {
-    const typeLabel = this.TYPES[type].label; // Pregunta, Afirmación...
-    const pageTitle = `DGT/Query/${typeLabel}`;
-    const prefix = this.TYPES[type].prefix;
-
-    // 1. Buscar o Crear Página
-    let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid . :where [?page :node/title "${pageTitle}"] [?page :block/uid ?uid]]`);
-
-    if (!pageUid) {
-        pageUid = window.roamAlphaAPI.util.generateUID();
-        await window.roamAlphaAPI.data.page.create({ page: { title: pageTitle, uid: pageUid } });
-    }
-
-    // 2. Construir Query
-    // {{[[query]]: {and: [[QUE]] [[Proyecto]]}}}
-    const queryString = `{{[[query]]: {and: [[${prefix}]] [[${project}]]}}}`;
-
-    // 3. Limpiar/Actualizar contenido
-    // Borrar hijos existentes para asegurar limpieza
-    const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
-    if (children) {
-        for (let child of children) {
-            await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
-        }
-    }
-
-    // Crear nuevo bloque con la query
-    const blockUid = window.roamAlphaAPI.util.generateUID();
-    await window.roamAlphaAPI.data.block.create({
-        location: { "parent-uid": pageUid, "order": 0 },
-        block: { "uid": blockUid, "string": queryString }
-    });
-
-    // 4. Abrir página
-    window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: pageUid } });
-};
-
 
 
 
@@ -829,69 +744,50 @@ DiscourseGraphToolkit.getIdsFromIndexPage = async function (pageTitle, targetTyp
     }
     const pageUid = pageRes[0][0];
 
-    // 2. Traer todo el árbol de la página para respetar el orden visual
-    // Usamos un pull recursivo profundo
-    const pullPattern = `[:block/uid :block/order :block/children :node/title :block/string {:block/children ...}]`;
+    // 2. Traer todo el árbol de la página CON :block/refs para obtener referencias estructuradas
+    const pullPattern = `[
+        :block/uid 
+        :block/order 
+        :block/string
+        {:block/refs [:node/title :block/uid]}
+        {:block/children ...}
+    ]`;
     const result = await window.roamAlphaAPI.data.async.pull(pullPattern, [`:block/uid`, pageUid]);
 
     if (!result) return [];
 
     const orderedPages = [];
-    const targetPrefixes = targetTypes.map(t => DiscourseGraphToolkit.TYPES[t].prefix);
+    const targetPrefixes = targetTypes.map(t => `[[${DiscourseGraphToolkit.TYPES[t].prefix}]]`);
 
-    // 3. Función recursiva para recorrer bloques en orden
+    // 3. Función recursiva para recorrer bloques en orden visual
     const traverse = (block) => {
         if (!block) return;
 
-        // Verificar si este bloque es una referencia a una página de discurso
-        // En Roam, las referencias a páginas suelen estar en :block/string como "[[Title]]"
-        // O si es un bloque que es hijo, podría ser un nodo incrustado.
-        // Pero lo más común en índices es usar links [[Page Name]].
-
-        if (block[':block/string']) {
-            const str = block[':block/string'];
-            // Buscar todos los [[Links]]
-            const matches = [...str.matchAll(/\[\[(.*?)\]\]/g)];
-            matches.forEach(m => {
-                const title = m[1];
-                if (targetPrefixes.some(prefix => title.startsWith(prefix))) {
-                    // Necesitamos el UID de esa página
-                    // Nota: Idealmente ya tendríamos el mapa de Title -> UID, pero aquí haremos querys o optimizaremos después
-                    // Para evitar N+1 querys lentos, mejor recolectamos nombres y hacemos un bulk query,
-                    // pero para mantener el ORDEN VISUAL exacto, lo haremos secuencial o pos-procesado.
-                    orderedPages.push({ pageTitle: title });
+        // Usar :block/refs que contiene las referencias estructuradas con título y UID
+        if (block[':block/refs'] && Array.isArray(block[':block/refs'])) {
+            for (const ref of block[':block/refs']) {
+                const title = ref[':node/title'];
+                const uid = ref[':block/uid'];
+                if (title && targetPrefixes.some(prefix => title.startsWith(prefix))) {
+                    orderedPages.push({ pageTitle: title, pageUid: uid });
                 }
-            });
+            }
         }
 
+        // Recorrer hijos en orden
         if (block[':block/children']) {
             const children = block[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
             children.forEach(traverse);
         }
     };
 
+    // Iniciar traversal desde los hijos de la página
     if (result[':block/children']) {
         const children = result[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
         children.forEach(traverse);
     }
 
-    // 4. Resolver UIDs para los títulos encontrados (Bulk)
-    if (orderedPages.length > 0) {
-        const titles = orderedPages.map(p => p.pageTitle);
-        // Query param must be distinct
-        const uniqueTitles = [...new Set(titles)];
-
-        // Construir query masiva con "or" es complejo en Datalog puro si son muchos.
-        // Iteraremos por simplicidad y robustez por ahora (optimizable).
-        for (let item of orderedPages) {
-            const res = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${item.pageTitle}"] [?page :block/uid ?uid]]`);
-            if (res && res.length > 0) {
-                item.pageUid = res[0][0];
-            }
-        }
-    }
-
-    return orderedPages.filter(p => p.pageUid);
+    return orderedPages;
 };
 
 DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {

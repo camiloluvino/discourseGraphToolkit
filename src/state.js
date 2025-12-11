@@ -105,19 +105,6 @@ DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
     localStorage.setItem(this.STORAGE.HISTORY_NODES, JSON.stringify(history));
 };
 
-// --- Historial de Exportación ---
-DiscourseGraphToolkit.getExportHistory = function () {
-    const stored = localStorage.getItem(this.STORAGE.HISTORY_EXPORT);
-    return stored ? JSON.parse(stored) : [];
-};
-
-DiscourseGraphToolkit.addToExportHistory = function (entry) {
-    let history = this.getExportHistory();
-    history.unshift(entry);
-    if (history.length > 10) history = history.slice(0, 10);
-    localStorage.setItem(this.STORAGE.HISTORY_EXPORT, JSON.stringify(history));
-};
-
 // --- Backup & Restore Config ---
 DiscourseGraphToolkit.exportConfig = function () {
     const config = {

@@ -14,69 +14,50 @@ DiscourseGraphToolkit.getIdsFromIndexPage = async function (pageTitle, targetTyp
     }
     const pageUid = pageRes[0][0];
 
-    // 2. Traer todo el árbol de la página para respetar el orden visual
-    // Usamos un pull recursivo profundo
-    const pullPattern = `[:block/uid :block/order :block/children :node/title :block/string {:block/children ...}]`;
+    // 2. Traer todo el árbol de la página CON :block/refs para obtener referencias estructuradas
+    const pullPattern = `[
+        :block/uid 
+        :block/order 
+        :block/string
+        {:block/refs [:node/title :block/uid]}
+        {:block/children ...}
+    ]`;
     const result = await window.roamAlphaAPI.data.async.pull(pullPattern, [`:block/uid`, pageUid]);
 
     if (!result) return [];
 
     const orderedPages = [];
-    const targetPrefixes = targetTypes.map(t => DiscourseGraphToolkit.TYPES[t].prefix);
+    const targetPrefixes = targetTypes.map(t => `[[${DiscourseGraphToolkit.TYPES[t].prefix}]]`);
 
-    // 3. Función recursiva para recorrer bloques en orden
+    // 3. Función recursiva para recorrer bloques en orden visual
     const traverse = (block) => {
         if (!block) return;
 
-        // Verificar si este bloque es una referencia a una página de discurso
-        // En Roam, las referencias a páginas suelen estar en :block/string como "[[Title]]"
-        // O si es un bloque que es hijo, podría ser un nodo incrustado.
-        // Pero lo más común en índices es usar links [[Page Name]].
-
-        if (block[':block/string']) {
-            const str = block[':block/string'];
-            // Buscar todos los [[Links]]
-            const matches = [...str.matchAll(/\[\[(.*?)\]\]/g)];
-            matches.forEach(m => {
-                const title = m[1];
-                if (targetPrefixes.some(prefix => title.startsWith(prefix))) {
-                    // Necesitamos el UID de esa página
-                    // Nota: Idealmente ya tendríamos el mapa de Title -> UID, pero aquí haremos querys o optimizaremos después
-                    // Para evitar N+1 querys lentos, mejor recolectamos nombres y hacemos un bulk query,
-                    // pero para mantener el ORDEN VISUAL exacto, lo haremos secuencial o pos-procesado.
-                    orderedPages.push({ pageTitle: title });
+        // Usar :block/refs que contiene las referencias estructuradas con título y UID
+        if (block[':block/refs'] && Array.isArray(block[':block/refs'])) {
+            for (const ref of block[':block/refs']) {
+                const title = ref[':node/title'];
+                const uid = ref[':block/uid'];
+                if (title && targetPrefixes.some(prefix => title.startsWith(prefix))) {
+                    orderedPages.push({ pageTitle: title, pageUid: uid });
                 }
-            });
+            }
         }
 
+        // Recorrer hijos en orden
         if (block[':block/children']) {
             const children = block[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
             children.forEach(traverse);
         }
     };
 
+    // Iniciar traversal desde los hijos de la página
     if (result[':block/children']) {
         const children = result[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
         children.forEach(traverse);
     }
 
-    // 4. Resolver UIDs para los títulos encontrados (Bulk)
-    if (orderedPages.length > 0) {
-        const titles = orderedPages.map(p => p.pageTitle);
-        // Query param must be distinct
-        const uniqueTitles = [...new Set(titles)];
-
-        // Construir query masiva con "or" es complejo en Datalog puro si son muchos.
-        // Iteraremos por simplicidad y robustez por ahora (optimizable).
-        for (let item of orderedPages) {
-            const res = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${item.pageTitle}"] [?page :block/uid ?uid]]`);
-            if (res && res.length > 0) {
-                item.pageUid = res[0][0];
-            }
-        }
-    }
-
-    return orderedPages.filter(p => p.pageUid);
+    return orderedPages;
 };
 
 DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {
