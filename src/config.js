@@ -14,6 +14,24 @@ DiscourseGraphToolkit.STORAGE = {
     HISTORY_EXPORT: "discourseGraphToolkit_history_export"
 };
 
+// Get current graph name from Roam API or URL
+DiscourseGraphToolkit.getGraphName = function () {
+    // Method 1: Try Roam API (available in newer versions)
+    if (window.roamAlphaAPI?.graph?.name) {
+        return window.roamAlphaAPI.graph.name;
+    }
+    // Method 2: Extract from URL (always works)
+    // URL format: https://roamresearch.com/#/app/GRAPH_NAME/...
+    const match = window.location.hash.match(/#\/app\/([^\/]+)/);
+    return match ? match[1] : 'default';
+};
+
+// Generate storage key with graph prefix for isolation
+DiscourseGraphToolkit.getStorageKey = function (baseKey) {
+    const graphName = this.getGraphName();
+    return `${baseKey}_${graphName}`;
+};
+
 // Constantes de Roam
 DiscourseGraphToolkit.ROAM = {
     PROJECTS_PAGE: "roam/js/discourse-graph/projects",

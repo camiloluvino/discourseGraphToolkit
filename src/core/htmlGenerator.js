@@ -148,19 +148,6 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                 html += '</div>';
                             }
 
-                            // Connected CLMs
-                            if (clm.connected_clms && clm.connected_clms.length > 0) {
-                                html += '<div class="connected-clms">';
-                                // html += '<div class="connected-clm-title"><strong>CLMs relacionados:</strong></div>';
-                                for (const connUid of clm.connected_clms) {
-                                    if (allNodes[connUid] && connUid !== clmUid) {
-                                        const connClm = allNodes[connUid];
-                                        // ------------------------------------
-                                        html += `</div></div>`;
-                                    }
-                                }
-                                html += '</div>';
-                            }
 
                             // EVDs
                             if (clm.related_evds && clm.related_evds.length > 0) {
@@ -187,7 +174,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         html += `</div></div>`;
                                     }
                                 }
-                            } else if ((!clm.connected_clms || clm.connected_clms.length === 0) && (!clm.supporting_clms || clm.supporting_clms.length === 0)) {
+                            } else if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
                                 html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
                             }
 
@@ -230,7 +217,56 @@ DiscourseGraphToolkit.HtmlGenerator = {
             }
         }
 
+        // Helper para copiar estructura de bloques sin referencias circulares
+        const cleanBlockData = (block, depth = 0) => {
+            if (!block || typeof block !== 'object' || depth > 25) return null;
+
+            const clean = {};
+
+            // Copiar solo propiedades seguras
+            if (block.string !== undefined) clean.string = block.string;
+            if (block[':block/string'] !== undefined) clean.string = block[':block/string'];
+            if (block.uid !== undefined) clean.uid = block.uid;
+            if (block[':block/uid'] !== undefined) clean.uid = block[':block/uid'];
+            if (block.title !== undefined) clean.title = block.title;
+            if (block[':node/title'] !== undefined) clean.title = block[':node/title'];
+
+            // Copiar children recursivamente
+            const children = block.children || block[':block/children'];
+            if (Array.isArray(children) && children.length > 0) {
+                clean.children = children.map(child => cleanBlockData(child, depth + 1)).filter(c => c !== null);
+            }
+
+            return clean;
+        };
+
+        // Preparar datos para embeber en el HTML (para que exportToMarkdown use los mismos datos)
+        const embeddedData = {
+            questions: questions.map(q => ({
+                title: q.title,
+                uid: q.uid,
+                project_metadata: q.project_metadata,
+                related_clms: q.related_clms,
+                direct_evds: q.direct_evds,
+                data: cleanBlockData(q.data || q)
+            })),
+            allNodes: Object.fromEntries(
+                Object.entries(allNodes).map(([uid, node]) => [uid, {
+                    title: node.title,
+                    uid: node.uid,
+                    type: node.type,
+                    project_metadata: node.project_metadata,
+                    related_evds: node.related_evds,
+                    supporting_clms: node.supporting_clms,
+                    data: cleanBlockData(node.data || node)
+                }])
+            ),
+            config: config,
+            excludeBitacora: excludeBitacora
+        };
+
         html += `
+    <script id="embedded-data" type="application/json">${JSON.stringify(embeddedData)}</script>
     ${js}
 </body>
 </html>`;
@@ -286,7 +322,6 @@ DiscourseGraphToolkit.HtmlGenerator = {
         .direct-evd-node { margin-left: 20px; border-left: 1px solid #c8c8c8; background-color: #fafafa; border-radius: 3px; padding: 8px 12px; }
         .content-node, .direct-content-node { margin-left: 60px; border-left: 1px solid #f0f0f0; font-size: 12px; color: #4a4a4a; }
         .project-metadata { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 8px 12px; margin: 8px 0 12px 0; font-size: 11px; color: #6c757d; }
-        .connected-clms { margin-left: 40px; background-color: #f9f9f9; border-left: 2px solid #b0b0b0; border-radius: 3px; padding: 8px 12px; margin-bottom: 10px; }
         .supporting-clms { margin-left: 40px; background-color: #f0f7ff; border-left: 2px solid #007acc; border-radius: 3px; padding: 8px 12px; margin-bottom: 10px; }
         .connected-clm-item, .supporting-clm-item { margin-left: 10px; border-left: 1px solid #d8d8d8; padding: 6px 8px; margin-bottom: 8px; background-color: #fff; border-radius: 2px; }
         .collapsible { cursor: pointer; position: relative; padding-right: 25px; user-select: none; }
@@ -310,7 +345,40 @@ DiscourseGraphToolkit.HtmlGenerator = {
     _getJS: function () {
         return `
     <script>
+        // --- Orden persistido ---
+        var ORDER_KEY = 'discourseGraph_questionOrder';
+        
+        function saveOrder() {
+            var order = [];
+            document.querySelectorAll('.que-node').forEach(function(el) {
+                order.push(el.id);
+            });
+            localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+            showCopySuccess('Orden guardado');
+        }
+        
+        function loadOrder() {
+            var saved = localStorage.getItem(ORDER_KEY);
+            if (!saved) return;
+            try {
+                var order = JSON.parse(saved);
+                var container = document.querySelector('.que-node').parentNode;
+                order.forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) container.appendChild(el);
+                });
+            } catch(e) { console.warn('Error loading order:', e); }
+        }
+        
+        function resetOrder() {
+            localStorage.removeItem(ORDER_KEY);
+            location.reload();
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Cargar orden guardado
+            loadOrder();
+            
             var coll = document.getElementsByClassName("collapsible");
             for (var i = 0; i < coll.length; i++) {
                 coll[i].addEventListener("click", function(e) {
@@ -339,8 +407,12 @@ DiscourseGraphToolkit.HtmlGenerator = {
             });
 
             document.getElementById('copyAll').addEventListener('click', function() {
-                var text = document.body.innerText; // Simplificado para este ejemplo
+                var text = document.body.innerText;
                 copyToClipboard(text);
+            });
+            
+            document.getElementById('exportMarkdown').addEventListener('click', function() {
+                exportToMarkdown();
             });
         });
 
@@ -360,17 +432,282 @@ DiscourseGraphToolkit.HtmlGenerator = {
             setTimeout(function() { document.body.removeChild(div); }, 2000);
         }
         
+        function exportToMarkdown() {
+            // Cargar datos embebidos
+            var dataEl = document.getElementById('embedded-data');
+            if (!dataEl) {
+                alert('Error: No se encontraron datos embebidos para exportar.');
+                return;
+            }
+            var data = JSON.parse(dataEl.textContent);
+            var originalQuestions = data.questions;
+            var allNodes = data.allNodes;
+            var config = data.config;
+            var excludeBitacora = data.excludeBitacora;
+            
+            // Reordenar questions según el orden actual del DOM
+            var domOrder = [];
+            document.querySelectorAll('.que-node').forEach(function(el) {
+                // El ID es "q0", "q1", etc. - extraer el índice
+                var idx = parseInt(el.id.replace('q', ''), 10);
+                if (!isNaN(idx) && originalQuestions[idx]) {
+                    domOrder.push(originalQuestions[idx]);
+                }
+            });
+            // Usar el orden del DOM si está disponible, sino el original
+            var questions = domOrder.length > 0 ? domOrder : originalQuestions;
+            
+            // --- ContentProcessor replicado ---
+            function extractBlockContent(block, indentLevel, skipMetadata, visitedBlocks, maxDepth) {
+                var content = '';
+                if (!visitedBlocks) visitedBlocks = {};
+                if (indentLevel > maxDepth) return content;
+                if (!block || typeof block !== 'object') return content;
+                
+                var blockUid = block.uid || '';
+                var blockString = block.string || '';
+                
+                if (blockUid && visitedBlocks[blockUid]) return content;
+                if (blockUid) visitedBlocks[blockUid] = true;
+                
+                // Excluir bitácora
+                if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) {
+                    return '';
+                }
+                
+                var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                var isStructural = structuralMarkers.indexOf(blockString) !== -1;
+                
+                if (skipMetadata && (!blockString || isStructural)) {
+                    // Pass
+                } else {
+                    if (blockString) {
+                        var indent = '';
+                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        content += indent + '- ' + blockString + '\\n';
+                    }
+                }
+                
+                var children = block.children || [];
+                for (var i = 0; i < children.length; i++) {
+                    var childContent = extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    if (childContent) content += childContent;
+                }
+                
+                if (blockUid) delete visitedBlocks[blockUid];
+                return content;
+            }
+            
+            function extractNodeContent(nodeData, extractAdditionalContent, nodeType) {
+                var detailedContent = '';
+                if (!nodeData) return detailedContent;
+                
+                var children = nodeData.children || [];
+                if (children.length > 0) {
+                    for (var i = 0; i < children.length; i++) {
+                        var child = children[i];
+                        var childString = child.string || '';
+                        var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                        var isStructuralMetadata = false;
+                        for (var j = 0; j < structuralMetadata.length; j++) {
+                            if (childString.indexOf(structuralMetadata[j]) === 0) {
+                                isStructuralMetadata = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!isStructuralMetadata) {
+                            var childContent = extractBlockContent(child, 0, false, null, 20);
+                            if (childContent) detailedContent += childContent;
+                        }
+                    }
+                }
+                
+                if (!detailedContent) {
+                    var mainString = nodeData.string || '';
+                    if (mainString) {
+                        detailedContent += '- ' + mainString + '\\n';
+                    } else {
+                        var title = nodeData.title || '';
+                        if (title) {
+                            var prefix = '[[' + nodeType + ']] - ';
+                            var cleanTitle = title.replace(prefix, '').trim();
+                            if (cleanTitle) detailedContent += '- ' + cleanTitle + '\\n';
+                        }
+                    }
+                }
+                
+                return detailedContent;
+            }
+            
+            function cleanText(text) {
+                return text.replace(/\\s+/g, ' ').trim();
+            }
+            
+            // --- MarkdownGenerator replicado exactamente ---
+            var result = '# Estructura de Investigación\\n\\n';
+            
+            for (var q = 0; q < questions.length; q++) {
+                var question = questions[q];
+                var qTitle = cleanText((question.title || '').replace('[[QUE]] - ', ''));
+                result += '## [[QUE]] - ' + qTitle + '\\n\\n';
+                
+                // Metadata
+                var metadata = question.project_metadata || {};
+                if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+                    result += '**Información del proyecto:**\\n';
+                    if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n';
+                    if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\\n';
+                    result += '\\n';
+                }
+                
+                // Contenido QUE
+                if (config.QUE) {
+                    var queContent = extractNodeContent(question.data || question, true, 'QUE');
+                    if (queContent) result += queContent + '\\n';
+                }
+                
+                var hasClms = question.related_clms && question.related_clms.length > 0;
+                var hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+                
+                if (!hasClms && !hasDirectEvds) {
+                    result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+                    continue;
+                }
+                
+                // CLMs
+                if (question.related_clms) {
+                    for (var c = 0; c < question.related_clms.length; c++) {
+                        var clmUid = question.related_clms[c];
+                        if (allNodes[clmUid]) {
+                            var clm = allNodes[clmUid];
+                            var clmTitle = cleanText((clm.title || '').replace('[[CLM]] - ', ''));
+                            result += '### [[CLM]] - ' + clmTitle + '\\n\\n';
+                            
+                            var clmMetadata = clm.project_metadata || {};
+                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\\n';
+                                if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\\n';
+                                result += '\\n\\n';
+                            }
+                            
+                            // Contenido CLM
+                            if (config.CLM) {
+                                var clmContent = extractNodeContent(clm.data, true, 'CLM');
+                                if (clmContent) result += clmContent + '\\n';
+                            }
+                            
+                            // Supporting CLMs
+                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+                                for (var s = 0; s < clm.supporting_clms.length; s++) {
+                                    var suppUid = clm.supporting_clms[s];
+                                    if (allNodes[suppUid]) {
+                                        var suppClm = allNodes[suppUid];
+                                        var suppTitle = cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
+                                        result += '#### [[CLM]] - ' + suppTitle + '\\n';
+                                        
+                                        if (config.CLM) {
+                                            var suppContent = extractNodeContent(suppClm.data, true, 'CLM');
+                                            if (suppContent) result += '\\n' + suppContent + '\\n';
+                                        }
+                                    }
+                                }
+                                result += '\\n';
+                            }
+                            
+                            // EVDs
+                            if (!clm.related_evds || clm.related_evds.length === 0) {
+                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
+                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
+                                }
+                            } else {
+                                for (var e = 0; e < clm.related_evds.length; e++) {
+                                    var evdUid = clm.related_evds[e];
+                                    if (allNodes[evdUid]) {
+                                        var evd = allNodes[evdUid];
+                                        var evdTitle = cleanText((evd.title || '').replace('[[EVD]] - ', ''));
+                                        result += '#### [[EVD]] - ' + evdTitle + '\\n\\n';
+                                        
+                                        var evdMetadata = evd.project_metadata || {};
+                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                            result += '**Información del proyecto:**\\n';
+                                            if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\\n';
+                                            if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\\n';
+                                            result += '\\n';
+                                        }
+                                        
+                                        if (config.EVD) {
+                                            var evdContent = extractNodeContent(evd.data, true, 'EVD');
+                                            if (evdContent) {
+                                                result += evdContent + '\\n';
+                                            } else {
+                                                result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Direct EVDs
+                if (question.direct_evds) {
+                    for (var d = 0; d < question.direct_evds.length; d++) {
+                        var devdUid = question.direct_evds[d];
+                        if (allNodes[devdUid]) {
+                            var devd = allNodes[devdUid];
+                            var devdTitle = cleanText((devd.title || '').replace('[[EVD]] - ', ''));
+                            result += '### [[EVD]] - ' + devdTitle + '\\n\\n';
+                            
+                            var devdMetadata = devd.project_metadata || {};
+                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\\n';
+                                if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\\n';
+                                result += '\\n';
+                            }
+                            
+                            if (config.EVD) {
+                                var devdContent = extractNodeContent(devd.data, true, 'EVD');
+                                if (devdContent) {
+                                    result += devdContent + '\\n';
+                                } else {
+                                    result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Descargar archivo con el mismo nombre que el HTML
+            var fileName = (document.title || 'mapa_discurso').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\\s+/g, '_') + '.md';
+            var blob = new Blob([result], {type: 'text/markdown'});
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            showCopySuccess('Markdown exportado');
+        }
+        
         function copyIndividualQuestion(id) { copyToClipboard(document.getElementById(id).innerText); }
         function copyIndividualCLM(id) { copyToClipboard(document.getElementById(id).innerText); }
+        
         function moveQuestionUp(id) { 
             var el = document.getElementById(id);
-            if (el.previousElementSibling && el.previousElementSibling.classList.contains('que-node')) 
+            if (el.previousElementSibling && el.previousElementSibling.classList.contains('que-node')) {
                 el.parentNode.insertBefore(el, el.previousElementSibling);
+                saveOrder();
+            }
         }
         function moveQuestionDown(id) {
             var el = document.getElementById(id);
-            if (el.nextElementSibling && el.nextElementSibling.classList.contains('que-node'))
+            if (el.nextElementSibling && el.nextElementSibling.classList.contains('que-node')) {
                 el.parentNode.insertBefore(el.nextElementSibling, el);
+                saveOrder();
+            }
         }
     </script>`;
     }

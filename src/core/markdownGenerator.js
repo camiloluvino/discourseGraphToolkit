@@ -86,27 +86,9 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                 result += "\n";
                             }
 
-                            if (clm.connected_clms && clm.connected_clms.length > 0) {
-                                for (const connUid of clm.connected_clms) {
-                                    if (allNodes[connUid]) {
-                                        const connClm = allNodes[connUid];
-                                        const connTitle = DiscourseGraphToolkit.cleanText(connClm.title.replace("[[CLM]] - ", ""));
-                                        result += `#### [[CLM]] - ${connTitle}\n`;
-
-                                        // --- NUEVO: Contenido del CLM Relacionado ---
-                                        const connContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(connClm.data, config.CLM, "CLM", excludeBitacora);
-                                        if (connContent) {
-                                            result += "\n" + connContent + "\n";
-                                        }
-                                        // -------------------------------------------
-                                    }
-                                }
-                                result += "\n";
-                            }
-
                             // EVDs
                             if (!clm.related_evds || clm.related_evds.length === 0) {
-                                if ((!clm.connected_clms || clm.connected_clms.length === 0) && (!clm.supporting_clms || clm.supporting_clms.length === 0)) {
+                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
                                     result += `*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n`;
                                 }
                             } else {

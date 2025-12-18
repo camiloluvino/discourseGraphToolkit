@@ -13,7 +13,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     // Estados de Exportación
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
-    const [indexPage, setIndexPage] = React.useState(''); // New state for Index Page
     const [includeReferenced, setIncludeReferenced] = React.useState(false);
     // Configuración granular inicial (todo true por defecto o ajustar según preferencia)
     const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
@@ -189,32 +188,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const tTypes = Object.keys(selectedTypes).filter(k => selectedTypes[k]);
 
-            // Validación laxa si hay indexPage: no requiere seleccionar proyecto
-            if (indexPage.trim()) {
-                // Si hay indexPage, ignoramos selección de proyectos pero requerimos tipos? 
-                // Asumamos que tipos SI son necesarios para filtrar qué buscar en el índice.
-                if (tTypes.length === 0) {
-                    alert("Selecciona al menos un tipo de nodo (QUE, CLM, EVD) para buscar en el índice.");
-                    return;
-                }
-            } else {
-                if (pNames.length === 0 || tTypes.length === 0) {
-                    alert("Selecciona proyecto y tipo.");
-                    return;
-                }
+            if (pNames.length === 0 || tTypes.length === 0) {
+                alert("Selecciona proyecto y tipo.");
+                return;
             }
 
             setExportStatus("Buscando páginas...");
             let allPages = [];
-            if (indexPage.trim()) {
-                setExportStatus(`Buscando en página índice: "${indexPage}"...`);
-                const pages = await DiscourseGraphToolkit.getIdsFromIndexPage(indexPage, tTypes);
-                allPages = pages;
-            } else {
-                for (let p of pNames) {
-                    const pages = await DiscourseGraphToolkit.queryDiscoursePages(p, tTypes);
-                    allPages = allPages.concat(pages);
-                }
+            for (let p of pNames) {
+                const pages = await DiscourseGraphToolkit.queryDiscoursePages(p, tTypes);
+                allPages = allPages.concat(pages);
             }
 
             // Deduplicar
@@ -595,19 +578,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                     )
                                 )
                             ),
-                            React.createElement('div', { style: { marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '10px' } },
-                                React.createElement('h4', { style: { marginTop: 0 } }, 'Opcional: Página Índice'),
-                                React.createElement('p', { style: { fontSize: '12px', color: '#666', marginBottom: '5px' } },
-                                    'Si se especifica, se exportarán los nodos referenciados en esta página respetando su orden visual.'
-                                ),
-                                React.createElement('input', {
-                                    type: 'text',
-                                    placeholder: 'Ej: Tesis/Índice',
-                                    value: indexPage,
-                                    onChange: e => setIndexPage(e.target.value),
-                                    style: { width: '100%', padding: '8px', boxSizing: 'border-box' }
-                                })
-                            ),
+
                             React.createElement('div', { style: { marginTop: '10px' } },
                                 React.createElement('label', null,
                                     React.createElement('input', {

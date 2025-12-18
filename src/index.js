@@ -3,6 +3,9 @@
 // ============================================================================
 
 if (window.roamAlphaAPI) {
+    // Run storage migration to graph-specific keys (one-time)
+    DiscourseGraphToolkit.migrateStorageToGraphSpecific();
+
     // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
     setTimeout(() => {
         DiscourseGraphToolkit.initializeProjectsSync();

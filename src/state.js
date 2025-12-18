@@ -4,7 +4,7 @@
 
 // --- Configuración General ---
 DiscourseGraphToolkit.getConfig = function () {
-    const stored = localStorage.getItem(this.STORAGE.CONFIG);
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.CONFIG));
     if (stored) {
         try {
             return { ...this.DEFAULT_CONFIG, ...JSON.parse(stored) };
@@ -14,12 +14,12 @@ DiscourseGraphToolkit.getConfig = function () {
 };
 
 DiscourseGraphToolkit.saveConfig = function (config) {
-    localStorage.setItem(this.STORAGE.CONFIG, JSON.stringify(config));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.CONFIG), JSON.stringify(config));
 };
 
 // --- Templates ---
 DiscourseGraphToolkit.getTemplates = function () {
-    const stored = localStorage.getItem(this.STORAGE.TEMPLATES);
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.TEMPLATES));
     if (stored) {
         try { return JSON.parse(stored); } catch (e) { }
     }
@@ -27,7 +27,7 @@ DiscourseGraphToolkit.getTemplates = function () {
 };
 
 DiscourseGraphToolkit.saveTemplates = function (templates) {
-    localStorage.setItem(this.STORAGE.TEMPLATES, JSON.stringify(templates));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.TEMPLATES), JSON.stringify(templates));
 };
 
 // --- Persistencia en Roam (Config + Templates) ---
@@ -80,17 +80,17 @@ DiscourseGraphToolkit.loadConfigFromRoam = async function () {
 
 // --- Proyectos (Gestión Robusta con Sincronización) ---
 DiscourseGraphToolkit.getProjects = function () {
-    const stored = localStorage.getItem(this.STORAGE.PROJECTS);
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.PROJECTS));
     return stored ? JSON.parse(stored) : [];
 };
 
 DiscourseGraphToolkit.saveProjects = function (projects) {
-    localStorage.setItem(this.STORAGE.PROJECTS, JSON.stringify(projects));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.PROJECTS), JSON.stringify(projects));
 };
 
 // --- Historial de Nodos ---
 DiscourseGraphToolkit.getNodeHistory = function () {
-    const stored = localStorage.getItem(this.STORAGE.HISTORY_NODES);
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.HISTORY_NODES));
     return stored ? JSON.parse(stored) : [];
 };
 
@@ -102,7 +102,7 @@ DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
         pageTitle: `[[${type}]] - ${title}`
     });
     if (history.length > 20) history = history.slice(0, 20);
-    localStorage.setItem(this.STORAGE.HISTORY_NODES, JSON.stringify(history));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.HISTORY_NODES), JSON.stringify(history));
 };
 
 // --- Backup & Restore Config ---
@@ -131,6 +131,28 @@ DiscourseGraphToolkit.importConfig = function (fileContent) {
         console.error("Error importing config:", e);
         return false;
     }
+};
+
+// --- Migration to Graph-Specific Storage ---
+DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
+    const migrationKey = `discourseGraphToolkit_migrated_${this.getGraphName()}`;
+    if (localStorage.getItem(migrationKey)) return; // Already migrated
+
+    // Migrate each storage type from old global key to new graph-specific key
+    Object.values(this.STORAGE).forEach(oldKey => {
+        const data = localStorage.getItem(oldKey);
+        if (data) {
+            const newKey = this.getStorageKey(oldKey);
+            // Only migrate if new key doesn't exist (don't overwrite)
+            if (!localStorage.getItem(newKey)) {
+                localStorage.setItem(newKey, data);
+                console.log(`[DiscourseGraphToolkit] Migrated ${oldKey} → ${newKey}`);
+            }
+        }
+    });
+
+    localStorage.setItem(migrationKey, 'true');
+    console.log(`[DiscourseGraphToolkit] Storage migration complete for graph: ${this.getGraphName()}`);
 };
 
 

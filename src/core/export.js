@@ -3,62 +3,6 @@
 // 4. LÓGICA DE EXPORTACIÓN (CORE ROBUSTO)
 // ============================================================================
 
-DiscourseGraphToolkit.getIdsFromIndexPage = async function (pageTitle, targetTypes = ['QUE', 'CLM', 'EVD']) {
-    // 0. Sanitize input to handle [[Page Name]] format
-    const cleanTitle = pageTitle.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
-
-    // 1. Obtener UID de la página índice
-    const pageRes = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${cleanTitle}"] [?page :block/uid ?uid]]`);
-    if (!pageRes || pageRes.length === 0) {
-        throw new Error(`Página índice "${cleanTitle}" no encontrada.`);
-    }
-    const pageUid = pageRes[0][0];
-
-    // 2. Traer todo el árbol de la página CON :block/refs para obtener referencias estructuradas
-    const pullPattern = `[
-        :block/uid 
-        :block/order 
-        :block/string
-        {:block/refs [:node/title :block/uid]}
-        {:block/children ...}
-    ]`;
-    const result = await window.roamAlphaAPI.data.async.pull(pullPattern, [`:block/uid`, pageUid]);
-
-    if (!result) return [];
-
-    const orderedPages = [];
-    const targetPrefixes = targetTypes.map(t => `[[${DiscourseGraphToolkit.TYPES[t].prefix}]]`);
-
-    // 3. Función recursiva para recorrer bloques en orden visual
-    const traverse = (block) => {
-        if (!block) return;
-
-        // Usar :block/refs que contiene las referencias estructuradas con título y UID
-        if (block[':block/refs'] && Array.isArray(block[':block/refs'])) {
-            for (const ref of block[':block/refs']) {
-                const title = ref[':node/title'];
-                const uid = ref[':block/uid'];
-                if (title && targetPrefixes.some(prefix => title.startsWith(prefix))) {
-                    orderedPages.push({ pageTitle: title, pageUid: uid });
-                }
-            }
-        }
-
-        // Recorrer hijos en orden
-        if (block[':block/children']) {
-            const children = block[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
-            children.forEach(traverse);
-        }
-    };
-
-    // Iniciar traversal desde los hijos de la página
-    if (result[':block/children']) {
-        const children = result[':block/children'].sort((a, b) => (a[':block/order'] || 0) - (b[':block/order'] || 0));
-        children.forEach(traverse);
-    }
-
-    return orderedPages;
-};
 
 DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {
     if (!pullData) return null;
