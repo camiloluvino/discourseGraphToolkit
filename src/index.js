@@ -19,10 +19,26 @@ if (window.roamAlphaAPI) {
     }, 5500);
 
     // Registrar Comandos
+    // Lista de comandos registrados (para cleanup en recargas)
+    DiscourseGraphToolkit._registeredCommands = [
+        'Discourse Graph Toolkit: Abrir',
+        'Discourse Graph: Crear Pregunta (QUE)',
+        'Discourse Graph: Crear Afirmación (CLM)',
+        'Discourse Graph: Crear Evidencia (EVD)'
+    ];
+
+    // Limpiar comandos previos si existen (para manejar recargas del script)
+    DiscourseGraphToolkit._registeredCommands.forEach(label => {
+        try {
+            window.roamAlphaAPI.ui.commandPalette.removeCommand({ label });
+        } catch (e) { /* Ignorar - el comando no existía */ }
+    });
+
     window.roamAlphaAPI.ui.commandPalette.addCommand({
         label: 'Discourse Graph Toolkit: Abrir',
         callback: () => DiscourseGraphToolkit.openModal()
     });
+
 
     window.roamAlphaAPI.ui.commandPalette.addCommand({
         label: 'Discourse Graph: Crear Pregunta (QUE)',

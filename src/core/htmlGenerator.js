@@ -43,6 +43,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                 html += `<h2 class="collapsible">`;
                 html += `<span class="node-tag">[[QUE]]</span> - ${qTitle}`;
                 html += `<button class="btn-copy-individual" onclick="copyIndividualQuestion('${qId}')">Copiar</button>`;
+                html += `<button class="btn-export-md" onclick="exportQuestionMarkdown(${i})" title="Exportar Markdown">MD</button>`;
                 html += `<button class="btn-reorder btn-reorder-up" onclick="moveQuestionUp('${qId}')" title="Mover hacia arriba">↑</button>`;
                 html += `<button class="btn-reorder btn-reorder-down" onclick="moveQuestionDown('${qId}')" title="Mover hacia abajo">↓</button>`;
                 html += `</h2>`;
@@ -335,6 +336,8 @@ DiscourseGraphToolkit.HtmlGenerator = {
         .btn-copy { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
         .btn-export { background: #007acc; color: #fff; border-color: #007acc; }
         .btn-copy-individual, .btn-reorder { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 2px 6px; margin-left: 8px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .btn-export-md { background: #4CAF50; color: white; border: 1px solid #4CAF50; padding: 2px 6px; margin-left: 4px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .btn-export-md:hover { background: #45a049; }
         .node-tag { font-weight: 600; font-family: monospace; font-size: 11px; }
         .error-message { color: #777; font-style: italic; background-color: #f8f8f8; padding: 8px; }
         .copy-success { position: fixed; top: 20px; right: 20px; background: #1a1a1a; color: #fff; padding: 8px 16px; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
@@ -694,6 +697,191 @@ DiscourseGraphToolkit.HtmlGenerator = {
         
         function copyIndividualQuestion(id) { copyToClipboard(document.getElementById(id).innerText); }
         function copyIndividualCLM(id) { copyToClipboard(document.getElementById(id).innerText); }
+        
+        function exportQuestionMarkdown(questionIndex) {
+            var dataEl = document.getElementById('embedded-data');
+            if (!dataEl) { alert('Error: No se encontraron datos embebidos.'); return; }
+            var data = JSON.parse(dataEl.textContent);
+            var allNodes = data.allNodes;
+            var config = data.config;
+            var excludeBitacora = data.excludeBitacora;
+            var question = data.questions[questionIndex];
+            if (!question) { alert('Error: Pregunta no encontrada.'); return; }
+            
+            function extractBlockContent(block, indentLevel, skipMetadata, visitedBlocks, maxDepth) {
+                var content = '';
+                if (!visitedBlocks) visitedBlocks = {};
+                if (indentLevel > maxDepth) return content;
+                if (!block || typeof block !== 'object') return content;
+                var blockUid = block.uid || '';
+                var blockString = block.string || '';
+                if (blockUid && visitedBlocks[blockUid]) return content;
+                if (blockUid) visitedBlocks[blockUid] = true;
+                if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) return '';
+                var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                var isStructural = structuralMarkers.indexOf(blockString) !== -1;
+                if (skipMetadata && (!blockString || isStructural)) { } else {
+                    if (blockString) {
+                        var indent = '';
+                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        content += indent + '- ' + blockString + '\\n';
+                    }
+                }
+                var children = block.children || [];
+                for (var i = 0; i < children.length; i++) {
+                    var childContent = extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    if (childContent) content += childContent;
+                }
+                if (blockUid) delete visitedBlocks[blockUid];
+                return content;
+            }
+            function extractNodeContent(nodeData, extractAdditionalContent, nodeType) {
+                var detailedContent = '';
+                if (!nodeData) return detailedContent;
+                var children = nodeData.children || [];
+                if (children.length > 0) {
+                    for (var i = 0; i < children.length; i++) {
+                        var child = children[i];
+                        var childString = child.string || '';
+                        var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                        var isStructuralMetadata = false;
+                        for (var j = 0; j < structuralMetadata.length; j++) {
+                            if (childString.indexOf(structuralMetadata[j]) === 0) { isStructuralMetadata = true; break; }
+                        }
+                        if (!isStructuralMetadata) {
+                            var childContent = extractBlockContent(child, 0, false, null, 20);
+                            if (childContent) detailedContent += childContent;
+                        }
+                    }
+                }
+                if (!detailedContent) {
+                    var mainString = nodeData.string || '';
+                    if (mainString) { detailedContent += '- ' + mainString + '\\n'; }
+                    else {
+                        var title = nodeData.title || '';
+                        if (title) {
+                            var prefix = '[[' + nodeType + ']] - ';
+                            var cleanTitle = title.replace(prefix, '').trim();
+                            if (cleanTitle) detailedContent += '- ' + cleanTitle + '\\n';
+                        }
+                    }
+                }
+                return detailedContent;
+            }
+            function cleanText(text) { return text.replace(/\\s+/g, ' ').trim(); }
+            
+            var result = '';
+            var qTitle = cleanText((question.title || '').replace('[[QUE]] - ', ''));
+            result += '## [[QUE]] - ' + qTitle + '\\n\\n';
+            var metadata = question.project_metadata || {};
+            if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+                result += '**Información del proyecto:**\\n';
+                if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n';
+                if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\\n';
+                result += '\\n';
+            }
+            if (config.QUE) {
+                var queContent = extractNodeContent(question.data || question, true, 'QUE');
+                if (queContent) result += queContent + '\\n';
+            }
+            var hasClms = question.related_clms && question.related_clms.length > 0;
+            var hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+            if (!hasClms && !hasDirectEvds) {
+                result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+            } else {
+                if (question.related_clms) {
+                    for (var c = 0; c < question.related_clms.length; c++) {
+                        var clmUid = question.related_clms[c];
+                        if (allNodes[clmUid]) {
+                            var clm = allNodes[clmUid];
+                            var clmTitle = cleanText((clm.title || '').replace('[[CLM]] - ', ''));
+                            result += '### [[CLM]] - ' + clmTitle + '\\n\\n';
+                            var clmMetadata = clm.project_metadata || {};
+                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\\n';
+                                if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\\n';
+                                result += '\\n\\n';
+                            }
+                            if (config.CLM) {
+                                var clmContent = extractNodeContent(clm.data, true, 'CLM');
+                                if (clmContent) result += clmContent + '\\n';
+                            }
+                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+                                for (var s = 0; s < clm.supporting_clms.length; s++) {
+                                    var suppUid = clm.supporting_clms[s];
+                                    if (allNodes[suppUid]) {
+                                        var suppClm = allNodes[suppUid];
+                                        var suppTitle = cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
+                                        result += '#### [[CLM]] - ' + suppTitle + '\\n';
+                                        if (config.CLM) {
+                                            var suppContent = extractNodeContent(suppClm.data, true, 'CLM');
+                                            if (suppContent) result += '\\n' + suppContent + '\\n';
+                                        }
+                                    }
+                                }
+                                result += '\\n';
+                            }
+                            if (!clm.related_evds || clm.related_evds.length === 0) {
+                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
+                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM).*\\n\\n';
+                                }
+                            } else {
+                                for (var e = 0; e < clm.related_evds.length; e++) {
+                                    var evdUid = clm.related_evds[e];
+                                    if (allNodes[evdUid]) {
+                                        var evd = allNodes[evdUid];
+                                        var evdTitle = cleanText((evd.title || '').replace('[[EVD]] - ', ''));
+                                        result += '#### [[EVD]] - ' + evdTitle + '\\n\\n';
+                                        var evdMetadata = evd.project_metadata || {};
+                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                            result += '**Información del proyecto:**\\n';
+                                            if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\\n';
+                                            if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\\n';
+                                            result += '\\n';
+                                        }
+                                        if (config.EVD) {
+                                            var evdContent = extractNodeContent(evd.data, true, 'EVD');
+                                            if (evdContent) result += evdContent + '\\n';
+                                            else result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (question.direct_evds) {
+                    for (var d = 0; d < question.direct_evds.length; d++) {
+                        var devdUid = question.direct_evds[d];
+                        if (allNodes[devdUid]) {
+                            var devd = allNodes[devdUid];
+                            var devdTitle = cleanText((devd.title || '').replace('[[EVD]] - ', ''));
+                            result += '### [[EVD]] - ' + devdTitle + '\\n\\n';
+                            var devdMetadata = devd.project_metadata || {};
+                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\\n';
+                                if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\\n';
+                                result += '\\n';
+                            }
+                            if (config.EVD) {
+                                var devdContent = extractNodeContent(devd.data, true, 'EVD');
+                                if (devdContent) result += devdContent + '\\n';
+                                else result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                            }
+                        }
+                    }
+                }
+            }
+            var fileName = 'QUE_' + qTitle.substring(0, 40).replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\\s+/g, '_') + '.md';
+            var blob = new Blob([result], {type: 'text/markdown'});
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            showCopySuccess('Markdown exportado: ' + qTitle.substring(0, 20) + '...');
+        }
         
         function moveQuestionUp(id) { 
             var el = document.getElementById(id);

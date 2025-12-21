@@ -25,6 +25,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [isScanning, setIsScanning] = React.useState(false);
     const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
 
+    // Estados para la pestaña Verificar
+    const [availableQuestions, setAvailableQuestions] = React.useState([]);
+    const [selectedQuestion, setSelectedQuestion] = React.useState(null);
+    const [verificationResult, setVerificationResult] = React.useState(null);
+    const [isVerifying, setIsVerifying] = React.useState(false);
+    const [verifyStatus, setVerifyStatus] = React.useState('');
+
     // Init
     React.useEffect(() => {
         const loadData = async () => {
@@ -240,7 +247,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent);
 
             setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
-            setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             // History Removed
             // DiscourseGraphToolkit.addToExportHistory({...});
             // setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -317,7 +323,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
 
             setExportStatus(`✅ Exportación HTML completada.`);
-            setExportStatus(`✅ Exportación HTML completada.`);
             // History Removed
 
         } catch (e) {
@@ -387,7 +392,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
 
             setExportStatus(`✅ Exportación Markdown completada.`);
-            setExportStatus(`✅ Exportación Markdown completada.`);
             // History Removed
 
         } catch (e) {
@@ -397,6 +401,85 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             setIsExporting(false);
         }
     };
+
+    // --- Handlers Verificación ---
+    const handleLoadQuestions = async () => {
+        setVerifyStatus("Cargando preguntas...");
+        try {
+            const questions = await DiscourseGraphToolkit.getAllQuestions();
+            setAvailableQuestions(questions);
+            setVerifyStatus(`${questions.length} preguntas encontradas.`);
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error al cargar preguntas: " + e.message);
+        }
+    };
+
+    const handleVerifyBranch = async () => {
+        if (!selectedQuestion) {
+            setVerifyStatus("Selecciona una pregunta primero.");
+            return;
+        }
+
+        setIsVerifying(true);
+        setVerificationResult(null);
+        setVerifyStatus("Analizando rama...");
+
+        try {
+            // 1. Obtener todos los nodos de la rama
+            setVerifyStatus("Obteniendo nodos de la rama...");
+            const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedQuestion.pageUid);
+
+            if (branchNodes.length === 0) {
+                setVerifyStatus("No se encontraron nodos en esta rama.");
+                setVerificationResult({ withProject: [], withoutProject: [], nodes: {} });
+                return;
+            }
+
+            // 2. Verificar cuáles tienen Proyecto Asociado
+            setVerifyStatus(`Verificando ${branchNodes.length} nodos...`);
+            const nodeUids = branchNodes.map(n => n.uid);
+            const result = await DiscourseGraphToolkit.verifyProjectAssociation(nodeUids);
+
+            // 3. Crear mapa de nodos para mostrar información
+            const nodesMap = {};
+            branchNodes.forEach(n => { nodesMap[n.uid] = n; });
+
+            setVerificationResult({
+                ...result,
+                nodes: nodesMap
+            });
+
+            if (result.withoutProject.length === 0) {
+                setVerifyStatus(`✅ Todos los ${branchNodes.length} nodos tienen Proyecto Asociado.`);
+            } else {
+                setVerifyStatus(`⚠️ ${result.withoutProject.length} de ${branchNodes.length} nodos sin Proyecto Asociado.`);
+            }
+
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error: " + e.message);
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleNavigateToPage = (uid) => {
+        try {
+            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+        } catch (e) {
+            console.error("Error navigating to page:", e);
+            // Fallback: abrir en nueva pestaña
+            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
+        }
+    };
+
+    // Cargar preguntas al entrar a la pestaña verificar
+    React.useEffect(() => {
+        if (activeTab === 'verificar' && availableQuestions.length === 0) {
+            handleLoadQuestions();
+        }
+    }, [activeTab]);
 
     // --- Render Helpers ---
     const tabStyle = (id) => ({
@@ -424,7 +507,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['general', 'proyectos', 'exportar', 'importar'].map(t =>
+                ['general', 'proyectos', 'exportar', 'importar', 'verificar'].map(t =>
                     React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
@@ -690,6 +773,196 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         }, 'Seleccionar Archivo JSON')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
+                ),
+
+                activeTab === 'verificar' && React.createElement('div', null,
+                    React.createElement('h3', { style: { marginTop: 0, marginBottom: '10px' } }, '🔍 Verificar Proyecto Asociado'),
+                    React.createElement('p', { style: { color: '#666', marginBottom: '20px' } },
+                        'Verifica que todos los nodos de una rama tengan la propiedad "Proyecto Asociado::".'),
+
+                    // Selector de pregunta
+                    React.createElement('div', { style: { marginBottom: '15px' } },
+                        React.createElement('label', { style: { display: 'block', marginBottom: '5px', fontWeight: 'bold' } },
+                            'Selecciona una pregunta:'),
+                        React.createElement('select', {
+                            value: selectedQuestion ? selectedQuestion.pageUid : '',
+                            onChange: (e) => {
+                                const q = availableQuestions.find(q => q.pageUid === e.target.value);
+                                setSelectedQuestion(q || null);
+                                setVerificationResult(null);
+                            },
+                            style: { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ccc' }
+                        },
+                            React.createElement('option', { value: '' }, '-- Seleccionar pregunta --'),
+                            availableQuestions.map(q =>
+                                React.createElement('option', { key: q.pageUid, value: q.pageUid },
+                                    q.pageTitle.replace('[[QUE]] - ', '').substring(0, 100) + (q.pageTitle.length > 100 ? '...' : '')
+                                )
+                            )
+                        )
+                    ),
+
+                    // Botones de acción
+                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
+                        React.createElement('button', {
+                            onClick: handleVerifyBranch,
+                            disabled: isVerifying || !selectedQuestion,
+                            style: {
+                                padding: '10px 20px',
+                                backgroundColor: selectedQuestion ? '#2196F3' : '#ccc',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: selectedQuestion ? 'pointer' : 'not-allowed',
+                                fontSize: '14px'
+                            }
+                        }, isVerifying ? '⏳ Verificando...' : '🔍 Verificar Rama'),
+                        React.createElement('button', {
+                            onClick: handleLoadQuestions,
+                            style: {
+                                padding: '10px 20px',
+                                backgroundColor: 'white',
+                                color: '#666',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }
+                        }, '🔄 Refrescar Preguntas')
+                    ),
+
+                    // Status
+                    verifyStatus && React.createElement('div', {
+                        style: {
+                            marginBottom: '15px',
+                            padding: '10px',
+                            backgroundColor: verifyStatus.includes('✅') ? '#e8f5e9' :
+                                verifyStatus.includes('⚠️') ? '#fff3e0' :
+                                    verifyStatus.includes('❌') ? '#ffebee' : '#f5f5f5',
+                            borderRadius: '4px',
+                            fontWeight: 'bold'
+                        }
+                    }, verifyStatus),
+
+                    // Resultados
+                    verificationResult && React.createElement('div', null,
+                        // Nodos sin proyecto (problemas)
+                        verificationResult.withoutProject.length > 0 && React.createElement('div', {
+                            style: {
+                                marginBottom: '15px',
+                                border: '1px solid #ff9800',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#fff3e0',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #ff9800'
+                                }
+                            }, `⚠️ Nodos sin Proyecto Asociado (${verificationResult.withoutProject.length})`),
+                            React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto' } },
+                                verificationResult.withoutProject.map(uid => {
+                                    const node = verificationResult.nodes[uid];
+                                    return React.createElement('div', {
+                                        key: uid,
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '8px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white'
+                                        }
+                                    },
+                                        React.createElement('span', { style: { flex: 1 } },
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '3px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    marginRight: '8px',
+                                                    backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                    color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                }
+                                            }, node?.type || '?'),
+                                            node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleNavigateToPage(uid),
+                                            style: {
+                                                padding: '4px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px'
+                                            }
+                                        }, '→ Ir')
+                                    );
+                                })
+                            )
+                        ),
+
+                        // Nodos con proyecto (éxito)
+                        verificationResult.withProject.length > 0 && React.createElement('div', {
+                            style: {
+                                border: '1px solid #4CAF50',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#e8f5e9',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #4CAF50',
+                                    cursor: 'pointer'
+                                },
+                                onClick: (e) => {
+                                    const content = e.target.nextSibling;
+                                    if (content) {
+                                        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                                    }
+                                }
+                            }, `✅ Nodos con Proyecto Asociado (${verificationResult.withProject.length}) - Click para expandir`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', display: 'none' } },
+                                verificationResult.withProject.map(uid => {
+                                    const node = verificationResult.nodes[uid];
+                                    return React.createElement('div', {
+                                        key: uid,
+                                        style: {
+                                            padding: '6px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white',
+                                            fontSize: '13px',
+                                            color: '#666'
+                                        }
+                                    },
+                                        React.createElement('span', {
+                                            style: {
+                                                display: 'inline-block',
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                fontSize: '10px',
+                                                fontWeight: 'bold',
+                                                marginRight: '8px',
+                                                backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                            }
+                                        }, node?.type || '?'),
+                                        node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
+                                    );
+                                })
+                            )
+                        )
+                    )
                 )
             )
         )

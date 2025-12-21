@@ -43,7 +43,6 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
 
         // Guardar como un bloque JSON
         const data = JSON.stringify({ config, templates });
-        const blockUid = window.roamAlphaAPI.util.generateUID();
 
         // Limpiar hijos anteriores
         const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);

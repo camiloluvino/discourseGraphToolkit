@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.1.13
- * Bundled build: 2025-12-18 19:37:25
+ * DISCOURSE GRAPH TOOLKIT v1.2.1
+ * Bundled build: 2025-12-21 18:20:08
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.1.13";
+    DiscourseGraphToolkit.VERSION = "1.2.1";
 
 // --- MODULE: src/config.js ---
 // ============================================================================
@@ -283,7 +283,6 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
 
         // Guardar como un bloque JSON
         const data = JSON.stringify({ config, templates });
-        const blockUid = window.roamAlphaAPI.util.generateUID();
 
         // Limpiar hijos anteriores
         const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
@@ -582,6 +581,196 @@ DiscourseGraphToolkit.findReferencedDiscoursePages = async function (pageUids, s
     return pageResults.map(r => ({ pageTitle: r[0], pageUid: r[1] }));
 };
 
+// ============================================================================
+// API: Verificación de Proyecto Asociado
+// ============================================================================
+
+/**
+ * Obtiene todas las preguntas (QUE) del grafo
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.getAllQuestions = async function () {
+    const query = `[:find ?title ?uid 
+                   :where 
+                   [?page :node/title ?title] 
+                   [?page :block/uid ?uid]
+                   [(clojure.string/starts-with? ?title "[[QUE]]")]]`;
+
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    return results
+        .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
+        .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
+};
+
+/**
+ * Obtiene todos los nodos (CLM, EVD) descendientes de una pregunta RECURSIVAMENTE
+ * Sigue la cadena completa: QUE -> CLM -> EVD, CLM -> CLM -> EVD, etc.
+ * @param {string} questionUid - UID de la página de la pregunta
+ * @returns {Promise<Array<{uid: string, title: string, type: string}>>}
+ */
+DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
+    try {
+        const allNodes = new Map(); // uid -> {uid, title, type}
+        const visited = new Set();
+        const toProcess = [questionUid];
+
+        // Procesar iterativamente para evitar stack overflow en ramas muy profundas
+        while (toProcess.length > 0) {
+            const currentUid = toProcess.shift();
+
+            if (visited.has(currentUid)) continue;
+            visited.add(currentUid);
+
+            // Obtener datos del nodo actual
+            const rawData = await window.roamAlphaAPI.data.async.pull(
+                this.ROAM_PULL_PATTERN,
+                [':block/uid', currentUid]
+            );
+
+            if (!rawData) continue;
+
+            // Transformar a formato usable
+            const nodeData = this.transformToNativeFormat(rawData, 0, new Set(), true);
+            if (!nodeData) continue;
+
+            const nodeType = this.getNodeType(nodeData.title);
+
+            // Si es CLM o EVD, agregarlo a la lista de nodos encontrados
+            if (nodeType === 'CLM' || nodeType === 'EVD') {
+                allNodes.set(currentUid, {
+                    uid: currentUid,
+                    title: nodeData.title,
+                    type: nodeType
+                });
+            }
+
+            // Buscar referencias en el contenido del nodo
+            const referencedUids = this._extractAllReferencesFromNode(nodeData);
+
+            // Agregar las referencias no visitadas a la cola de procesamiento
+            for (const refUid of referencedUids) {
+                if (!visited.has(refUid) && !toProcess.includes(refUid)) {
+                    toProcess.push(refUid);
+                }
+            }
+        }
+
+        return Array.from(allNodes.values());
+
+    } catch (e) {
+        console.error("Error getting branch nodes:", e);
+        return [];
+    }
+};
+
+/**
+ * Helper: Extrae TODAS las referencias de nodos discourse del contenido de un nodo
+ * Busca en #RespondedBy, #SupportedBy, #RelatedTo
+ */
+DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
+    const references = new Set();
+
+    if (!nodeData || !nodeData.children) return references;
+
+    const self = this;
+
+    const processBlock = (block) => {
+        if (!block) return;
+
+        const str = block.string || "";
+
+        // Si es un bloque de relación, extraer referencias
+        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+            // Extraer refs del bloque actual
+            self._extractRefsFromBlock(block, references);
+
+            // Extraer refs de los hijos del bloque
+            if (block.children) {
+                for (const child of block.children) {
+                    self._extractRefsFromBlock(child, references);
+                    // También procesar sub-hijos (para estructuras más profundas)
+                    if (child.children) {
+                        for (const subChild of child.children) {
+                            self._extractRefsFromBlock(subChild, references);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Procesar todos los hijos del nodo
+    for (const child of nodeData.children) {
+        processBlock(child);
+    }
+
+    return references;
+};
+
+/**
+ * Helper: Extrae UIDs de referencias de un bloque
+ */
+DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
+    // Refs directas
+    if (block.refs) {
+        block.refs.forEach(r => {
+            if (r.uid) collectedUids.add(r.uid);
+        });
+    }
+    if (block[':block/refs']) {
+        block[':block/refs'].forEach(r => {
+            if (r[':block/uid']) collectedUids.add(r[':block/uid']);
+        });
+    }
+
+    // Buscar referencias en el texto [[...]]
+    const str = block.string || "";
+    const pattern = /\[\[([^\]]+)\]\]/g;
+    let match;
+    while ((match = pattern.exec(str)) !== null) {
+        const refContent = match[1];
+        // Si parece ser un nodo discourse (CLM, EVD, QUE)
+        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]')) {
+            // No podemos obtener el UID desde el texto, pero las refs directas ya lo tienen
+        }
+    }
+};
+
+/**
+ * Verifica cuáles nodos tienen la propiedad "Proyecto Asociado::"
+ * @param {Array<string>} nodeUids - Array de UIDs de páginas a verificar
+ * @returns {Promise<{withProject: Array, withoutProject: Array}>}
+ */
+DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
+    if (!nodeUids || nodeUids.length === 0) {
+        return { withProject: [], withoutProject: [] };
+    }
+
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+    // Query para encontrar cuáles páginas tienen un bloque con "Proyecto Asociado::"
+    const query = `[:find ?page-uid
+                   :in $ [?page-uid ...]
+                   :where 
+                   [?page :block/uid ?page-uid]
+                   [?block :block/page ?page]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
+        const withProjectSet = new Set(results.map(r => r[0]));
+
+        const withProject = nodeUids.filter(uid => withProjectSet.has(uid));
+        const withoutProject = nodeUids.filter(uid => !withProjectSet.has(uid));
+
+        return { withProject, withoutProject };
+    } catch (e) {
+        console.error("Error verifying project association:", e);
+        return { withProject: [], withoutProject: nodeUids };
+    }
+};
 
 
 
@@ -1502,6 +1691,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
                 html += `<h2 class="collapsible">`;
                 html += `<span class="node-tag">[[QUE]]</span> - ${qTitle}`;
                 html += `<button class="btn-copy-individual" onclick="copyIndividualQuestion('${qId}')">Copiar</button>`;
+                html += `<button class="btn-export-md" onclick="exportQuestionMarkdown(${i})" title="Exportar Markdown">MD</button>`;
                 html += `<button class="btn-reorder btn-reorder-up" onclick="moveQuestionUp('${qId}')" title="Mover hacia arriba">↑</button>`;
                 html += `<button class="btn-reorder btn-reorder-down" onclick="moveQuestionDown('${qId}')" title="Mover hacia abajo">↓</button>`;
                 html += `</h2>`;
@@ -1794,6 +1984,8 @@ DiscourseGraphToolkit.HtmlGenerator = {
         .btn-copy { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
         .btn-export { background: #007acc; color: #fff; border-color: #007acc; }
         .btn-copy-individual, .btn-reorder { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 2px 6px; margin-left: 8px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .btn-export-md { background: #4CAF50; color: white; border: 1px solid #4CAF50; padding: 2px 6px; margin-left: 4px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .btn-export-md:hover { background: #45a049; }
         .node-tag { font-weight: 600; font-family: monospace; font-size: 11px; }
         .error-message { color: #777; font-style: italic; background-color: #f8f8f8; padding: 8px; }
         .copy-success { position: fixed; top: 20px; right: 20px; background: #1a1a1a; color: #fff; padding: 8px 16px; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
@@ -2154,6 +2346,191 @@ DiscourseGraphToolkit.HtmlGenerator = {
         function copyIndividualQuestion(id) { copyToClipboard(document.getElementById(id).innerText); }
         function copyIndividualCLM(id) { copyToClipboard(document.getElementById(id).innerText); }
         
+        function exportQuestionMarkdown(questionIndex) {
+            var dataEl = document.getElementById('embedded-data');
+            if (!dataEl) { alert('Error: No se encontraron datos embebidos.'); return; }
+            var data = JSON.parse(dataEl.textContent);
+            var allNodes = data.allNodes;
+            var config = data.config;
+            var excludeBitacora = data.excludeBitacora;
+            var question = data.questions[questionIndex];
+            if (!question) { alert('Error: Pregunta no encontrada.'); return; }
+            
+            function extractBlockContent(block, indentLevel, skipMetadata, visitedBlocks, maxDepth) {
+                var content = '';
+                if (!visitedBlocks) visitedBlocks = {};
+                if (indentLevel > maxDepth) return content;
+                if (!block || typeof block !== 'object') return content;
+                var blockUid = block.uid || '';
+                var blockString = block.string || '';
+                if (blockUid && visitedBlocks[blockUid]) return content;
+                if (blockUid) visitedBlocks[blockUid] = true;
+                if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) return '';
+                var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                var isStructural = structuralMarkers.indexOf(blockString) !== -1;
+                if (skipMetadata && (!blockString || isStructural)) { } else {
+                    if (blockString) {
+                        var indent = '';
+                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        content += indent + '- ' + blockString + '\\n';
+                    }
+                }
+                var children = block.children || [];
+                for (var i = 0; i < children.length; i++) {
+                    var childContent = extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth);
+                    if (childContent) content += childContent;
+                }
+                if (blockUid) delete visitedBlocks[blockUid];
+                return content;
+            }
+            function extractNodeContent(nodeData, extractAdditionalContent, nodeType) {
+                var detailedContent = '';
+                if (!nodeData) return detailedContent;
+                var children = nodeData.children || [];
+                if (children.length > 0) {
+                    for (var i = 0; i < children.length; i++) {
+                        var child = children[i];
+                        var childString = child.string || '';
+                        var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                        var isStructuralMetadata = false;
+                        for (var j = 0; j < structuralMetadata.length; j++) {
+                            if (childString.indexOf(structuralMetadata[j]) === 0) { isStructuralMetadata = true; break; }
+                        }
+                        if (!isStructuralMetadata) {
+                            var childContent = extractBlockContent(child, 0, false, null, 20);
+                            if (childContent) detailedContent += childContent;
+                        }
+                    }
+                }
+                if (!detailedContent) {
+                    var mainString = nodeData.string || '';
+                    if (mainString) { detailedContent += '- ' + mainString + '\\n'; }
+                    else {
+                        var title = nodeData.title || '';
+                        if (title) {
+                            var prefix = '[[' + nodeType + ']] - ';
+                            var cleanTitle = title.replace(prefix, '').trim();
+                            if (cleanTitle) detailedContent += '- ' + cleanTitle + '\\n';
+                        }
+                    }
+                }
+                return detailedContent;
+            }
+            function cleanText(text) { return text.replace(/\\s+/g, ' ').trim(); }
+            
+            var result = '';
+            var qTitle = cleanText((question.title || '').replace('[[QUE]] - ', ''));
+            result += '## [[QUE]] - ' + qTitle + '\\n\\n';
+            var metadata = question.project_metadata || {};
+            if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+                result += '**Información del proyecto:**\\n';
+                if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n';
+                if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\\n';
+                result += '\\n';
+            }
+            if (config.QUE) {
+                var queContent = extractNodeContent(question.data || question, true, 'QUE');
+                if (queContent) result += queContent + '\\n';
+            }
+            var hasClms = question.related_clms && question.related_clms.length > 0;
+            var hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+            if (!hasClms && !hasDirectEvds) {
+                result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+            } else {
+                if (question.related_clms) {
+                    for (var c = 0; c < question.related_clms.length; c++) {
+                        var clmUid = question.related_clms[c];
+                        if (allNodes[clmUid]) {
+                            var clm = allNodes[clmUid];
+                            var clmTitle = cleanText((clm.title || '').replace('[[CLM]] - ', ''));
+                            result += '### [[CLM]] - ' + clmTitle + '\\n\\n';
+                            var clmMetadata = clm.project_metadata || {};
+                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\\n';
+                                if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\\n';
+                                result += '\\n\\n';
+                            }
+                            if (config.CLM) {
+                                var clmContent = extractNodeContent(clm.data, true, 'CLM');
+                                if (clmContent) result += clmContent + '\\n';
+                            }
+                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+                                for (var s = 0; s < clm.supporting_clms.length; s++) {
+                                    var suppUid = clm.supporting_clms[s];
+                                    if (allNodes[suppUid]) {
+                                        var suppClm = allNodes[suppUid];
+                                        var suppTitle = cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
+                                        result += '#### [[CLM]] - ' + suppTitle + '\\n';
+                                        if (config.CLM) {
+                                            var suppContent = extractNodeContent(suppClm.data, true, 'CLM');
+                                            if (suppContent) result += '\\n' + suppContent + '\\n';
+                                        }
+                                    }
+                                }
+                                result += '\\n';
+                            }
+                            if (!clm.related_evds || clm.related_evds.length === 0) {
+                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
+                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM).*\\n\\n';
+                                }
+                            } else {
+                                for (var e = 0; e < clm.related_evds.length; e++) {
+                                    var evdUid = clm.related_evds[e];
+                                    if (allNodes[evdUid]) {
+                                        var evd = allNodes[evdUid];
+                                        var evdTitle = cleanText((evd.title || '').replace('[[EVD]] - ', ''));
+                                        result += '#### [[EVD]] - ' + evdTitle + '\\n\\n';
+                                        var evdMetadata = evd.project_metadata || {};
+                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                            result += '**Información del proyecto:**\\n';
+                                            if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\\n';
+                                            if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\\n';
+                                            result += '\\n';
+                                        }
+                                        if (config.EVD) {
+                                            var evdContent = extractNodeContent(evd.data, true, 'EVD');
+                                            if (evdContent) result += evdContent + '\\n';
+                                            else result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (question.direct_evds) {
+                    for (var d = 0; d < question.direct_evds.length; d++) {
+                        var devdUid = question.direct_evds[d];
+                        if (allNodes[devdUid]) {
+                            var devd = allNodes[devdUid];
+                            var devdTitle = cleanText((devd.title || '').replace('[[EVD]] - ', ''));
+                            result += '### [[EVD]] - ' + devdTitle + '\\n\\n';
+                            var devdMetadata = devd.project_metadata || {};
+                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
+                                result += '**Información del proyecto:**\\n';
+                                if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\\n';
+                                if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\\n';
+                                result += '\\n';
+                            }
+                            if (config.EVD) {
+                                var devdContent = extractNodeContent(devd.data, true, 'EVD');
+                                if (devdContent) result += devdContent + '\\n';
+                                else result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                            }
+                        }
+                    }
+                }
+            }
+            var fileName = 'QUE_' + qTitle.substring(0, 40).replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\\s+/g, '_') + '.md';
+            var blob = new Blob([result], {type: 'text/markdown'});
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            showCopySuccess('Markdown exportado: ' + qTitle.substring(0, 20) + '...');
+        }
+        
         function moveQuestionUp(id) { 
             var el = document.getElementById(id);
             if (el.previousElementSibling && el.previousElementSibling.classList.contains('que-node')) {
@@ -2358,6 +2735,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [suggestions, setSuggestions] = React.useState([]);
     const [isScanning, setIsScanning] = React.useState(false);
     const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
+
+    // Estados para la pestaña Verificar
+    const [availableQuestions, setAvailableQuestions] = React.useState([]);
+    const [selectedQuestion, setSelectedQuestion] = React.useState(null);
+    const [verificationResult, setVerificationResult] = React.useState(null);
+    const [isVerifying, setIsVerifying] = React.useState(false);
+    const [verifyStatus, setVerifyStatus] = React.useState('');
 
     // Init
     React.useEffect(() => {
@@ -2574,7 +2958,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent);
 
             setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
-            setExportStatus(`✅ Exportación completada: ${pagesToExport.length} páginas.`);
             // History Removed
             // DiscourseGraphToolkit.addToExportHistory({...});
             // setHistory(DiscourseGraphToolkit.getExportHistory());
@@ -2651,7 +3034,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
 
             setExportStatus(`✅ Exportación HTML completada.`);
-            setExportStatus(`✅ Exportación HTML completada.`);
             // History Removed
 
         } catch (e) {
@@ -2721,7 +3103,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
 
             setExportStatus(`✅ Exportación Markdown completada.`);
-            setExportStatus(`✅ Exportación Markdown completada.`);
             // History Removed
 
         } catch (e) {
@@ -2731,6 +3112,85 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             setIsExporting(false);
         }
     };
+
+    // --- Handlers Verificación ---
+    const handleLoadQuestions = async () => {
+        setVerifyStatus("Cargando preguntas...");
+        try {
+            const questions = await DiscourseGraphToolkit.getAllQuestions();
+            setAvailableQuestions(questions);
+            setVerifyStatus(`${questions.length} preguntas encontradas.`);
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error al cargar preguntas: " + e.message);
+        }
+    };
+
+    const handleVerifyBranch = async () => {
+        if (!selectedQuestion) {
+            setVerifyStatus("Selecciona una pregunta primero.");
+            return;
+        }
+
+        setIsVerifying(true);
+        setVerificationResult(null);
+        setVerifyStatus("Analizando rama...");
+
+        try {
+            // 1. Obtener todos los nodos de la rama
+            setVerifyStatus("Obteniendo nodos de la rama...");
+            const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedQuestion.pageUid);
+
+            if (branchNodes.length === 0) {
+                setVerifyStatus("No se encontraron nodos en esta rama.");
+                setVerificationResult({ withProject: [], withoutProject: [], nodes: {} });
+                return;
+            }
+
+            // 2. Verificar cuáles tienen Proyecto Asociado
+            setVerifyStatus(`Verificando ${branchNodes.length} nodos...`);
+            const nodeUids = branchNodes.map(n => n.uid);
+            const result = await DiscourseGraphToolkit.verifyProjectAssociation(nodeUids);
+
+            // 3. Crear mapa de nodos para mostrar información
+            const nodesMap = {};
+            branchNodes.forEach(n => { nodesMap[n.uid] = n; });
+
+            setVerificationResult({
+                ...result,
+                nodes: nodesMap
+            });
+
+            if (result.withoutProject.length === 0) {
+                setVerifyStatus(`✅ Todos los ${branchNodes.length} nodos tienen Proyecto Asociado.`);
+            } else {
+                setVerifyStatus(`⚠️ ${result.withoutProject.length} de ${branchNodes.length} nodos sin Proyecto Asociado.`);
+            }
+
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error: " + e.message);
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleNavigateToPage = (uid) => {
+        try {
+            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+        } catch (e) {
+            console.error("Error navigating to page:", e);
+            // Fallback: abrir en nueva pestaña
+            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
+        }
+    };
+
+    // Cargar preguntas al entrar a la pestaña verificar
+    React.useEffect(() => {
+        if (activeTab === 'verificar' && availableQuestions.length === 0) {
+            handleLoadQuestions();
+        }
+    }, [activeTab]);
 
     // --- Render Helpers ---
     const tabStyle = (id) => ({
@@ -2758,7 +3218,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['general', 'proyectos', 'exportar', 'importar'].map(t =>
+                ['general', 'proyectos', 'exportar', 'importar', 'verificar'].map(t =>
                     React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
@@ -3024,6 +3484,196 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         }, 'Seleccionar Archivo JSON')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontFamily: 'monospace' } }, exportStatus)
+                ),
+
+                activeTab === 'verificar' && React.createElement('div', null,
+                    React.createElement('h3', { style: { marginTop: 0, marginBottom: '10px' } }, '🔍 Verificar Proyecto Asociado'),
+                    React.createElement('p', { style: { color: '#666', marginBottom: '20px' } },
+                        'Verifica que todos los nodos de una rama tengan la propiedad "Proyecto Asociado::".'),
+
+                    // Selector de pregunta
+                    React.createElement('div', { style: { marginBottom: '15px' } },
+                        React.createElement('label', { style: { display: 'block', marginBottom: '5px', fontWeight: 'bold' } },
+                            'Selecciona una pregunta:'),
+                        React.createElement('select', {
+                            value: selectedQuestion ? selectedQuestion.pageUid : '',
+                            onChange: (e) => {
+                                const q = availableQuestions.find(q => q.pageUid === e.target.value);
+                                setSelectedQuestion(q || null);
+                                setVerificationResult(null);
+                            },
+                            style: { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ccc' }
+                        },
+                            React.createElement('option', { value: '' }, '-- Seleccionar pregunta --'),
+                            availableQuestions.map(q =>
+                                React.createElement('option', { key: q.pageUid, value: q.pageUid },
+                                    q.pageTitle.replace('[[QUE]] - ', '').substring(0, 100) + (q.pageTitle.length > 100 ? '...' : '')
+                                )
+                            )
+                        )
+                    ),
+
+                    // Botones de acción
+                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
+                        React.createElement('button', {
+                            onClick: handleVerifyBranch,
+                            disabled: isVerifying || !selectedQuestion,
+                            style: {
+                                padding: '10px 20px',
+                                backgroundColor: selectedQuestion ? '#2196F3' : '#ccc',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: selectedQuestion ? 'pointer' : 'not-allowed',
+                                fontSize: '14px'
+                            }
+                        }, isVerifying ? '⏳ Verificando...' : '🔍 Verificar Rama'),
+                        React.createElement('button', {
+                            onClick: handleLoadQuestions,
+                            style: {
+                                padding: '10px 20px',
+                                backgroundColor: 'white',
+                                color: '#666',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }
+                        }, '🔄 Refrescar Preguntas')
+                    ),
+
+                    // Status
+                    verifyStatus && React.createElement('div', {
+                        style: {
+                            marginBottom: '15px',
+                            padding: '10px',
+                            backgroundColor: verifyStatus.includes('✅') ? '#e8f5e9' :
+                                verifyStatus.includes('⚠️') ? '#fff3e0' :
+                                    verifyStatus.includes('❌') ? '#ffebee' : '#f5f5f5',
+                            borderRadius: '4px',
+                            fontWeight: 'bold'
+                        }
+                    }, verifyStatus),
+
+                    // Resultados
+                    verificationResult && React.createElement('div', null,
+                        // Nodos sin proyecto (problemas)
+                        verificationResult.withoutProject.length > 0 && React.createElement('div', {
+                            style: {
+                                marginBottom: '15px',
+                                border: '1px solid #ff9800',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#fff3e0',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #ff9800'
+                                }
+                            }, `⚠️ Nodos sin Proyecto Asociado (${verificationResult.withoutProject.length})`),
+                            React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto' } },
+                                verificationResult.withoutProject.map(uid => {
+                                    const node = verificationResult.nodes[uid];
+                                    return React.createElement('div', {
+                                        key: uid,
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '8px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white'
+                                        }
+                                    },
+                                        React.createElement('span', { style: { flex: 1 } },
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '3px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    marginRight: '8px',
+                                                    backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                    color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                }
+                                            }, node?.type || '?'),
+                                            node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleNavigateToPage(uid),
+                                            style: {
+                                                padding: '4px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px'
+                                            }
+                                        }, '→ Ir')
+                                    );
+                                })
+                            )
+                        ),
+
+                        // Nodos con proyecto (éxito)
+                        verificationResult.withProject.length > 0 && React.createElement('div', {
+                            style: {
+                                border: '1px solid #4CAF50',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#e8f5e9',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #4CAF50',
+                                    cursor: 'pointer'
+                                },
+                                onClick: (e) => {
+                                    const content = e.target.nextSibling;
+                                    if (content) {
+                                        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                                    }
+                                }
+                            }, `✅ Nodos con Proyecto Asociado (${verificationResult.withProject.length}) - Click para expandir`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', display: 'none' } },
+                                verificationResult.withProject.map(uid => {
+                                    const node = verificationResult.nodes[uid];
+                                    return React.createElement('div', {
+                                        key: uid,
+                                        style: {
+                                            padding: '6px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white',
+                                            fontSize: '13px',
+                                            color: '#666'
+                                        }
+                                    },
+                                        React.createElement('span', {
+                                            style: {
+                                                display: 'inline-block',
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                fontSize: '10px',
+                                                fontWeight: 'bold',
+                                                marginRight: '8px',
+                                                backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                            }
+                                        }, node?.type || '?'),
+                                        node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
+                                    );
+                                })
+                            )
+                        )
+                    )
                 )
             )
         )
@@ -3104,10 +3754,26 @@ if (window.roamAlphaAPI) {
     }, 5500);
 
     // Registrar Comandos
+    // Lista de comandos registrados (para cleanup en recargas)
+    DiscourseGraphToolkit._registeredCommands = [
+        'Discourse Graph Toolkit: Abrir',
+        'Discourse Graph: Crear Pregunta (QUE)',
+        'Discourse Graph: Crear Afirmación (CLM)',
+        'Discourse Graph: Crear Evidencia (EVD)'
+    ];
+
+    // Limpiar comandos previos si existen (para manejar recargas del script)
+    DiscourseGraphToolkit._registeredCommands.forEach(label => {
+        try {
+            window.roamAlphaAPI.ui.commandPalette.removeCommand({ label });
+        } catch (e) { /* Ignorar - el comando no existía */ }
+    });
+
     window.roamAlphaAPI.ui.commandPalette.addCommand({
         label: 'Discourse Graph Toolkit: Abrir',
         callback: () => DiscourseGraphToolkit.openModal()
     });
+
 
     window.roamAlphaAPI.ui.commandPalette.addCommand({
         label: 'Discourse Graph: Crear Pregunta (QUE)',

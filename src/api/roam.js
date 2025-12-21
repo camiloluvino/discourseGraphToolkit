@@ -181,5 +181,195 @@ DiscourseGraphToolkit.findReferencedDiscoursePages = async function (pageUids, s
     return pageResults.map(r => ({ pageTitle: r[0], pageUid: r[1] }));
 };
 
+// ============================================================================
+// API: Verificación de Proyecto Asociado
+// ============================================================================
+
+/**
+ * Obtiene todas las preguntas (QUE) del grafo
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.getAllQuestions = async function () {
+    const query = `[:find ?title ?uid 
+                   :where 
+                   [?page :node/title ?title] 
+                   [?page :block/uid ?uid]
+                   [(clojure.string/starts-with? ?title "[[QUE]]")]]`;
+
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    return results
+        .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
+        .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
+};
+
+/**
+ * Obtiene todos los nodos (CLM, EVD) descendientes de una pregunta RECURSIVAMENTE
+ * Sigue la cadena completa: QUE -> CLM -> EVD, CLM -> CLM -> EVD, etc.
+ * @param {string} questionUid - UID de la página de la pregunta
+ * @returns {Promise<Array<{uid: string, title: string, type: string}>>}
+ */
+DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
+    try {
+        const allNodes = new Map(); // uid -> {uid, title, type}
+        const visited = new Set();
+        const toProcess = [questionUid];
+
+        // Procesar iterativamente para evitar stack overflow en ramas muy profundas
+        while (toProcess.length > 0) {
+            const currentUid = toProcess.shift();
+
+            if (visited.has(currentUid)) continue;
+            visited.add(currentUid);
+
+            // Obtener datos del nodo actual
+            const rawData = await window.roamAlphaAPI.data.async.pull(
+                this.ROAM_PULL_PATTERN,
+                [':block/uid', currentUid]
+            );
+
+            if (!rawData) continue;
+
+            // Transformar a formato usable
+            const nodeData = this.transformToNativeFormat(rawData, 0, new Set(), true);
+            if (!nodeData) continue;
+
+            const nodeType = this.getNodeType(nodeData.title);
+
+            // Si es CLM o EVD, agregarlo a la lista de nodos encontrados
+            if (nodeType === 'CLM' || nodeType === 'EVD') {
+                allNodes.set(currentUid, {
+                    uid: currentUid,
+                    title: nodeData.title,
+                    type: nodeType
+                });
+            }
+
+            // Buscar referencias en el contenido del nodo
+            const referencedUids = this._extractAllReferencesFromNode(nodeData);
+
+            // Agregar las referencias no visitadas a la cola de procesamiento
+            for (const refUid of referencedUids) {
+                if (!visited.has(refUid) && !toProcess.includes(refUid)) {
+                    toProcess.push(refUid);
+                }
+            }
+        }
+
+        return Array.from(allNodes.values());
+
+    } catch (e) {
+        console.error("Error getting branch nodes:", e);
+        return [];
+    }
+};
+
+/**
+ * Helper: Extrae TODAS las referencias de nodos discourse del contenido de un nodo
+ * Busca en #RespondedBy, #SupportedBy, #RelatedTo
+ */
+DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
+    const references = new Set();
+
+    if (!nodeData || !nodeData.children) return references;
+
+    const self = this;
+
+    const processBlock = (block) => {
+        if (!block) return;
+
+        const str = block.string || "";
+
+        // Si es un bloque de relación, extraer referencias
+        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+            // Extraer refs del bloque actual
+            self._extractRefsFromBlock(block, references);
+
+            // Extraer refs de los hijos del bloque
+            if (block.children) {
+                for (const child of block.children) {
+                    self._extractRefsFromBlock(child, references);
+                    // También procesar sub-hijos (para estructuras más profundas)
+                    if (child.children) {
+                        for (const subChild of child.children) {
+                            self._extractRefsFromBlock(subChild, references);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Procesar todos los hijos del nodo
+    for (const child of nodeData.children) {
+        processBlock(child);
+    }
+
+    return references;
+};
+
+/**
+ * Helper: Extrae UIDs de referencias de un bloque
+ */
+DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
+    // Refs directas
+    if (block.refs) {
+        block.refs.forEach(r => {
+            if (r.uid) collectedUids.add(r.uid);
+        });
+    }
+    if (block[':block/refs']) {
+        block[':block/refs'].forEach(r => {
+            if (r[':block/uid']) collectedUids.add(r[':block/uid']);
+        });
+    }
+
+    // Buscar referencias en el texto [[...]]
+    const str = block.string || "";
+    const pattern = /\[\[([^\]]+)\]\]/g;
+    let match;
+    while ((match = pattern.exec(str)) !== null) {
+        const refContent = match[1];
+        // Si parece ser un nodo discourse (CLM, EVD, QUE)
+        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]')) {
+            // No podemos obtener el UID desde el texto, pero las refs directas ya lo tienen
+        }
+    }
+};
+
+/**
+ * Verifica cuáles nodos tienen la propiedad "Proyecto Asociado::"
+ * @param {Array<string>} nodeUids - Array de UIDs de páginas a verificar
+ * @returns {Promise<{withProject: Array, withoutProject: Array}>}
+ */
+DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
+    if (!nodeUids || nodeUids.length === 0) {
+        return { withProject: [], withoutProject: [] };
+    }
+
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+    // Query para encontrar cuáles páginas tienen un bloque con "Proyecto Asociado::"
+    const query = `[:find ?page-uid
+                   :in $ [?page-uid ...]
+                   :where 
+                   [?page :block/uid ?page-uid]
+                   [?block :block/page ?page]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
+        const withProjectSet = new Set(results.map(r => r[0]));
+
+        const withProject = nodeUids.filter(uid => withProjectSet.has(uid));
+        const withoutProject = nodeUids.filter(uid => !withProjectSet.has(uid));
+
+        return { withProject, withoutProject };
+    } catch (e) {
+        console.error("Error verifying project association:", e);
+        return { withProject: [], withoutProject: nodeUids };
+    }
+};
 
 
