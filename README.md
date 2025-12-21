@@ -41,10 +41,35 @@ Usa una página de Roam como "índice" para controlar el **orden de exportación
 
 ## Instalación
 
+### Opción A: Instalación con Actualizaciones Automáticas (Recomendado)
+
+Esta opción carga el plugin desde GitHub Pages. Solo necesitas configurarlo una vez por grafo y recibirás actualizaciones automáticamente.
+
 1. Crea una página en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
 2. Crea un bloque hijo con `{{[[roam/js]]}}`.
 3. Dentro, crea un bloque de código JavaScript.
-4. Copia y pega el contenido de `discourse-graph-toolkit.js`.
+4. Pega el siguiente código:
+
+```javascript
+var s = document.createElement('script');
+s.src = 'https://camiloluvino.github.io/discourseGraphToolkit/discourse-graph-toolkit.js';
+s.type = 'text/javascript';
+document.head.appendChild(s);
+```
+
+5. Confirma con "Yes, I know what I'm doing".
+6. Recarga Roam.
+
+> **Nota:** Cada vez que actualice el plugin en GitHub, todos tus grafos recibirán la nueva versión automáticamente al recargar Roam.
+
+### Opción B: Instalación Manual
+
+Si prefieres tener control total sobre la versión del plugin:
+
+1. Crea una página en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
+2. Crea un bloque hijo con `{{[[roam/js]]}}`.
+3. Dentro, crea un bloque de código JavaScript.
+4. Copia y pega el contenido completo de `discourse-graph-toolkit.js`.
 5. Confirma con "Yes, I know what I'm doing".
 6. Recarga Roam.
 
