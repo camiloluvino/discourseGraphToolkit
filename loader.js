@@ -5,7 +5,8 @@
  * El plugin se cargará siempre desde la versión más reciente en GitHub Pages.
  */
 var s = document.createElement('script');
-s.src = 'https://camiloluvino.github.io/discourseGraphToolkit/discourse-graph-toolkit.js';
+// Cache-busting: agrega timestamp para evitar caché
+s.src = 'https://camiloluvino.github.io/discourseGraphToolkit/discourse-graph-toolkit.js?v=' + Date.now();
 s.type = 'text/javascript';
 s.onload = function () {
     console.log('[Discourse Graph Toolkit] Loaded from GitHub Pages');
