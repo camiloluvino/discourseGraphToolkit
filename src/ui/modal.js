@@ -29,8 +29,12 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [availableQuestions, setAvailableQuestions] = React.useState([]);
     const [selectedQuestion, setSelectedQuestion] = React.useState(null);
     const [verificationResult, setVerificationResult] = React.useState(null);
+    const [structureResult, setStructureResult] = React.useState(null);
     const [isVerifying, setIsVerifying] = React.useState(false);
     const [verifyStatus, setVerifyStatus] = React.useState('');
+    // Estados para coherencia de proyectos
+    const [coherenceResult, setCoherenceResult] = React.useState(null);
+    const [isPropagating, setIsPropagating] = React.useState(false);
 
     // Init
     React.useEffect(() => {
@@ -423,37 +427,62 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
         setIsVerifying(true);
         setVerificationResult(null);
+        setStructureResult(null);
+        setCoherenceResult(null);
         setVerifyStatus("Analizando rama...");
 
         try {
+            // 0. Verificar estructura del QUE primero
+            setVerifyStatus("Verificando estructura...");
+            const structResult = await DiscourseGraphToolkit.verifyBranchStructure(selectedQuestion.pageUid);
+            setStructureResult(structResult);
+
             // 1. Obtener todos los nodos de la rama
             setVerifyStatus("Obteniendo nodos de la rama...");
             const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedQuestion.pageUid);
 
             if (branchNodes.length === 0) {
-                setVerifyStatus("No se encontraron nodos en esta rama.");
+                if (structResult.structureIssues.length > 0) {
+                    setVerifyStatus("⚠️ Problemas de estructura detectados (ver abajo).");
+                } else {
+                    setVerifyStatus("No se encontraron nodos en esta rama.");
+                }
                 setVerificationResult({ withProject: [], withoutProject: [], nodes: {} });
                 return;
             }
 
-            // 2. Verificar cuáles tienen Proyecto Asociado
-            setVerifyStatus(`Verificando ${branchNodes.length} nodos...`);
-            const nodeUids = branchNodes.map(n => n.uid);
-            const result = await DiscourseGraphToolkit.verifyProjectAssociation(nodeUids);
+            // 2. Verificar coherencia de proyectos (NUEVO)
+            setVerifyStatus(`Verificando coherencia en ${branchNodes.length} nodos...`);
+            const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedQuestion.pageUid, branchNodes);
+            setCoherenceResult(cohResult);
 
-            // 3. Crear mapa de nodos para mostrar información
+            // 3. Crear mapa de nodos para mostrar información (legacy compatibility)
             const nodesMap = {};
             branchNodes.forEach(n => { nodesMap[n.uid] = n; });
 
+            // Mantener compatibilidad con la estructura anterior
             setVerificationResult({
-                ...result,
+                withProject: [...cohResult.coherent.map(n => n.uid), ...cohResult.different.map(n => n.uid)],
+                withoutProject: cohResult.missing.map(n => n.uid),
                 nodes: nodesMap
             });
 
-            if (result.withoutProject.length === 0) {
-                setVerifyStatus(`✅ Todos los ${branchNodes.length} nodos tienen Proyecto Asociado.`);
+            // 4. Generar mensaje de estado final
+            let statusParts = [];
+            if (structResult.structureIssues.length > 0) {
+                statusParts.push(`🔧 ${structResult.structureIssues.length} problema(s) de estructura`);
+            }
+            if (cohResult.different.length > 0) {
+                statusParts.push(`⚠️ ${cohResult.different.length} nodo(s) con proyecto diferente`);
+            }
+            if (cohResult.missing.length > 0) {
+                statusParts.push(`❌ ${cohResult.missing.length} nodo(s) sin proyecto`);
+            }
+
+            if (statusParts.length === 0) {
+                setVerifyStatus(`✅ Todos los ${branchNodes.length} nodos son coherentes con el proyecto de la rama.`);
             } else {
-                setVerifyStatus(`⚠️ ${result.withoutProject.length} de ${branchNodes.length} nodos sin Proyecto Asociado.`);
+                setVerifyStatus(statusParts.join(' | '));
             }
 
         } catch (e) {
@@ -461,6 +490,62 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             setVerifyStatus("❌ Error: " + e.message);
         } finally {
             setIsVerifying(false);
+        }
+    };
+
+    const handlePropagateProject = async () => {
+        if (!selectedQuestion || !coherenceResult || !coherenceResult.rootProject) {
+            setVerifyStatus("❌ No hay proyecto de rama para propagar.");
+            return;
+        }
+
+        const nodesToUpdate = [...coherenceResult.different, ...coherenceResult.missing];
+        if (nodesToUpdate.length === 0) {
+            setVerifyStatus("✅ No hay nodos que actualizar.");
+            return;
+        }
+
+        setIsPropagating(true);
+        setVerifyStatus(`⏳ Propagando proyecto a ${nodesToUpdate.length} nodos...`);
+
+        try {
+            const result = await DiscourseGraphToolkit.propagateProjectToBranch(
+                selectedQuestion.pageUid,
+                coherenceResult.rootProject,
+                nodesToUpdate
+            );
+
+            if (result.success) {
+                setVerifyStatus(`✅ Propagación completada: ${result.updated} actualizados, ${result.created} creados.`);
+                // Re-verificar automáticamente
+                setTimeout(() => handleVerifyBranch(), 500);
+            } else {
+                setVerifyStatus(`⚠️ Propagación con errores: ${result.errors.length} error(es).`);
+            }
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error: " + e.message);
+        } finally {
+            setIsPropagating(false);
+        }
+    };
+
+    const handleFixStructure = async (uid) => {
+        setVerifyStatus("Corrigiendo estructura...");
+        try {
+            const result = await DiscourseGraphToolkit.fixQueStructure(uid);
+            if (result.success && result.fixed > 0) {
+                setVerifyStatus(`✅ Estructura corregida: ${result.fixed} bloque(s) actualizado(s). Verificando de nuevo...`);
+                // Re-verificar después de corregir
+                setTimeout(() => handleVerifyBranch(), 500);
+            } else if (result.success && result.fixed === 0) {
+                setVerifyStatus("No se encontraron bloques para corregir.");
+            } else {
+                setVerifyStatus("❌ Error al corregir estructura.");
+            }
+        } catch (e) {
+            console.error(e);
+            setVerifyStatus("❌ Error: " + e.message);
         }
     };
 
@@ -790,6 +875,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                 const q = availableQuestions.find(q => q.pageUid === e.target.value);
                                 setSelectedQuestion(q || null);
                                 setVerificationResult(null);
+                                setCoherenceResult(null);
                             },
                             style: { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ccc' }
                         },
@@ -844,10 +930,144 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         }
                     }, verifyStatus),
 
-                    // Resultados
-                    verificationResult && React.createElement('div', null,
-                        // Nodos sin proyecto (problemas)
-                        verificationResult.withoutProject.length > 0 && React.createElement('div', {
+                    // Cabecera: Proyecto de la Rama (NUEVO)
+                    coherenceResult && React.createElement('div', {
+                        style: {
+                            marginBottom: '15px',
+                            padding: '12px 15px',
+                            backgroundColor: coherenceResult.rootProject ? '#e3f2fd' : '#ffebee',
+                            borderRadius: '4px',
+                            border: coherenceResult.rootProject ? '1px solid #2196F3' : '1px solid #f44336',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }
+                    },
+                        React.createElement('div', null,
+                            React.createElement('span', { style: { fontWeight: 'bold', marginRight: '10px' } }, '📁 Proyecto de la Rama:'),
+                            React.createElement('span', {
+                                style: {
+                                    padding: '4px 10px',
+                                    backgroundColor: coherenceResult.rootProject ? '#bbdefb' : '#ffcdd2',
+                                    borderRadius: '4px',
+                                    fontWeight: 'bold'
+                                }
+                            }, coherenceResult.rootProject || '❌ Sin proyecto')
+                        ),
+                        (coherenceResult.different.length > 0 || coherenceResult.missing.length > 0) && coherenceResult.rootProject &&
+                        React.createElement('button', {
+                            onClick: handlePropagateProject,
+                            disabled: isPropagating,
+                            style: {
+                                padding: '8px 16px',
+                                backgroundColor: isPropagating ? '#ccc' : '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: isPropagating ? 'not-allowed' : 'pointer',
+                                fontSize: '13px',
+                                fontWeight: 'bold'
+                            }
+                        }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar a ${coherenceResult.different.length + coherenceResult.missing.length} nodos`)
+                    ),
+
+                    // Problemas de Estructura (NUEVO)
+                    structureResult && structureResult.structureIssues.length > 0 && React.createElement('div', {
+                        style: {
+                            marginBottom: '15px',
+                            border: '2px solid #f44336',
+                            borderRadius: '4px',
+                            overflow: 'hidden'
+                        }
+                    },
+                        React.createElement('div', {
+                            style: {
+                                padding: '10px',
+                                backgroundColor: '#ffebee',
+                                fontWeight: 'bold',
+                                borderBottom: '1px solid #f44336',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }
+                        },
+                            React.createElement('span', null, `🔧 Problemas de Estructura (${structureResult.structureIssues.length})`),
+                            React.createElement('span', {
+                                style: {
+                                    fontSize: '11px',
+                                    color: '#c62828',
+                                    fontWeight: 'normal'
+                                }
+                            }, '⚠️ Afecta la exportación')
+                        ),
+                        React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
+                            structureResult.structureIssues.map((issue, idx) =>
+                                React.createElement('div', {
+                                    key: idx,
+                                    style: {
+                                        padding: '10px',
+                                        borderBottom: '1px solid #eee',
+                                        backgroundColor: 'white'
+                                    }
+                                },
+                                    React.createElement('div', {
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start',
+                                            marginBottom: '8px'
+                                        }
+                                    },
+                                        React.createElement('span', null,
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '3px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    marginRight: '8px',
+                                                    backgroundColor: '#e3f2fd',
+                                                    color: '#1565c0'
+                                                }
+                                            }, issue.type),
+                                            (issue.title || '').replace(/\[\[(QUE|CLM|EVD)\]\] - /, '').substring(0, 60) + ((issue.title || '').length > 60 ? '...' : '')
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleFixStructure(issue.uid),
+                                            style: {
+                                                padding: '4px 12px',
+                                                backgroundColor: '#4CAF50',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                whiteSpace: 'nowrap'
+                                            }
+                                        }, '🔧 Corregir')
+                                    ),
+                                    issue.issues.map((problemText, pIdx) =>
+                                        React.createElement('div', {
+                                            key: pIdx,
+                                            style: {
+                                                fontSize: '12px',
+                                                color: '#c62828',
+                                                marginLeft: '10px',
+                                                paddingLeft: '10px',
+                                                borderLeft: '2px solid #ffcdd2'
+                                            }
+                                        }, `❌ ${problemText}`)
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    // Resultados basados en coherencia
+                    coherenceResult && React.createElement('div', null,
+                        // Nodos con proyecto diferente (⚠️ naranja)
+                        coherenceResult.different.length > 0 && React.createElement('div', {
                             style: {
                                 marginBottom: '15px',
                                 border: '1px solid #ff9800',
@@ -862,12 +1082,81 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                     fontWeight: 'bold',
                                     borderBottom: '1px solid #ff9800'
                                 }
-                            }, `⚠️ Nodos sin Proyecto Asociado (${verificationResult.withoutProject.length})`),
-                            React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto' } },
-                                verificationResult.withoutProject.map(uid => {
-                                    const node = verificationResult.nodes[uid];
-                                    return React.createElement('div', {
-                                        key: uid,
+                            }, `⚠️ Nodos con Proyecto Diferente (${coherenceResult.different.length})`),
+                            React.createElement('div', { style: { maxHeight: '250px', overflowY: 'auto' } },
+                                coherenceResult.different.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '8px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white'
+                                        }
+                                    },
+                                        React.createElement('div', { style: { flex: 1 } },
+                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', marginBottom: '4px' } },
+                                                React.createElement('span', {
+                                                    style: {
+                                                        display: 'inline-block',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '3px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 'bold',
+                                                        marginRight: '8px',
+                                                        backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                        color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                    }
+                                                }, node.type),
+                                                React.createElement('span', null, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60))
+                                            ),
+                                            React.createElement('div', { style: { fontSize: '11px', color: '#666', marginLeft: '10px' } },
+                                                `Tiene: `,
+                                                React.createElement('span', { style: { color: '#e65100', fontWeight: 'bold' } }, node.project || '?'),
+                                                ` → Debería: `,
+                                                React.createElement('span', { style: { color: '#1565c0', fontWeight: 'bold' } }, coherenceResult.rootProject)
+                                            )
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleNavigateToPage(node.uid),
+                                            style: {
+                                                padding: '4px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px'
+                                            }
+                                        }, '→ Ir')
+                                    )
+                                )
+                            )
+                        ),
+
+                        // Nodos sin proyecto (❌ rojo)
+                        coherenceResult.missing.length > 0 && React.createElement('div', {
+                            style: {
+                                marginBottom: '15px',
+                                border: '1px solid #f44336',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#ffebee',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #f44336'
+                                }
+                            }, `❌ Nodos sin Proyecto (${coherenceResult.missing.length})`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
+                                coherenceResult.missing.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
                                         style: {
                                             display: 'flex',
                                             justifyContent: 'space-between',
@@ -886,14 +1175,14 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                                     fontSize: '11px',
                                                     fontWeight: 'bold',
                                                     marginRight: '8px',
-                                                    backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
-                                                    color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                    backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                    color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
                                                 }
-                                            }, node?.type || '?'),
-                                            node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
+                                            }, node.type),
+                                            (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
                                         ),
                                         React.createElement('button', {
-                                            onClick: () => handleNavigateToPage(uid),
+                                            onClick: () => handleNavigateToPage(node.uid),
                                             style: {
                                                 padding: '4px 10px',
                                                 backgroundColor: '#2196F3',
@@ -904,13 +1193,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                                 fontSize: '12px'
                                             }
                                         }, '→ Ir')
-                                    );
-                                })
+                                    )
+                                )
                             )
                         ),
 
-                        // Nodos con proyecto (éxito)
-                        verificationResult.withProject.length > 0 && React.createElement('div', {
+                        // Nodos coherentes (✅ verde) - colapsados
+                        coherenceResult.coherent.length > 0 && React.createElement('div', {
                             style: {
                                 border: '1px solid #4CAF50',
                                 borderRadius: '4px',
@@ -931,12 +1220,11 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                         content.style.display = content.style.display === 'none' ? 'block' : 'none';
                                     }
                                 }
-                            }, `✅ Nodos con Proyecto Asociado (${verificationResult.withProject.length}) - Click para expandir`),
+                            }, `✅ Nodos Coherentes (${coherenceResult.coherent.length}) - Click para expandir`),
                             React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', display: 'none' } },
-                                verificationResult.withProject.map(uid => {
-                                    const node = verificationResult.nodes[uid];
-                                    return React.createElement('div', {
-                                        key: uid,
+                                coherenceResult.coherent.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
                                         style: {
                                             padding: '6px 10px',
                                             borderBottom: '1px solid #eee',
@@ -953,13 +1241,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                                 fontSize: '10px',
                                                 fontWeight: 'bold',
                                                 marginRight: '8px',
-                                                backgroundColor: node?.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
-                                                color: node?.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
                                             }
-                                        }, node?.type || '?'),
-                                        node?.title?.replace(/\[\[(CLM|EVD)\]\] - /, '') || uid
-                                    );
-                                })
+                                        }, node.type),
+                                        (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
+                                    )
+                                )
                             )
                         )
                     )

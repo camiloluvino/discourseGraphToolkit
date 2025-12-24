@@ -337,7 +337,162 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
 };
 
 /**
- * Verifica cuáles nodos tienen la propiedad "Proyecto Asociado::"
+ * Obtiene el valor del atributo "Proyecto Asociado::" de un nodo
+ * @param {string} pageUid - UID de la página
+ * @returns {Promise<string|null>} - Nombre del proyecto o null si no existe
+ */
+DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+    const query = `[:find ?string
+                   :where 
+                   [?page :block/uid "${pageUid}"]
+                   [?block :block/page ?page]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query);
+        if (results && results.length > 0) {
+            const blockString = results[0][0];
+            // Extraer el valor entre [[ ]]
+            const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+            const match = blockString.match(regex);
+            return match ? match[1].trim() : null;
+        }
+        return null;
+    } catch (e) {
+        console.error("Error getting project from node:", e);
+        return null;
+    }
+};
+
+/**
+ * Verifica coherencia de proyectos en una rama
+ * @param {string} rootUid - UID del QUE raíz
+ * @param {Array<{uid: string, title: string, type: string}>} branchNodes - Nodos de la rama
+ * @returns {Promise<{rootProject: string|null, coherent: Array, different: Array, missing: Array}>}
+ */
+DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNodes) {
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+
+    // 1. Obtener proyecto del QUE raíz
+    const rootProject = await this.getProjectFromNode(rootUid);
+
+    // 2. Obtener proyecto de cada nodo
+    const nodeUids = branchNodes.map(n => n.uid);
+
+    // Query para obtener todos los bloques de Proyecto Asociado de las páginas
+    const query = `[:find ?page-uid ?string
+                   :in $ [?page-uid ...]
+                   :where 
+                   [?page :block/uid ?page-uid]
+                   [?block :block/page ?page]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+
+    const coherent = [];
+    const different = [];
+    const missing = [];
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
+
+        // Crear mapa de UID -> proyecto
+        const projectMap = new Map();
+        const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+
+        results.forEach(r => {
+            const pageUid = r[0];
+            const blockString = r[1];
+            const match = blockString.match(regex);
+            if (match) {
+                projectMap.set(pageUid, match[1].trim());
+            }
+        });
+
+        // 3. Clasificar nodos
+        for (const node of branchNodes) {
+            const nodeProject = projectMap.get(node.uid);
+
+            if (!nodeProject) {
+                missing.push({ ...node, project: null });
+            } else if (rootProject && nodeProject === rootProject) {
+                coherent.push({ ...node, project: nodeProject });
+            } else {
+                different.push({ ...node, project: nodeProject });
+            }
+        }
+
+        return { rootProject, coherent, different, missing };
+    } catch (e) {
+        console.error("Error verifying project coherence:", e);
+        return {
+            rootProject,
+            coherent: [],
+            different: [],
+            missing: branchNodes.map(n => ({ ...n, project: null }))
+        };
+    }
+};
+
+/**
+ * Propaga el proyecto del QUE raíz a todos los nodos de la rama
+ * @param {string} rootUid - UID del QUE raíz
+ * @param {string} targetProject - Proyecto a propagar
+ * @param {Array<{uid: string}>} nodesToUpdate - Nodos a actualizar
+ * @returns {Promise<{success: boolean, updated: number, created: number, errors: Array}>}
+ */
+DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, targetProject, nodesToUpdate) {
+    const config = this.getConfig();
+    const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const newValue = `${fieldName}:: [[${targetProject}]]`;
+
+    let updated = 0;
+    let created = 0;
+    const errors = [];
+
+    for (const node of nodesToUpdate) {
+        try {
+            // Buscar si ya tiene un bloque con Proyecto Asociado
+            const query = `[:find ?block-uid ?string
+                           :where 
+                           [?page :block/uid "${node.uid}"]
+                           [?block :block/page ?page]
+                           [?block :block/uid ?block-uid]
+                           [?block :block/string ?string]
+                           [(clojure.string/includes? ?string "${fieldName}::")]]`;
+
+            const results = await window.roamAlphaAPI.data.async.q(query);
+
+            if (results && results.length > 0) {
+                // Actualizar el primer bloque encontrado
+                const blockUid = results[0][0];
+                await window.roamAlphaAPI.data.block.update({
+                    block: { uid: blockUid, string: newValue }
+                });
+                updated++;
+            } else {
+                // Crear nuevo bloque como primer hijo
+                await window.roamAlphaAPI.data.block.create({
+                    location: { 'parent-uid': node.uid, order: 0 },
+                    block: { string: newValue }
+                });
+                created++;
+            }
+        } catch (e) {
+            console.error(`Error updating node ${node.uid}:`, e);
+            errors.push({ uid: node.uid, error: e.message });
+        }
+    }
+
+    return { success: errors.length === 0, updated, created, errors };
+};
+
+/**
+ * Verifica cuáles nodos tienen la propiedad "Proyecto Asociado::" (legacy, mantener compatibilidad)
  * @param {Array<string>} nodeUids - Array de UIDs de páginas a verificar
  * @returns {Promise<{withProject: Array, withoutProject: Array}>}
  */
@@ -369,6 +524,148 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
     } catch (e) {
         console.error("Error verifying project association:", e);
         return { withProject: [], withoutProject: nodeUids };
+    }
+};
+
+// ============================================================================
+// API: Verificación de Estructura del Grafo
+// ============================================================================
+
+/**
+ * Verifica la estructura de un nodo individual
+ * @param {object} nodeData - Datos del nodo (ya transformados)
+ * @param {string} nodeType - Tipo del nodo (QUE, CLM, EVD)
+ * @returns {{ valid: boolean, issues: string[] }}
+ */
+DiscourseGraphToolkit.verifyNodeStructure = function (nodeData, nodeType) {
+    const issues = [];
+
+    if (!nodeData || !nodeData.children) {
+        return { valid: true, issues: [] };
+    }
+
+    const children = nodeData.children || [];
+
+    if (nodeType === 'QUE') {
+        // Verificar que QUE use #RespondedBy (no #SupportedBy directamente)
+        let hasRespondedBy = false;
+        let hasSupportedByDirect = false;
+
+        for (const child of children) {
+            const str = child.string || "";
+            if (str.includes("#RespondedBy")) {
+                hasRespondedBy = true;
+            }
+            if (str.includes("#SupportedBy")) {
+                hasSupportedByDirect = true;
+            }
+        }
+
+        // Si tiene #SupportedBy pero no #RespondedBy, es un problema
+        if (hasSupportedByDirect && !hasRespondedBy) {
+            issues.push("Usa #SupportedBy en lugar de #RespondedBy. Las respuestas no se exportarán correctamente.");
+        }
+
+        // Si no tiene ninguno de los dos, también es un problema
+        if (!hasRespondedBy && !hasSupportedByDirect) {
+            // Verificar si tiene CLMs/EVDs como hijos directos sin marcador
+            const hasDiscourseRefs = children.some(child => {
+                const str = child.string || "";
+                return str.includes("[[CLM]]") || str.includes("[[EVD]]");
+            });
+
+            if (hasDiscourseRefs) {
+                issues.push("Tiene referencias a CLM/EVD pero sin marcador #RespondedBy. Las respuestas podrían no exportarse.");
+            }
+        }
+    }
+
+    return {
+        valid: issues.length === 0,
+        issues
+    };
+};
+
+/**
+ * Verifica la estructura completa de una rama (QUE y sus descendientes)
+ * @param {string} questionUid - UID de la pregunta a verificar
+ * @returns {Promise<{ structureIssues: Array<{uid, title, type, issues}>, isExportable: boolean }>}
+ */
+DiscourseGraphToolkit.verifyBranchStructure = async function (questionUid) {
+    try {
+        const structureIssues = [];
+
+        // 1. Obtener datos del QUE
+        const rawData = await window.roamAlphaAPI.data.async.pull(
+            this.ROAM_PULL_PATTERN,
+            [':block/uid', questionUid]
+        );
+
+        if (!rawData) {
+            return { structureIssues: [], isExportable: true };
+        }
+
+        const nodeData = this.transformToNativeFormat(rawData, 0, new Set(), true);
+        if (!nodeData) {
+            return { structureIssues: [], isExportable: true };
+        }
+
+        // 2. Verificar estructura del QUE
+        const queVerification = this.verifyNodeStructure(nodeData, 'QUE');
+        if (!queVerification.valid) {
+            structureIssues.push({
+                uid: questionUid,
+                title: nodeData.title,
+                type: 'QUE',
+                issues: queVerification.issues
+            });
+        }
+
+        // 3. Determinar si es exportable (si tiene problemas críticos, no lo es)
+        const isExportable = structureIssues.length === 0;
+
+        return { structureIssues, isExportable };
+
+    } catch (e) {
+        console.error("Error verifying branch structure:", e);
+        return { structureIssues: [], isExportable: true };
+    }
+};
+
+/**
+ * Corrige la estructura de un QUE: cambia #SupportedBy a #RespondedBy
+ * @param {string} questionUid - UID de la pregunta a corregir
+ * @returns {Promise<{ success: boolean, fixed: number }>}
+ */
+DiscourseGraphToolkit.fixQueStructure = async function (questionUid) {
+    try {
+        // Buscar bloques hijos que tengan #SupportedBy
+        const query = `[:find ?block-uid ?string
+                       :where 
+                       [?page :block/uid "${questionUid}"]
+                       [?block :block/parents ?page]
+                       [?block :block/uid ?block-uid]
+                       [?block :block/string ?string]
+                       [(clojure.string/includes? ?string "#SupportedBy")]]`;
+
+        const results = await window.roamAlphaAPI.data.async.q(query);
+
+        let fixed = 0;
+        for (const [blockUid, blockString] of results) {
+            // Reemplazar #SupportedBy con #RespondedBy
+            const newString = blockString.replace(/#SupportedBy/g, "#RespondedBy");
+
+            await window.roamAlphaAPI.data.block.update({
+                block: { uid: blockUid, string: newString }
+            });
+            fixed++;
+        }
+
+        return { success: true, fixed };
+
+    } catch (e) {
+        console.error("Error fixing QUE structure:", e);
+        return { success: false, fixed: 0 };
     }
 };
 
