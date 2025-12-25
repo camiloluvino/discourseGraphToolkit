@@ -885,15 +885,26 @@ DiscourseGraphToolkit.HtmlGenerator = {
         
         function moveQuestionUp(id) { 
             var el = document.getElementById(id);
-            if (el.previousElementSibling && el.previousElementSibling.classList.contains('que-node')) {
-                el.parentNode.insertBefore(el, el.previousElementSibling);
+            // Buscar el hermano anterior que sea un que-node
+            var prev = el.previousElementSibling;
+            while (prev && !prev.classList.contains('que-node')) {
+                prev = prev.previousElementSibling;
+            }
+            if (prev) {
+                el.parentNode.insertBefore(el, prev);
                 saveOrder();
             }
         }
         function moveQuestionDown(id) {
             var el = document.getElementById(id);
-            if (el.nextElementSibling && el.nextElementSibling.classList.contains('que-node')) {
-                el.parentNode.insertBefore(el.nextElementSibling, el);
+            // Buscar el hermano siguiente que sea un que-node
+            var next = el.nextElementSibling;
+            while (next && !next.classList.contains('que-node')) {
+                next = next.nextElementSibling;
+            }
+            if (next) {
+                // Insertar después del siguiente que-node
+                el.parentNode.insertBefore(el, next.nextSibling);
                 saveOrder();
             }
         }
