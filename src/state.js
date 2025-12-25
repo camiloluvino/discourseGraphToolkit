@@ -156,4 +156,31 @@ DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
     console.log(`[DiscourseGraphToolkit] Storage migration complete for graph: ${this.getGraphName()}`);
 };
 
+// --- Cache de Verificación de Ramas ---
+DiscourseGraphToolkit.getVerificationCache = function () {
+    const stored = localStorage.getItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    if (stored) {
+        try {
+            const data = JSON.parse(stored);
+            // Verificar que no sea muy antiguo (24 horas máximo)
+            if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+                return data;
+            }
+        } catch (e) { }
+    }
+    return null;
+};
+
+DiscourseGraphToolkit.saveVerificationCache = function (results, status) {
+    const data = {
+        results,
+        status,
+        timestamp: Date.now()
+    };
+    localStorage.setItem(this.getStorageKey('discourseGraphToolkit_verificationCache'), JSON.stringify(data));
+};
+
+DiscourseGraphToolkit.clearVerificationCache = function () {
+    localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+};
 

@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 16:56:02
+ * Bundled build: 2025-12-25 17:04:41
  */
 
 (function () {
@@ -405,6 +405,33 @@ DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
     console.log(`[DiscourseGraphToolkit] Storage migration complete for graph: ${this.getGraphName()}`);
 };
 
+// --- Cache de Verificación de Ramas ---
+DiscourseGraphToolkit.getVerificationCache = function () {
+    const stored = localStorage.getItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    if (stored) {
+        try {
+            const data = JSON.parse(stored);
+            // Verificar que no sea muy antiguo (24 horas máximo)
+            if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+                return data;
+            }
+        } catch (e) { }
+    }
+    return null;
+};
+
+DiscourseGraphToolkit.saveVerificationCache = function (results, status) {
+    const data = {
+        results,
+        status,
+        timestamp: Date.now()
+    };
+    localStorage.setItem(this.getStorageKey('discourseGraphToolkit_verificationCache'), JSON.stringify(data));
+};
+
+DiscourseGraphToolkit.clearVerificationCache = function () {
+    localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+};
 
 
 
@@ -3203,6 +3230,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 const val = await DiscourseGraphToolkit.validateProjectsInGraph(projs);
                 setValidation(val);
             }
+
+            // Cargar cache de verificación de ramas si existe
+            const verificationCache = DiscourseGraphToolkit.getVerificationCache();
+            if (verificationCache && verificationCache.results) {
+                setBulkVerificationResults(verificationCache.results);
+                setBulkVerifyStatus(verificationCache.status || '📋 Resultados cargados del cache.');
+            }
         };
         loadData();
     }, []);
@@ -3752,7 +3786,10 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const coherent = results.filter(r => r.status === 'coherent').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            setBulkVerifyStatus(`✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`);
+            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`;
+            setBulkVerifyStatus(statusMsg);
+            // Guardar en cache para persistencia
+            DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
             console.error('Bulk verification error:', e);
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -3795,11 +3832,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 else if (cohResult.different.length > 0) status = 'different';
 
                 const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
-                setBulkVerificationResults(prev => prev.map(r =>
+                const updatedResults = bulkVerificationResults.map(r =>
                     r.question.pageUid === selectedBulkQuestion.question.pageUid ? updatedResult : r
-                ));
+                );
+                setBulkVerificationResults(updatedResults);
                 setSelectedBulkQuestion(updatedResult);
-                setBulkVerifyStatus(`✅ Propagación completada.`);
+                const statusMsg = `✅ Propagación completada.`;
+                setBulkVerifyStatus(statusMsg);
+                // Actualizar cache
+                DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
             } else {
                 setBulkVerifyStatus(`⚠️ Propagación con errores.`);
             }

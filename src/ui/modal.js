@@ -59,6 +59,13 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 const val = await DiscourseGraphToolkit.validateProjectsInGraph(projs);
                 setValidation(val);
             }
+
+            // Cargar cache de verificación de ramas si existe
+            const verificationCache = DiscourseGraphToolkit.getVerificationCache();
+            if (verificationCache && verificationCache.results) {
+                setBulkVerificationResults(verificationCache.results);
+                setBulkVerifyStatus(verificationCache.status || '📋 Resultados cargados del cache.');
+            }
         };
         loadData();
     }, []);
@@ -608,7 +615,10 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             const coherent = results.filter(r => r.status === 'coherent').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            setBulkVerifyStatus(`✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`);
+            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`;
+            setBulkVerifyStatus(statusMsg);
+            // Guardar en cache para persistencia
+            DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
             console.error('Bulk verification error:', e);
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -651,11 +661,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 else if (cohResult.different.length > 0) status = 'different';
 
                 const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
-                setBulkVerificationResults(prev => prev.map(r =>
+                const updatedResults = bulkVerificationResults.map(r =>
                     r.question.pageUid === selectedBulkQuestion.question.pageUid ? updatedResult : r
-                ));
+                );
+                setBulkVerificationResults(updatedResults);
                 setSelectedBulkQuestion(updatedResult);
-                setBulkVerifyStatus(`✅ Propagación completada.`);
+                const statusMsg = `✅ Propagación completada.`;
+                setBulkVerifyStatus(statusMsg);
+                // Actualizar cache
+                DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
             } else {
                 setBulkVerifyStatus(`⚠️ Propagación con errores.`);
             }
