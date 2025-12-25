@@ -782,321 +782,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                 React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
                             )
                         )
-                    ),
-
-                    // === SECCIÓN 3: VERIFICACIÓN DE PROYECTOS ===
-                    React.createElement('h3', { style: { marginTop: '40px', borderTop: '1px solid #eee', paddingTop: '20px' } }, '🔍 Verificar Coherencia'),
-                    React.createElement('p', { style: { color: '#666', marginBottom: '15px', fontSize: '14px' } },
-                        'Verifica que todos los nodos de una rama tengan el mismo "Proyecto Asociado".'),
-
-                    // Selector de pregunta
-                    React.createElement('div', { style: { marginBottom: '15px' } },
-                        React.createElement('label', { style: { display: 'block', marginBottom: '5px', fontWeight: 'bold' } },
-                            'Selecciona una pregunta:'),
-                        React.createElement('select', {
-                            value: selectedQuestion ? selectedQuestion.pageUid : '',
-                            onChange: (e) => {
-                                const q = availableQuestions.find(q => q.pageUid === e.target.value);
-                                setSelectedQuestion(q || null);
-                                setVerificationResult(null);
-                                setCoherenceResult(null);
-                            },
-                            style: { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ccc' }
-                        },
-                            React.createElement('option', { value: '' }, '-- Seleccionar pregunta --'),
-                            availableQuestions.map(q =>
-                                React.createElement('option', { key: q.pageUid, value: q.pageUid },
-                                    q.pageTitle.replace('[[QUE]] - ', '').substring(0, 100) + (q.pageTitle.length > 100 ? '...' : '')
-                                )
-                            )
-                        )
-                    ),
-
-                    // Botones de acción
-                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
-                        React.createElement('button', {
-                            onClick: handleVerifyBranch,
-                            disabled: isVerifying || !selectedQuestion,
-                            style: {
-                                padding: '10px 20px',
-                                backgroundColor: selectedQuestion ? '#2196F3' : '#ccc',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: selectedQuestion ? 'pointer' : 'not-allowed',
-                                fontSize: '14px'
-                            }
-                        }, isVerifying ? '⏳ Verificando...' : '🔍 Verificar Rama'),
-                        React.createElement('button', {
-                            onClick: handleLoadQuestions,
-                            style: {
-                                padding: '10px 20px',
-                                backgroundColor: 'white',
-                                color: '#666',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '14px'
-                            }
-                        }, '🔄 Refrescar Preguntas')
-                    ),
-
-                    // Status
-                    verifyStatus && React.createElement('div', {
-                        style: {
-                            marginBottom: '15px',
-                            padding: '10px',
-                            backgroundColor: verifyStatus.includes('✅') ? '#e8f5e9' :
-                                verifyStatus.includes('⚠️') ? '#fff3e0' :
-                                    verifyStatus.includes('❌') ? '#ffebee' : '#f5f5f5',
-                            borderRadius: '4px',
-                            fontWeight: 'bold'
-                        }
-                    }, verifyStatus),
-
-                    // Proyecto de la Rama (Editable)
-                    coherenceResult && React.createElement('div', {
-                        style: {
-                            marginBottom: '15px',
-                            padding: '12px 15px',
-                            backgroundColor: '#e3f2fd',
-                            borderRadius: '4px',
-                            border: '1px solid #2196F3',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            gap: '15px'
-                        }
-                    },
-                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
-                            React.createElement('span', { style: { fontWeight: 'bold', marginRight: '10px', whiteSpace: 'nowrap' } }, '📁 Proyecto:'),
-                            React.createElement('input', {
-                                type: 'text',
-                                value: editableProject,
-                                onChange: (e) => setEditableProject(e.target.value),
-                                placeholder: 'Escribe el proyecto a propagar...',
-                                style: {
-                                    flex: 1,
-                                    padding: '6px 10px',
-                                    border: '1px solid #90caf9',
-                                    borderRadius: '4px',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold'
-                                }
-                            })
-                        ),
-                        (coherenceResult.different.length > 0 || coherenceResult.missing.length > 0) &&
-                        React.createElement('button', {
-                            onClick: handlePropagateProject,
-                            disabled: isPropagating || !editableProject.trim(),
-                            style: {
-                                padding: '8px 16px',
-                                backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
-                                fontSize: '13px',
-                                fontWeight: 'bold',
-                                whiteSpace: 'nowrap'
-                            }
-                        }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar a ${coherenceResult.different.length + coherenceResult.missing.length} nodos`)),
-
-                    // Resumen de resultados
-                    coherenceResult && React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '15px' } },
-                        React.createElement('div', { style: { padding: '10px', backgroundColor: '#e8f5e9', borderRadius: '4px', textAlign: 'center', flex: 1 } },
-                            React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold', color: '#4CAF50' } }, coherenceResult.coherent.length),
-                            React.createElement('div', { style: { fontSize: '12px', color: '#666' } }, '✅ Coherentes')
-                        ),
-                        React.createElement('div', { style: { padding: '10px', backgroundColor: '#fff3e0', borderRadius: '4px', textAlign: 'center', flex: 1 } },
-                            React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold', color: '#ff9800' } }, coherenceResult.different.length),
-                            React.createElement('div', { style: { fontSize: '12px', color: '#666' } }, '⚠️ Diferente')
-                        ),
-                        React.createElement('div', { style: { padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px', textAlign: 'center', flex: 1 } },
-                            React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold', color: '#f44336' } }, coherenceResult.missing.length),
-                            React.createElement('div', { style: { fontSize: '12px', color: '#666' } }, '❌ Sin proyecto')
-                        )
-                    ),
-
-                    // Listas detalladas de nodos
-                    coherenceResult && React.createElement('div', null,
-                        // Nodos con proyecto diferente (⚠️ naranja)
-                        coherenceResult.different.length > 0 && React.createElement('div', {
-                            style: {
-                                marginBottom: '15px',
-                                border: '1px solid #ff9800',
-                                borderRadius: '4px',
-                                overflow: 'hidden'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: {
-                                    padding: '10px',
-                                    backgroundColor: '#fff3e0',
-                                    fontWeight: 'bold',
-                                    borderBottom: '1px solid #ff9800'
-                                }
-                            }, `⚠️ Nodos con Proyecto Diferente (${coherenceResult.different.length})`),
-                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
-                                coherenceResult.different.map(node =>
-                                    React.createElement('div', {
-                                        key: node.uid,
-                                        style: {
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: '8px 10px',
-                                            borderBottom: '1px solid #eee',
-                                            backgroundColor: 'white'
-                                        }
-                                    },
-                                        React.createElement('div', { style: { flex: 1 } },
-                                            React.createElement('span', {
-                                                style: {
-                                                    display: 'inline-block',
-                                                    padding: '2px 6px',
-                                                    borderRadius: '3px',
-                                                    fontSize: '11px',
-                                                    fontWeight: 'bold',
-                                                    marginRight: '8px',
-                                                    backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
-                                                    color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
-                                                }
-                                            }, node.type),
-                                            React.createElement('span', null, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 50)),
-                                            React.createElement('span', { style: { fontSize: '11px', color: '#666', marginLeft: '8px' } },
-                                                `(${node.project || '?'} → ${coherenceResult.rootProject})`)
-                                        ),
-                                        React.createElement('button', {
-                                            onClick: () => handleNavigateToPage(node.uid),
-                                            style: {
-                                                padding: '4px 10px',
-                                                backgroundColor: '#2196F3',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '3px',
-                                                cursor: 'pointer',
-                                                fontSize: '12px'
-                                            }
-                                        }, '→ Ir')
-                                    )
-                                )
-                            )
-                        ),
-
-                        // Nodos sin proyecto (❌ rojo)
-                        coherenceResult.missing.length > 0 && React.createElement('div', {
-                            style: {
-                                marginBottom: '15px',
-                                border: '1px solid #f44336',
-                                borderRadius: '4px',
-                                overflow: 'hidden'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: {
-                                    padding: '10px',
-                                    backgroundColor: '#ffebee',
-                                    fontWeight: 'bold',
-                                    borderBottom: '1px solid #f44336'
-                                }
-                            }, `❌ Nodos sin Proyecto (${coherenceResult.missing.length})`),
-                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
-                                coherenceResult.missing.map(node =>
-                                    React.createElement('div', {
-                                        key: node.uid,
-                                        style: {
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: '8px 10px',
-                                            borderBottom: '1px solid #eee',
-                                            backgroundColor: 'white'
-                                        }
-                                    },
-                                        React.createElement('span', { style: { flex: 1 } },
-                                            React.createElement('span', {
-                                                style: {
-                                                    display: 'inline-block',
-                                                    padding: '2px 6px',
-                                                    borderRadius: '3px',
-                                                    fontSize: '11px',
-                                                    fontWeight: 'bold',
-                                                    marginRight: '8px',
-                                                    backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
-                                                    color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
-                                                }
-                                            }, node.type),
-                                            (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
-                                        ),
-                                        React.createElement('button', {
-                                            onClick: () => handleNavigateToPage(node.uid),
-                                            style: {
-                                                padding: '4px 10px',
-                                                backgroundColor: '#2196F3',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '3px',
-                                                cursor: 'pointer',
-                                                fontSize: '12px'
-                                            }
-                                        }, '→ Ir')
-                                    )
-                                )
-                            )
-                        ),
-
-                        // Nodos coherentes (✅ verde) - colapsados
-                        coherenceResult.coherent.length > 0 && React.createElement('div', {
-                            style: {
-                                border: '1px solid #4CAF50',
-                                borderRadius: '4px',
-                                overflow: 'hidden'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: {
-                                    padding: '10px',
-                                    backgroundColor: '#e8f5e9',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer'
-                                },
-                                onClick: (e) => {
-                                    const content = e.target.nextSibling;
-                                    if (content) {
-                                        content.style.display = content.style.display === 'none' ? 'block' : 'none';
-                                    }
-                                }
-                            }, `✅ Nodos Coherentes (${coherenceResult.coherent.length}) - Click para expandir`),
-                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', display: 'none' } },
-                                coherenceResult.coherent.map(node =>
-                                    React.createElement('div', {
-                                        key: node.uid,
-                                        style: {
-                                            padding: '6px 10px',
-                                            borderBottom: '1px solid #eee',
-                                            backgroundColor: 'white',
-                                            fontSize: '13px',
-                                            color: '#666'
-                                        }
-                                    },
-                                        React.createElement('span', {
-                                            style: {
-                                                display: 'inline-block',
-                                                padding: '2px 6px',
-                                                borderRadius: '3px',
-                                                fontSize: '10px',
-                                                fontWeight: 'bold',
-                                                marginRight: '8px',
-                                                backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
-                                                color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
-                                            }
-                                        }, node.type),
-                                        (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
-                                    )
-                                )
-                            )
-                        )
                     )
                 ),
 
@@ -1156,109 +841,108 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         )
                     ),
 
-                    // Lista de ramas + Panel de detalle
-                    bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' } },
-                        // Lista de ramas
+                    // Lista de ramas (layout vertical, texto completo)
+                    bulkVerificationResults.length > 0 && React.createElement('div', { style: { marginBottom: '20px' } },
                         React.createElement('div', {
-                            style: { maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px' }
+                            style: { maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px' }
                         },
                             bulkVerificationResults.map(result =>
                                 React.createElement('div', {
                                     key: result.question.pageUid,
                                     onClick: () => handleBulkSelectQuestion(result),
                                     style: {
-                                        padding: '10px 12px',
+                                        padding: '12px 15px',
                                         borderBottom: '1px solid #eee',
                                         cursor: 'pointer',
                                         backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px'
+                                        alignItems: 'flex-start',
+                                        gap: '12px'
                                     }
                                 },
-                                    React.createElement('span', { style: { fontSize: '16px' } },
+                                    React.createElement('span', { style: { fontSize: '18px', flexShrink: 0, marginTop: '2px' } },
                                         result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
-                                    React.createElement('div', { style: { flex: 1, overflow: 'hidden' } },
-                                        React.createElement('div', { style: { fontSize: '13px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-                                            result.question.pageTitle.replace('[[QUE]] - ', '').substring(0, 50)),
-                                        React.createElement('div', { style: { fontSize: '11px', color: '#666' } },
-                                            `${result.coherence.rootProject || 'Sin proyecto'} • ${result.branchNodes.length} nodos`)
+                                    React.createElement('div', { style: { flex: 1 } },
+                                        React.createElement('div', { style: { fontSize: '14px', fontWeight: '500', lineHeight: '1.4', marginBottom: '4px' } },
+                                            result.question.pageTitle.replace('[[QUE]] - ', '')),
+                                        React.createElement('div', { style: { fontSize: '12px', color: '#666' } },
+                                            `📁 ${result.coherence.rootProject || 'Sin proyecto'} • ${result.branchNodes.length} nodos`)
                                     )
                                 )
                             )
+                        )
+                    ),
+
+                    // Panel de detalle (debajo de la lista)
+                    selectedBulkQuestion && React.createElement('div', { style: { border: '1px solid #2196F3', borderRadius: '4px', padding: '15px', backgroundColor: '#f8f9fa' } },
+                        React.createElement('h4', { style: { margin: '0 0 15px 0', fontSize: '15px', lineHeight: '1.4' } },
+                            selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', '')),
+
+                        // Proyecto editable
+                        React.createElement('div', { style: { marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+                            React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap' } }, '📁 Proyecto:'),
+                            React.createElement('input', {
+                                type: 'text',
+                                value: editableProject,
+                                onChange: (e) => setEditableProject(e.target.value),
+                                style: { flex: 1, minWidth: '200px', padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px' }
+                            }),
+                            (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
+                            React.createElement('button', {
+                                onClick: handleBulkPropagateProject,
+                                disabled: isPropagating || !editableProject.trim(),
+                                style: {
+                                    padding: '8px 16px',
+                                    backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: 'bold'
+                                }
+                            }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar a ${selectedBulkQuestion.coherence.different.length + selectedBulkQuestion.coherence.missing.length} nodos`)
                         ),
 
-                        // Panel de detalle
-                        React.createElement('div', { style: { border: '1px solid #eee', borderRadius: '4px', padding: '15px' } },
-                            !selectedBulkQuestion
-                                ? React.createElement('div', { style: { color: '#999', textAlign: 'center', padding: '40px' } },
-                                    'Selecciona una rama para ver detalles')
-                                : React.createElement('div', null,
-                                    React.createElement('h4', { style: { margin: '0 0 15px 0', fontSize: '14px' } },
-                                        selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', '').substring(0, 60)),
+                        // Resumen
+                        React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '15px', fontSize: '13px' } },
+                            React.createElement('span', { style: { padding: '5px 10px', backgroundColor: '#e8f5e9', borderRadius: '3px' } },
+                                `✅ ${selectedBulkQuestion.coherence.coherent.length} coherentes`),
+                            React.createElement('span', { style: { padding: '5px 10px', backgroundColor: '#fff3e0', borderRadius: '3px' } },
+                                `⚠️ ${selectedBulkQuestion.coherence.different.length} diferentes`),
+                            React.createElement('span', { style: { padding: '5px 10px', backgroundColor: '#ffebee', borderRadius: '3px' } },
+                                `❌ ${selectedBulkQuestion.coherence.missing.length} sin proyecto`)
+                        ),
 
-                                    // Proyecto editable
-                                    React.createElement('div', { style: { marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' } },
-                                        React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap' } }, '📁 Proyecto:'),
-                                        React.createElement('input', {
-                                            type: 'text',
-                                            value: editableProject,
-                                            onChange: (e) => setEditableProject(e.target.value),
-                                            style: { flex: 1, padding: '6px 10px', border: '1px solid #ccc', borderRadius: '4px' }
-                                        }),
-                                        (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-                                        React.createElement('button', {
-                                            onClick: handleBulkPropagateProject,
-                                            disabled: isPropagating || !editableProject.trim(),
-                                            style: {
-                                                padding: '6px 12px',
-                                                backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
-                                                fontSize: '12px'
-                                            }
-                                        }, isPropagating ? '⏳' : '🔄 Propagar')
+                        // Lista de nodos problemáticos (texto completo en múltiples líneas)
+                        (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
+                        React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', backgroundColor: 'white' } },
+                            selectedBulkQuestion.coherence.different.map(node =>
+                                React.createElement('div', { key: node.uid, style: { padding: '10px 12px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: '10px' } },
+                                    React.createElement('span', { style: { color: '#ff9800', fontSize: '14px', flexShrink: 0 } }, '⚠️'),
+                                    React.createElement('div', { style: { flex: 1, lineHeight: '1.4' } },
+                                        React.createElement('span', { style: { fontSize: '11px', fontWeight: 'bold', backgroundColor: '#fff3e0', padding: '2px 6px', borderRadius: '3px', marginRight: '8px' } }, node.type),
+                                        React.createElement('span', { style: { fontSize: '13px' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))
                                     ),
-
-                                    // Resumen
-                                    React.createElement('div', { style: { display: 'flex', gap: '8px', marginBottom: '15px', fontSize: '12px' } },
-                                        React.createElement('span', { style: { padding: '4px 8px', backgroundColor: '#e8f5e9', borderRadius: '3px' } },
-                                            `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
-                                        React.createElement('span', { style: { padding: '4px 8px', backgroundColor: '#fff3e0', borderRadius: '3px' } },
-                                            `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
-                                        React.createElement('span', { style: { padding: '4px 8px', backgroundColor: '#ffebee', borderRadius: '3px' } },
-                                            `❌ ${selectedBulkQuestion.coherence.missing.length}`)
-                                    ),
-
-                                    // Lista de nodos problemáticos
-                                    (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-                                    React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', fontSize: '12px' } },
-                                        selectedBulkQuestion.coherence.different.map(node =>
-                                            React.createElement('div', { key: node.uid, style: { padding: '5px 8px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
-                                                React.createElement('span', null,
-                                                    React.createElement('span', { style: { color: '#ff9800', marginRight: '5px' } }, '⚠️'),
-                                                    `[${node.type}] ${(node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 30)}`),
-                                                React.createElement('button', {
-                                                    onClick: () => handleNavigateToPage(node.uid),
-                                                    style: { padding: '2px 6px', fontSize: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer' }
-                                                }, '→')
-                                            )
-                                        ),
-                                        selectedBulkQuestion.coherence.missing.map(node =>
-                                            React.createElement('div', { key: node.uid, style: { padding: '5px 8px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' } },
-                                                React.createElement('span', null,
-                                                    React.createElement('span', { style: { color: '#f44336', marginRight: '5px' } }, '❌'),
-                                                    `[${node.type}] ${(node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 30)}`),
-                                                React.createElement('button', {
-                                                    onClick: () => handleNavigateToPage(node.uid),
-                                                    style: { padding: '2px 6px', fontSize: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '2px', cursor: 'pointer' }
-                                                }, '→')
-                                            )
-                                        )
-                                    )
+                                    React.createElement('button', {
+                                        onClick: () => handleNavigateToPage(node.uid),
+                                        style: { padding: '4px 10px', fontSize: '12px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', flexShrink: 0 }
+                                    }, '→ Ir')
                                 )
+                            ),
+                            selectedBulkQuestion.coherence.missing.map(node =>
+                                React.createElement('div', { key: node.uid, style: { padding: '10px 12px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: '10px' } },
+                                    React.createElement('span', { style: { color: '#f44336', fontSize: '14px', flexShrink: 0 } }, '❌'),
+                                    React.createElement('div', { style: { flex: 1, lineHeight: '1.4' } },
+                                        React.createElement('span', { style: { fontSize: '11px', fontWeight: 'bold', backgroundColor: '#ffebee', padding: '2px 6px', borderRadius: '3px', marginRight: '8px' } }, node.type),
+                                        React.createElement('span', { style: { fontSize: '13px' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))
+                                    ),
+                                    React.createElement('button', {
+                                        onClick: () => handleNavigateToPage(node.uid),
+                                        style: { padding: '4px 10px', fontSize: '12px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', flexShrink: 0 }
+                                    }, '→ Ir')
+                                )
+                            )
                         )
                     )
                 ),
