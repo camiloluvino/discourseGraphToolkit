@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 14:16:21
+ * Bundled build: 2025-12-25 14:26:52
  */
 
 (function () {
@@ -870,6 +870,39 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     let updated = 0;
     let created = 0;
     const errors = [];
+
+    // PRIMERO: Actualizar el nodo raíz (QUE) para que futuras verificaciones muestren el valor correcto
+    try {
+        const rootQuery = `[:find ?block-uid ?string
+                           :where 
+                           [?page :block/uid "${rootUid}"]
+                           [?block :block/page ?page]
+                           [?block :block/uid ?block-uid]
+                           [?block :block/string ?string]
+                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+        const rootResults = await window.roamAlphaAPI.data.async.q(rootQuery);
+
+        if (rootResults && rootResults.length > 0) {
+            const blockUid = rootResults[0][0];
+            await window.roamAlphaAPI.data.block.update({
+                block: { uid: blockUid, string: newValue }
+            });
+            updated++;
+        } else {
+            // Crear bloque en el nodo raíz si no existe
+            await window.roamAlphaAPI.data.block.create({
+                location: { 'parent-uid': rootUid, order: 0 },
+                block: { string: newValue }
+            });
+            created++;
+        }
+    } catch (e) {
+        console.error(`Error updating root node ${rootUid}:`, e);
+        errors.push({ uid: rootUid, error: e.message, isRoot: true });
+    }
+
+    // SEGUNDO: Actualizar los nodos hijos (CLM/EVD)
 
     for (const node of nodesToUpdate) {
         try {
