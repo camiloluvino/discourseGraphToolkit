@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 17:28:06
+ * Bundled build: 2025-12-25 17:39:58
  */
 
 (function () {
@@ -3861,7 +3861,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     },
         React.createElement('div', {
             style: {
-                backgroundColor: 'white', width: '90%', maxWidth: '68.75rem', height: '85vh', borderRadius: '0.5rem',
+                backgroundColor: 'white', width: '90%', maxWidth: '90rem', height: '90vh', borderRadius: '0.5rem',
                 display: 'flex', flexDirection: 'column', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.2)',
                 fontSize: '0.875rem'
             }
