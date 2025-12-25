@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 17:04:41
+ * Bundled build: 2025-12-25 17:08:35
  */
 
 (function () {
@@ -410,11 +410,7 @@ DiscourseGraphToolkit.getVerificationCache = function () {
     const stored = localStorage.getItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
     if (stored) {
         try {
-            const data = JSON.parse(stored);
-            // Verificar que no sea muy antiguo (24 horas máximo)
-            if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
-                return data;
-            }
+            return JSON.parse(stored);
         } catch (e) { }
     }
     return null;
