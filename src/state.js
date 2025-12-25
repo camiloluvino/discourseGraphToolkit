@@ -33,7 +33,8 @@ DiscourseGraphToolkit.saveTemplates = function (templates) {
 // --- Persistencia en Roam (Config + Templates) ---
 DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
     try {
-        let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?page :block/uid ?uid]]`);
+        const escapedTitle = this.escapeDatalogString(this.ROAM.CONFIG_PAGE);
+        let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
         if (!pageUid || pageUid.length === 0) {
             pageUid = window.roamAlphaAPI.util.generateUID();
             await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
@@ -64,7 +65,8 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
 
 DiscourseGraphToolkit.loadConfigFromRoam = async function () {
     try {
-        const results = await window.roamAlphaAPI.data.async.q(`[:find ?string :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?child :block/parents ?page] [?child :block/string ?string]]`);
+        const escapedTitle = this.escapeDatalogString(this.ROAM.CONFIG_PAGE);
+        const results = await window.roamAlphaAPI.data.async.q(`[:find ?string :where [?page :node/title "${escapedTitle}"] [?child :block/parents ?page] [?child :block/string ?string]]`);
         if (results && results.length > 0) {
             const data = JSON.parse(results[0][0]);
             if (data.config) this.saveConfig(data.config);

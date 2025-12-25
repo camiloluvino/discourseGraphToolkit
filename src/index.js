@@ -8,14 +8,23 @@ if (window.roamAlphaAPI) {
 
     // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
     setTimeout(() => {
-        DiscourseGraphToolkit.initializeProjectsSync();
+        DiscourseGraphToolkit.initializeProjectsSync()
+            .catch(e => {
+                console.error("Error en sincronización inicial:", e);
+                DiscourseGraphToolkit.showToast("⚠️ Error sincronizando proyectos", "warning");
+            });
     }, 5000);
 
     // Cargar config desde Roam si existe
     setTimeout(() => {
-        DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
-            if (data) console.log("Configuración cargada desde Roam.");
-        });
+        DiscourseGraphToolkit.loadConfigFromRoam()
+            .then(data => {
+                if (data) console.log("Configuración cargada desde Roam.");
+            })
+            .catch(e => {
+                console.error("Error cargando config desde Roam:", e);
+                // No mostrar toast - config local se usa como fallback
+            });
     }, 5500);
 
     // Registrar Comandos

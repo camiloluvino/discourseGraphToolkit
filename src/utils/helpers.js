@@ -15,6 +15,15 @@ DiscourseGraphToolkit.sanitizeFilename = function (name) {
         .substring(0, 50) || 'export';
 };
 
+// Escape strings for safe use in Datalog queries
+DiscourseGraphToolkit.escapeDatalogString = function (str) {
+    if (!str || typeof str !== 'string') return '';
+    // Escape backslashes first, then double quotes
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+};
+
 DiscourseGraphToolkit.downloadJSON = function (data, filename) {
     let jsonStr;
     try {

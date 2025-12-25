@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-24 17:35:50
+ * Bundled build: 2025-12-25 03:08:24
  */
 
 (function () {
@@ -146,6 +146,15 @@ DiscourseGraphToolkit.sanitizeFilename = function (name) {
         .substring(0, 50) || 'export';
 };
 
+// Escape strings for safe use in Datalog queries
+DiscourseGraphToolkit.escapeDatalogString = function (str) {
+    if (!str || typeof str !== 'string') return '';
+    // Escape backslashes first, then double quotes
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+};
+
 DiscourseGraphToolkit.downloadJSON = function (data, filename) {
     let jsonStr;
     try {
@@ -222,7 +231,7 @@ DiscourseGraphToolkit.showToast = function (message, type = 'success') {
     const toastContainer = document.createElement('div');
     toastContainer.style.cssText = `
             position: fixed; top: 20px; right: 20px; padding: 12px 20px;
-            background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : type === 'warning' ? '#FF9800' : '#2196F3'};
             color: white; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             z-index: 10001; font-size: 14px; font-weight: 500; animation: slideIn 0.3s ease-out;
         `;
@@ -273,7 +282,8 @@ DiscourseGraphToolkit.saveTemplates = function (templates) {
 // --- Persistencia en Roam (Config + Templates) ---
 DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
     try {
-        let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?page :block/uid ?uid]]`);
+        const escapedTitle = this.escapeDatalogString(this.ROAM.CONFIG_PAGE);
+        let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
         if (!pageUid || pageUid.length === 0) {
             pageUid = window.roamAlphaAPI.util.generateUID();
             await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
@@ -304,7 +314,8 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
 
 DiscourseGraphToolkit.loadConfigFromRoam = async function () {
     try {
-        const results = await window.roamAlphaAPI.data.async.q(`[:find ?string :where [?page :node/title "${this.ROAM.CONFIG_PAGE}"] [?child :block/parents ?page] [?child :block/string ?string]]`);
+        const escapedTitle = this.escapeDatalogString(this.ROAM.CONFIG_PAGE);
+        const results = await window.roamAlphaAPI.data.async.q(`[:find ?string :where [?page :node/title "${escapedTitle}"] [?child :block/parents ?page] [?child :block/string ?string]]`);
         if (results && results.length > 0) {
             const data = JSON.parse(results[0][0]);
             if (data.config) this.saveConfig(data.config);
@@ -403,7 +414,8 @@ DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
 // ============================================================================
 
 DiscourseGraphToolkit.findProjectsPage = async function () {
-    const results = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${this.ROAM.PROJECTS_PAGE}"] [?page :block/uid ?uid]]`);
+    const escapedTitle = this.escapeDatalogString(this.ROAM.PROJECTS_PAGE);
+    const results = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
     return (results && results.length > 0) ? results[0][0] : null;
 };
 
@@ -505,7 +517,8 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
     const fieldName = config.projectFieldName || "Proyecto Asociado";
 
     // Query para encontrar todos los bloques con la propiedad de proyecto
-    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${fieldName}::")]]`;
+    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
     const results = await window.roamAlphaAPI.data.async.q(query);
 
     const discovered = new Set();
@@ -527,6 +540,9 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
     const fieldName = config.projectFieldName || "Proyecto Asociado";
     const trimmedProject = projectName.trim();
 
+    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const escapedProject = this.escapeDatalogString(trimmedProject);
+
     const query = `[
             :find ?page-title ?page-uid
             :where
@@ -534,8 +550,8 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
             [?page :block/uid ?page-uid]
             [?block :block/page ?page]
             [?block :block/string ?string]
-            [(clojure.string/includes? ?string "${fieldName}::")]
-            [(clojure.string/includes? ?string "[[${trimmedProject}]]")]
+            [(clojure.string/includes? ?string "${escapedFieldName}::")]
+            [(clojure.string/includes? ?string "[[${escapedProject}]]")]
         ]`;
 
     const results = await window.roamAlphaAPI.data.async.q(query);
@@ -744,13 +760,14 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
 DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
     const config = this.getConfig();
     const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const escapedFieldName = this.escapeDatalogString(fieldName);
 
     const query = `[:find ?string
                    :where 
                    [?page :block/uid "${pageUid}"]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
 
     try {
         const results = await window.roamAlphaAPI.data.async.q(query);
@@ -783,6 +800,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
 
     // 2. Obtener proyecto de cada nodo
     const nodeUids = branchNodes.map(n => n.uid);
+    const escapedFieldName = this.escapeDatalogString(fieldName);
 
     // Query para obtener todos los bloques de Proyecto Asociado de las páginas
     const query = `[:find ?page-uid ?string
@@ -791,7 +809,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    [?page :block/uid ?page-uid]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
 
     const coherent = [];
     const different = [];
@@ -857,13 +875,14 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     for (const node of nodesToUpdate) {
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
+            const escapedFieldName = this.escapeDatalogString(fieldName);
             const query = `[:find ?block-uid ?string
                            :where 
                            [?page :block/uid "${node.uid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${fieldName}::")]]`;
+                           [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
 
             const results = await window.roamAlphaAPI.data.async.q(query);
 
@@ -903,6 +922,7 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
 
     const config = this.getConfig();
     const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const escapedFieldName = this.escapeDatalogString(fieldName);
 
     // Query para encontrar cuáles páginas tienen un bloque con "Proyecto Asociado::"
     const query = `[:find ?page-uid
@@ -911,7 +931,7 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
                    [?page :block/uid ?page-uid]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${fieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
 
     try {
         const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
@@ -1218,7 +1238,10 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
 
 DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {
     if (!pullData) return null;
-    if (depth > this.FILES.MAX_DEPTH) return { 'uid': pullData[':block/uid'], '_truncated': true };
+    if (depth > this.FILES.MAX_DEPTH) {
+        console.warn(`⚠️ Profundidad máxima alcanzada (${depth}) en nodo ${pullData[':block/uid']}`);
+        return { 'uid': pullData[':block/uid'], '_truncated': true, '_truncated_at_depth': depth };
+    }
 
     const uid = pullData[':block/uid'];
     if (uid && visited.has(uid)) return { 'uid': uid, '_circular_ref': true };
@@ -1289,6 +1312,12 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 
         if (download) {
             this.downloadJSON(exportData, filename);
+        }
+
+        // Check for truncated nodes and warn
+        const truncatedCount = JSON.stringify(exportData).split('"_truncated":true').length - 1;
+        if (truncatedCount > 0) {
+            console.warn(`⚠️ ${truncatedCount} nodo(s) fueron truncados por profundidad > ${this.FILES.MAX_DEPTH}. Considera usar "Exportar sin contenido" si necesitas estructuras más profundas.`);
         }
 
         return { count: exportData.length, data: exportData };
@@ -4328,14 +4357,23 @@ if (window.roamAlphaAPI) {
 
     // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
     setTimeout(() => {
-        DiscourseGraphToolkit.initializeProjectsSync();
+        DiscourseGraphToolkit.initializeProjectsSync()
+            .catch(e => {
+                console.error("Error en sincronización inicial:", e);
+                DiscourseGraphToolkit.showToast("⚠️ Error sincronizando proyectos", "warning");
+            });
     }, 5000);
 
     // Cargar config desde Roam si existe
     setTimeout(() => {
-        DiscourseGraphToolkit.loadConfigFromRoam().then(data => {
-            if (data) console.log("Configuración cargada desde Roam.");
-        });
+        DiscourseGraphToolkit.loadConfigFromRoam()
+            .then(data => {
+                if (data) console.log("Configuración cargada desde Roam.");
+            })
+            .catch(e => {
+                console.error("Error cargando config desde Roam:", e);
+                // No mostrar toast - config local se usa como fallback
+            });
     }, 5500);
 
     // Registrar Comandos

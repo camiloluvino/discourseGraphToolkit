@@ -6,7 +6,10 @@
 
 DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, visited = new Set(), includeContent = true) {
     if (!pullData) return null;
-    if (depth > this.FILES.MAX_DEPTH) return { 'uid': pullData[':block/uid'], '_truncated': true };
+    if (depth > this.FILES.MAX_DEPTH) {
+        console.warn(`⚠️ Profundidad máxima alcanzada (${depth}) en nodo ${pullData[':block/uid']}`);
+        return { 'uid': pullData[':block/uid'], '_truncated': true, '_truncated_at_depth': depth };
+    }
 
     const uid = pullData[':block/uid'];
     if (uid && visited.has(uid)) return { 'uid': uid, '_circular_ref': true };
@@ -77,6 +80,12 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 
         if (download) {
             this.downloadJSON(exportData, filename);
+        }
+
+        // Check for truncated nodes and warn
+        const truncatedCount = JSON.stringify(exportData).split('"_truncated":true').length - 1;
+        if (truncatedCount > 0) {
+            console.warn(`⚠️ ${truncatedCount} nodo(s) fueron truncados por profundidad > ${this.FILES.MAX_DEPTH}. Considera usar "Exportar sin contenido" si necesitas estructuras más profundas.`);
         }
 
         return { count: exportData.length, data: exportData };
