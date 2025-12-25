@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 14:04:28
+ * Bundled build: 2025-12-25 14:16:21
  */
 
 (function () {
@@ -3135,6 +3135,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     // Estados para coherencia de proyectos
     const [coherenceResult, setCoherenceResult] = React.useState(null);
     const [isPropagating, setIsPropagating] = React.useState(false);
+    const [editableProject, setEditableProject] = React.useState('');
 
     // Init
     React.useEffect(() => {
@@ -3555,6 +3556,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             setVerifyStatus(`Verificando coherencia en ${branchNodes.length} nodos...`);
             const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedQuestion.pageUid, branchNodes);
             setCoherenceResult(cohResult);
+            setEditableProject(cohResult.rootProject || '');
 
             // 3. Crear mapa de nodos para mostrar información (legacy compatibility)
             const nodesMap = {};
@@ -3594,24 +3596,24 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     };
 
     const handlePropagateProject = async () => {
-        if (!selectedQuestion || !coherenceResult || !coherenceResult.rootProject) {
-            setVerifyStatus("❌ No hay proyecto de rama para propagar.");
+        if (!selectedQuestion || !editableProject.trim()) {
+            setVerifyStatus("❌ Ingresa un proyecto para propagar.");
             return;
         }
 
-        const nodesToUpdate = [...coherenceResult.different, ...coherenceResult.missing];
+        const nodesToUpdate = coherenceResult ? [...coherenceResult.different, ...coherenceResult.missing] : [];
         if (nodesToUpdate.length === 0) {
             setVerifyStatus("✅ No hay nodos que actualizar.");
             return;
         }
 
         setIsPropagating(true);
-        setVerifyStatus(`⏳ Propagando proyecto a ${nodesToUpdate.length} nodos...`);
+        setVerifyStatus(`⏳ Propagando "${editableProject}" a ${nodesToUpdate.length} nodos...`);
 
         try {
             const result = await DiscourseGraphToolkit.propagateProjectToBranch(
                 selectedQuestion.pageUid,
-                coherenceResult.rootProject,
+                editableProject.trim(),
                 nodesToUpdate
             );
 
@@ -3725,14 +3727,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 activeTab === 'proyectos' && React.createElement('div', null,
                     // === SECCIÓN 1: LISTA DE PROYECTOS ===
                     React.createElement('h3', { style: { marginTop: 0 } }, '📋 Lista de Proyectos'),
-                    React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
-                        React.createElement('input', {
-                            type: 'text', placeholder: 'Nuevo proyecto...',
-                            value: newProject, onChange: e => setNewProject(e.target.value),
-                            style: { flex: 1, padding: '8px' }
-                        }),
-                        React.createElement('button', { onClick: handleAddProject, style: { padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px' } }, 'Agregar')
-                    ),
                     React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '10px' } },
                         React.createElement('button', { onClick: handleValidate, style: { padding: '5px 10px', cursor: 'pointer' } }, "Validar Existencia"),
                         React.createElement('button', { onClick: handleScanProjects, style: { padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
@@ -3862,43 +3856,51 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         }
                     }, verifyStatus),
 
-                    // Proyecto de la Rama
+                    // Proyecto de la Rama (Editable)
                     coherenceResult && React.createElement('div', {
                         style: {
                             marginBottom: '15px',
                             padding: '12px 15px',
-                            backgroundColor: coherenceResult.rootProject ? '#e3f2fd' : '#ffebee',
+                            backgroundColor: '#e3f2fd',
                             borderRadius: '4px',
-                            border: coherenceResult.rootProject ? '1px solid #2196F3' : '1px solid #f44336',
+                            border: '1px solid #2196F3',
                             display: 'flex',
                             justifyContent: 'space-between',
-                            alignItems: 'center'
+                            alignItems: 'center',
+                            gap: '15px'
                         }
                     },
-                        React.createElement('div', null,
-                            React.createElement('span', { style: { fontWeight: 'bold', marginRight: '10px' } }, '📁 Proyecto de la Rama:'),
-                            React.createElement('span', {
+                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
+                            React.createElement('span', { style: { fontWeight: 'bold', marginRight: '10px', whiteSpace: 'nowrap' } }, '📁 Proyecto:'),
+                            React.createElement('input', {
+                                type: 'text',
+                                value: editableProject,
+                                onChange: (e) => setEditableProject(e.target.value),
+                                placeholder: 'Escribe el proyecto a propagar...',
                                 style: {
-                                    padding: '4px 10px',
-                                    backgroundColor: coherenceResult.rootProject ? '#bbdefb' : '#ffcdd2',
+                                    flex: 1,
+                                    padding: '6px 10px',
+                                    border: '1px solid #90caf9',
                                     borderRadius: '4px',
+                                    fontSize: '14px',
                                     fontWeight: 'bold'
                                 }
-                            }, coherenceResult.rootProject || '❌ Sin proyecto')
+                            })
                         ),
-                        (coherenceResult.different.length > 0 || coherenceResult.missing.length > 0) && coherenceResult.rootProject &&
+                        (coherenceResult.different.length > 0 || coherenceResult.missing.length > 0) &&
                         React.createElement('button', {
                             onClick: handlePropagateProject,
-                            disabled: isPropagating,
+                            disabled: isPropagating || !editableProject.trim(),
                             style: {
                                 padding: '8px 16px',
-                                backgroundColor: isPropagating ? '#ccc' : '#4CAF50',
+                                backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                cursor: isPropagating ? 'not-allowed' : 'pointer',
+                                cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
                                 fontSize: '13px',
-                                fontWeight: 'bold'
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap'
                             }
                         }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar a ${coherenceResult.different.length + coherenceResult.missing.length} nodos`)),
 
