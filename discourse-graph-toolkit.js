@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 04:52:49
+ * Bundled build: 2025-12-25 13:22:04
  */
 
 (function () {
@@ -3293,7 +3293,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-    // --- Handlers Exportación ---
+
+    // --- Handlers Exportacion ---
     const handlePreview = async () => {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);

@@ -193,7 +193,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-    // --- Handlers Exportación ---
+
+    // --- Handlers Exportacion ---
     const handlePreview = async () => {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
