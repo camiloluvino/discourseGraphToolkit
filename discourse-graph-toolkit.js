@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 17:47:22
+ * Bundled build: 2025-12-25 17:54:06
  */
 
 (function () {
@@ -3868,13 +3868,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         },
             // Header
             React.createElement('div', { style: { padding: '1.25rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
-                    React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
-                    React.createElement('span', {
-                        title: 'Atajos: Ctrl+Shift+Q (Pregunta) | Ctrl+Shift+C (Afirmacion) | Ctrl+Shift+E (Evidencia)',
-                        style: { cursor: 'help', fontSize: '0.875rem', color: '#999', padding: '0.25rem 0.5rem', backgroundColor: '#f5f5f5', borderRadius: '0.25rem' }
-                    }, '⌨️ Atajos')
-                ),
+                React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
                 React.createElement('button', { onClick: onClose, style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer' } }, '✕')
             ),
             // Tabs
@@ -3945,15 +3939,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                                 ),
                                 React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
                             )
-                        )
-                    ),
-
-                    // === SECCIÓN: BACKUP & RESTORE ===
-                    React.createElement('div', { style: { marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #eee' } },
-                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.625rem' } },
-                            React.createElement('span', { style: { color: '#666', fontSize: '0.875rem' } }, '💾 Configuración:'),
-                            React.createElement('button', { onClick: handleExportConfig, style: { padding: '0.375rem 0.75rem', border: '1px solid #ccc', color: '#666', background: 'white', borderRadius: '0.25rem', fontSize: '0.8125rem', cursor: 'pointer' } }, '↓ Exportar'),
-                            React.createElement('button', { onClick: handleImportConfig, style: { padding: '0.375rem 0.75rem', border: '1px solid #ccc', color: '#666', background: 'white', borderRadius: '0.25rem', fontSize: '0.8125rem', cursor: 'pointer' } }, '↑ Importar')
                         )
                     )
                 ),
