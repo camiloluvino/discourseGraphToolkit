@@ -88,11 +88,14 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
 };
 
 DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
-    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "Proyecto Asociado::")]]`;
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
+    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
     const results = await window.roamAlphaAPI.data.async.q(query);
     const inGraph = new Set();
+    const regex = PM.getFieldRegex();
     results.forEach(r => {
-        const match = r[0].match(/Proyecto Asociado::\s*\[\[([^\]]+)\]\]/);
+        const match = r[0].match(regex);
         if (match) inGraph.add(match[1].trim());
     });
 
@@ -102,16 +105,15 @@ DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
 };
 
 DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const PM = this.ProjectManager;
 
     // Query para encontrar todos los bloques con la propiedad de proyecto
-    const escapedFieldName = this.escapeDatalogString(fieldName);
-    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
+    const escapedPattern = PM.getEscapedFieldPattern();
+    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
     const results = await window.roamAlphaAPI.data.async.q(query);
 
     const discovered = new Set();
-    const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+    const regex = PM.getFieldRegex();
 
     results.forEach(r => {
         const match = r[0].match(regex);
@@ -125,11 +127,10 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
 
 // --- Lógica de Búsqueda ---
 DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const PM = this.ProjectManager;
     const trimmedProject = projectName.trim();
 
-    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const escapedPattern = PM.getEscapedFieldPattern();
     const escapedProject = this.escapeDatalogString(trimmedProject);
 
     const query = `[
@@ -139,7 +140,7 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
             [?page :block/uid ?page-uid]
             [?block :block/page ?page]
             [?block :block/string ?string]
-            [(clojure.string/includes? ?string "${escapedFieldName}::")]
+            [(clojure.string/includes? ?string "${escapedPattern}")]
             [(clojure.string/includes? ?string "[[${escapedProject}]]")]
         ]`;
 
@@ -347,23 +348,22 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
  * @returns {Promise<string|null>} - Nombre del proyecto o null si no existe
  */
 DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
-    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
 
     const query = `[:find ?string
                    :where 
                    [?page :block/uid "${pageUid}"]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
     try {
         const results = await window.roamAlphaAPI.data.async.q(query);
         if (results && results.length > 0) {
             const blockString = results[0][0];
             // Extraer el valor entre [[ ]]
-            const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+            const regex = PM.getFieldRegex();
             const match = blockString.match(regex);
             return match ? match[1].trim() : null;
         }
@@ -381,15 +381,14 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
  * @returns {Promise<{rootProject: string|null, coherent: Array, different: Array, missing: Array}>}
  */
 DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNodes) {
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
+    const PM = this.ProjectManager;
 
     // 1. Obtener proyecto del QUE raíz
     const rootProject = await this.getProjectFromNode(rootUid);
 
     // 2. Obtener proyecto de cada nodo
     const nodeUids = branchNodes.map(n => n.uid);
-    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const escapedPattern = PM.getEscapedFieldPattern();
 
     // Query para obtener todos los bloques de Proyecto Asociado de las páginas
     const query = `[:find ?page-uid ?string
@@ -398,7 +397,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    [?page :block/uid ?page-uid]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
     const coherent = [];
     const different = [];
@@ -409,7 +408,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
 
         // Crear mapa de UID -> proyecto
         const projectMap = new Map();
-        const regex = new RegExp(`${fieldName}::\\s*\\[\\[([^\\]]+)\\]\\]`);
+        const regex = PM.getFieldRegex();
 
         results.forEach(r => {
             const pageUid = r[0];
@@ -453,9 +452,9 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
  * @returns {Promise<{success: boolean, updated: number, created: number, errors: Array}>}
  */
 DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, targetProject, nodesToUpdate) {
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
-    const newValue = `${fieldName}:: [[${targetProject}]]`;
+    const PM = this.ProjectManager;
+    const newValue = PM.buildFieldValue(targetProject);
+    const escapedPattern = PM.getEscapedFieldPattern();
 
     let updated = 0;
     let created = 0;
@@ -464,14 +463,13 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     for (const node of nodesToUpdate) {
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
-            const escapedFieldName = this.escapeDatalogString(fieldName);
             const query = `[:find ?block-uid ?string
                            :where 
                            [?page :block/uid "${node.uid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
+                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
             const results = await window.roamAlphaAPI.data.async.q(query);
 
@@ -509,9 +507,8 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
         return { withProject: [], withoutProject: [] };
     }
 
-    const config = this.getConfig();
-    const fieldName = config.projectFieldName || "Proyecto Asociado";
-    const escapedFieldName = this.escapeDatalogString(fieldName);
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
 
     // Query para encontrar cuáles páginas tienen un bloque con "Proyecto Asociado::"
     const query = `[:find ?page-uid
@@ -520,7 +517,7 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
                    [?page :block/uid ?page-uid]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedFieldName}::")]]`;
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
     try {
         const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
