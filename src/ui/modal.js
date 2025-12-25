@@ -623,33 +623,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                 // Removed 'relaciones' block
 
                 activeTab === 'proyectos' && React.createElement('div', null,
-                    // === SECCIÓN 1: CONFIGURACIÓN ===
-                    React.createElement('h3', { style: { marginTop: 0 } }, '⚙️ Configuración de Proyectos'),
-                    React.createElement('div', { style: { marginBottom: '25px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '4px' } },
-                        React.createElement('label', { style: { display: 'block', marginBottom: '15px' } },
-                            React.createElement('span', { style: { fontWeight: 'bold' } }, 'Nombre del Campo:'),
-                            React.createElement('input', {
-                                type: 'text', value: config.projectFieldName,
-                                onChange: e => setConfig({ ...config, projectFieldName: e.target.value }),
-                                style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px', boxSizing: 'border-box' }
-                            })
-                        ),
-                        React.createElement('label', { style: { display: 'block', marginBottom: '15px' } },
-                            React.createElement('span', { style: { fontWeight: 'bold' } }, 'Proyecto por Defecto:'),
-                            React.createElement('select', {
-                                value: config.defaultProject,
-                                onChange: e => setConfig({ ...config, defaultProject: e.target.value }),
-                                style: { display: 'block', width: '100%', padding: '8px', marginTop: '5px' }
-                            },
-                                React.createElement('option', { value: "" }, "-- Ninguno --"),
-                                projects.map(p => React.createElement('option', { key: p, value: p }, p))
-                            )
-                        ),
-                        React.createElement('button', { onClick: handleSaveConfig, style: { padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' } }, '💾 Guardar Configuración')
-                    ),
-
-                    // === SECCIÓN 2: LISTA DE PROYECTOS ===
-                    React.createElement('h3', { style: { marginTop: '30px' } }, '📋 Lista de Proyectos'),
+                    // === SECCIÓN 1: LISTA DE PROYECTOS ===
+                    React.createElement('h3', { style: { marginTop: 0 } }, '📋 Lista de Proyectos'),
                     React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '20px' } },
                         React.createElement('input', {
                             type: 'text', placeholder: 'Nuevo proyecto...',
@@ -840,6 +815,187 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('div', { style: { padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px', textAlign: 'center', flex: 1 } },
                             React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold', color: '#f44336' } }, coherenceResult.missing.length),
                             React.createElement('div', { style: { fontSize: '12px', color: '#666' } }, '❌ Sin proyecto')
+                        )
+                    ),
+
+                    // Listas detalladas de nodos
+                    coherenceResult && React.createElement('div', null,
+                        // Nodos con proyecto diferente (⚠️ naranja)
+                        coherenceResult.different.length > 0 && React.createElement('div', {
+                            style: {
+                                marginBottom: '15px',
+                                border: '1px solid #ff9800',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#fff3e0',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #ff9800'
+                                }
+                            }, `⚠️ Nodos con Proyecto Diferente (${coherenceResult.different.length})`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
+                                coherenceResult.different.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '8px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white'
+                                        }
+                                    },
+                                        React.createElement('div', { style: { flex: 1 } },
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '3px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    marginRight: '8px',
+                                                    backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                    color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                }
+                                            }, node.type),
+                                            React.createElement('span', null, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 50)),
+                                            React.createElement('span', { style: { fontSize: '11px', color: '#666', marginLeft: '8px' } },
+                                                `(${node.project || '?'} → ${coherenceResult.rootProject})`)
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleNavigateToPage(node.uid),
+                                            style: {
+                                                padding: '4px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px'
+                                            }
+                                        }, '→ Ir')
+                                    )
+                                )
+                            )
+                        ),
+
+                        // Nodos sin proyecto (❌ rojo)
+                        coherenceResult.missing.length > 0 && React.createElement('div', {
+                            style: {
+                                marginBottom: '15px',
+                                border: '1px solid #f44336',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#ffebee',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #f44336'
+                                }
+                            }, `❌ Nodos sin Proyecto (${coherenceResult.missing.length})`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
+                                coherenceResult.missing.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
+                                        style: {
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '8px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white'
+                                        }
+                                    },
+                                        React.createElement('span', { style: { flex: 1 } },
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '3px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    marginRight: '8px',
+                                                    backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                    color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                                }
+                                            }, node.type),
+                                            (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: () => handleNavigateToPage(node.uid),
+                                            style: {
+                                                padding: '4px 10px',
+                                                backgroundColor: '#2196F3',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px'
+                                            }
+                                        }, '→ Ir')
+                                    )
+                                )
+                            )
+                        ),
+
+                        // Nodos coherentes (✅ verde) - colapsados
+                        coherenceResult.coherent.length > 0 && React.createElement('div', {
+                            style: {
+                                border: '1px solid #4CAF50',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            React.createElement('div', {
+                                style: {
+                                    padding: '10px',
+                                    backgroundColor: '#e8f5e9',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                },
+                                onClick: (e) => {
+                                    const content = e.target.nextSibling;
+                                    if (content) {
+                                        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                                    }
+                                }
+                            }, `✅ Nodos Coherentes (${coherenceResult.coherent.length}) - Click para expandir`),
+                            React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto', display: 'none' } },
+                                coherenceResult.coherent.map(node =>
+                                    React.createElement('div', {
+                                        key: node.uid,
+                                        style: {
+                                            padding: '6px 10px',
+                                            borderBottom: '1px solid #eee',
+                                            backgroundColor: 'white',
+                                            fontSize: '13px',
+                                            color: '#666'
+                                        }
+                                    },
+                                        React.createElement('span', {
+                                            style: {
+                                                display: 'inline-block',
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                fontSize: '10px',
+                                                fontWeight: 'bold',
+                                                marginRight: '8px',
+                                                backgroundColor: node.type === 'CLM' ? '#e8f5e9' : '#fff3e0',
+                                                color: node.type === 'CLM' ? '#2e7d32' : '#e65100'
+                                            }
+                                        }, node.type),
+                                        (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '').substring(0, 60)
+                                    )
+                                )
+                            )
                         )
                     )
                 ),
