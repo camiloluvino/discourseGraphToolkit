@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 13:22:04
+ * Bundled build: 2025-12-25 13:48:34
  */
 
 (function () {
@@ -3293,8 +3293,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-
-    // --- Handlers Exportacion ---
+    // --- Handlers Exportación ---
     const handlePreview = async () => {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
@@ -3660,9 +3659,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-    // Cargar preguntas al entrar a la pestaña verificar
+    // Cargar preguntas al entrar a la pestaña proyectos (sección verificación)
     React.useEffect(() => {
-        if (activeTab === 'verificar' && availableQuestions.length === 0) {
+        if (activeTab === 'proyectos' && availableQuestions.length === 0) {
             handleLoadQuestions();
         }
     }, [activeTab]);

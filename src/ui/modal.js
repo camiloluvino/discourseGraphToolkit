@@ -193,8 +193,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-
-    // --- Handlers Exportacion ---
+    // --- Handlers Exportación ---
     const handlePreview = async () => {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
@@ -560,9 +559,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
-    // Cargar preguntas al entrar a la pestaña verificar
+    // Cargar preguntas al entrar a la pestaña proyectos (sección verificación)
     React.useEffect(() => {
-        if (activeTab === 'verificar' && availableQuestions.length === 0) {
+        if (activeTab === 'proyectos' && availableQuestions.length === 0) {
             handleLoadQuestions();
         }
     }, [activeTab]);
