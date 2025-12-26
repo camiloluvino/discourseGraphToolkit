@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-25 17:54:06
+ * Bundled build: 2025-12-26 01:13:58
  */
 
 (function () {
@@ -443,11 +443,16 @@ DiscourseGraphToolkit.findProjectsPage = async function () {
 };
 
 DiscourseGraphToolkit.loadProjectsFromRoam = async function () {
-    const pageUid = await this.findProjectsPage();
-    if (!pageUid) return [];
-    const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
-    const results = await window.roamAlphaAPI.data.async.q(query);
-    return results.map(r => r[0].trim()).filter(p => p !== '');
+    try {
+        const pageUid = await this.findProjectsPage();
+        if (!pageUid) return [];
+        const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
+        const results = await window.roamAlphaAPI.data.async.q(query);
+        return results.map(r => r[0].trim()).filter(p => p !== '');
+    } catch (e) {
+        console.error("Error loading projects from Roam:", e);
+        return []; // Fallback seguro: retornar array vacío
+    }
 };
 
 DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
@@ -3452,64 +3457,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
         setIsExporting(true);
         try {
-            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.html`;
-
-            setExportStatus("Obteniendo datos...");
-            const anyContent = Object.values(contentConfig).some(x => x);
-            // Obtener datos sin descargar JSON
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
-
-            setExportStatus("Procesando relaciones...");
-            // Convertir array a mapa por UID para el mapper y NORMALIZAR
-            const allNodes = {};
-            result.data.forEach(node => {
-                if (node.uid) {
-                    // Normalización crítica para RelationshipMapper y ContentProcessor
-                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
-                    node.data = node; // El nodo mismo contiene los hijos
-                    allNodes[node.uid] = node;
-                }
-            });
-
-            // --- NUEVO: Buscar y cargar dependencias faltantes (CLMs/EVDs referenciados) ---
-            setExportStatus("Analizando dependencias...");
-            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
-            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
-
-            if (missingUids.length > 0) {
-                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-                // Fetch missing nodes
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
-                extraData.data.forEach(node => {
-                    if (node.uid) {
-                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
-                        node.data = node;
-                        allNodes[node.uid] = node;
-                    }
-                });
-            }
-            // -------------------------------------------------------------------------------
-
-            // Mapear relaciones
-            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
-
-            // Filtrar preguntas para el reporte
-            const questions = result.data.filter(node => {
-                const type = DiscourseGraphToolkit.getNodeType(node.title);
-                return type === 'QUE';
-            });
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
 
             setExportStatus("Generando HTML...");
-            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora);
+            const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
+                questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora
+            );
 
             setExportStatus("Descargando...");
-            DiscourseGraphToolkit.downloadFile(filename, htmlContent, 'text/html');
+            DiscourseGraphToolkit.downloadFile(filename + '.html', htmlContent, 'text/html');
 
             setExportStatus(`✅ Exportación HTML completada.`);
-            // History Removed
-
         } catch (e) {
             console.error(e);
             setExportStatus("❌ Error: " + e.message);
@@ -3527,64 +3486,75 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
         setIsExporting(true);
         try {
-            const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-            const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.md`;
-
-            setExportStatus("Obteniendo datos...");
-            const anyContent = Object.values(contentConfig).some(x => x);
-            const result = await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent, false);
-
-            setExportStatus("Procesando relaciones...");
-            const allNodes = {};
-            result.data.forEach(node => {
-                if (node.uid) {
-                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
-                    node.data = node;
-                    allNodes[node.uid] = node;
-                }
-            });
-
-            // --- NUEVO: Buscar y cargar dependencias faltantes ---
-            setExportStatus("Analizando dependencias...");
-            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
-            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
-
-            if (missingUids.length > 0) {
-                setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
-                extraData.data.forEach(node => {
-                    if (node.uid) {
-                        node.type = DiscourseGraphToolkit.getNodeType(node.title);
-                        node.data = node;
-                        allNodes[node.uid] = node;
-                    }
-                });
-            }
-            // -------------------------------------------------------------------------------
-
-            DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
-
-            const questions = result.data.filter(node => {
-                const type = DiscourseGraphToolkit.getNodeType(node.title);
-                return type === 'QUE';
-            });
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
 
             setExportStatus("Generando Markdown...");
-            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora);
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
+                questions, allNodes, contentConfig, excludeBitacora
+            );
 
             setExportStatus("Descargando...");
-            DiscourseGraphToolkit.downloadFile(filename, mdContent, 'text/markdown');
+            DiscourseGraphToolkit.downloadFile(filename + '.md', mdContent, 'text/markdown');
 
             setExportStatus(`✅ Exportación Markdown completada.`);
-            // History Removed
-
         } catch (e) {
             console.error(e);
             setExportStatus("❌ Error: " + e.message);
         } finally {
             setIsExporting(false);
         }
+    };
+
+    // --- Helper: Preparar datos para export (común entre HTML y Markdown) ---
+    const prepareExportData = async (pagesToExport, pNames) => {
+        const uids = pagesToExport.map(p => p.pageUid);
+        const anyContent = Object.values(contentConfig).some(x => x);
+
+        setExportStatus("Obteniendo datos...");
+        const result = await DiscourseGraphToolkit.exportPagesNative(
+            uids, null, (msg) => setExportStatus(msg), anyContent, false
+        );
+
+        setExportStatus("Procesando relaciones...");
+        const allNodes = {};
+        result.data.forEach(node => {
+            if (node.uid) {
+                node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                node.data = node;
+                allNodes[node.uid] = node;
+            }
+        });
+
+        // Cargar dependencias faltantes
+        setExportStatus("Analizando dependencias...");
+        const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+        const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
+
+        if (missingUids.length > 0) {
+            setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
+            const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
+            extraData.data.forEach(node => {
+                if (node.uid) {
+                    node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                    node.data = node;
+                    allNodes[node.uid] = node;
+                }
+            });
+        }
+
+        // Mapear relaciones
+        DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+        // Filtrar preguntas
+        const questions = result.data.filter(node => {
+            const type = DiscourseGraphToolkit.getNodeType(node.title);
+            return type === 'QUE';
+        });
+
+        const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}`;
+
+        return { questions, allNodes, filename };
     };
 
     // --- Handlers Verificación ---

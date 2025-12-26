@@ -9,11 +9,16 @@ DiscourseGraphToolkit.findProjectsPage = async function () {
 };
 
 DiscourseGraphToolkit.loadProjectsFromRoam = async function () {
-    const pageUid = await this.findProjectsPage();
-    if (!pageUid) return [];
-    const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
-    const results = await window.roamAlphaAPI.data.async.q(query);
-    return results.map(r => r[0].trim()).filter(p => p !== '');
+    try {
+        const pageUid = await this.findProjectsPage();
+        if (!pageUid) return [];
+        const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
+        const results = await window.roamAlphaAPI.data.async.q(query);
+        return results.map(r => r[0].trim()).filter(p => p !== '');
+    } catch (e) {
+        console.error("Error loading projects from Roam:", e);
+        return []; // Fallback seguro: retornar array vacío
+    }
 };
 
 DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
