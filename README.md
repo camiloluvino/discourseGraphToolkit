@@ -24,20 +24,25 @@ Cada nodo se crea como una página con la estructura definida en tus templates p
 
 ### 2. Gestión de Proyectos
 Organiza tu investigación en proyectos separados:
-- Crea y gestiona proyectos desde la interfaz.
+- Crea y gestiona proyectos desde la pestaña **Proyectos**.
 - Asigna nodos automáticamente al proyecto activo.
-- Filtra exportaciones por proyecto.
+- Sincroniza proyectos con una página dedicada en Roam.
+- Descubre proyectos existentes en el grafo con "Buscar Sugerencias".
 
-### 3. Exportación Multi-Formato
+### 3. Verificación de Coherencia (Ramas)
+Verifica la consistencia de tus ramas de investigación:
+- Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
+- Identifica nodos sin proyecto asignado.
+- Propaga el proyecto de la rama a todos los nodos descendientes con un clic.
+
+### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:
 - **JSON Nativo:** Compatible con el formato de Roam Research.
-- **HTML:** Documento estructurado con estilos para visualización.
+- **HTML:** Documento interactivo con estilos y navegación.
 - **Markdown:** Para uso en otras herramientas o publicación.
 
-### 4. Página Índice
-Usa una página de Roam como "índice" para controlar el **orden de exportación**:
-- Los nodos se exportan en el orden visual de la página índice.
-- Ideal para mantener una estructura narrativa en tus documentos.
+### 5. Importación
+Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.
 
 ## Instalación
 
@@ -75,15 +80,18 @@ Si prefieres tener control total sobre la versión del plugin:
 
 ## Uso Básico
 
-### Configuración Inicial
+### Abriendo el Toolkit
 1. Abre la paleta de comandos (`Ctrl+P`).
 2. Busca **"Discourse Graph Toolkit: Abrir"**.
-3. En la pestaña **General**:
-   - Configura el nombre del campo de proyecto (por defecto: `Proyecto Asociado`).
-   - Revisa los atajos de teclado.
-4. En la pestaña **Proyectos**:
-   - Crea tus proyectos de investigación.
-   - Selecciona el proyecto por defecto.
+
+### Pestañas disponibles
+
+| Pestaña | Función |
+|---------|---------|
+| **Proyectos** | Gestiona proyectos, valida existencia, busca sugerencias |
+| **Ramas** | Verifica coherencia de `Proyecto Asociado::` en todas las ramas |
+| **Exportar** | Exporta nodos a JSON, HTML o Markdown |
+| **Importar** | Importa grafos desde archivos JSON |
 
 ### Creando Nodos
 1. Escribe tu idea en un bloque.
@@ -94,28 +102,36 @@ Si prefieres tener control total sobre la versión del plugin:
 1. Abre el Toolkit.
 2. Ve a la pestaña **Exportar**.
 3. Selecciona proyectos y tipos de nodos.
-4. (Opcional) Especifica una **Página Índice** para controlar el orden.
-5. Haz clic en el formato deseado: JSON, HTML o Markdown.
+4. Haz clic en el formato deseado: JSON, HTML o Markdown.
 
 ## Estructura del Proyecto
 
 ```
 discourseGraphToolkit/
 ├── src/
-│   ├── config.js          # Configuración y constantes
-│   ├── state.js           # Gestión de almacenamiento
-│   ├── api/roam.js        # Interacción con Roam API
-│   ├── core/              # Lógica de negocio
-│   │   ├── nodes.js       # Creación de nodos
-│   │   ├── export.js      # Exportación JSON
-│   │   ├── import.js      # Importación de datos
-│   │   └── ...            # Procesadores y generadores
-│   ├── ui/modal.js        # Interfaz de usuario (React)
-│   └── index.js           # Inicialización
-├── docs/                  # Documentación técnica
-├── ejemplos/              # Ejemplos de exportación
-├── build.ps1              # Script de build
-└── discourse-graph-toolkit.js  # Bundle final
+│   ├── config.js              # Configuración y constantes
+│   ├── state.js               # Gestión de almacenamiento
+│   ├── index.js               # Inicialización
+│   ├── api/
+│   │   └── roam.js            # Interacción con Roam API
+│   ├── core/
+│   │   ├── nodes.js           # Creación de nodos
+│   │   ├── projects.js        # Gestión de proyectos
+│   │   ├── export.js          # Exportación JSON
+│   │   ├── import.js          # Importación de datos
+│   │   ├── contentProcessor.js    # Procesamiento de contenido
+│   │   ├── relationshipMapper.js  # Mapeo de relaciones
+│   │   ├── htmlGenerator.js       # Generador HTML
+│   │   └── markdownGenerator.js   # Generador Markdown
+│   ├── ui/
+│   │   └── modal.js           # Interfaz de usuario (React)
+│   └── utils/
+│       ├── helpers.js         # Funciones auxiliares
+│       └── toast.js           # Notificaciones
+├── docs/                      # Documentación técnica
+├── ejemplos/                  # Ejemplos de exportación
+├── build.ps1                  # Script de build
+└── discourse-graph-toolkit.js # Bundle final
 ```
 
 ## Documentación Técnica
