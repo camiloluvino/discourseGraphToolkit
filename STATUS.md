@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2025-12-29
+**Última actualización:** 2025-12-30
 
 ## Versión Actual
 
@@ -15,15 +15,16 @@
 | Verificación de coherencia (Ramas) | ✅ Estable | Detecta y propaga `Proyecto Asociado::` |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
-| Exportación Markdown | ✅ Estable | — |
+| Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
 
 ### v1.2.1 (Diciembre 2025)
+- **Fix:** Exportación Markdown ahora incluye EVDs de CLMs de soporte (estructura QUE→CLM→CLM(soporte)→EVD)
+- Sincronización de lógica entre `markdownGenerator.js` y JS embebido en `htmlGenerator.js`
 - Reorganización de estructura del proyecto (carpetas `docs/`, `tests/`, `reference/`)
 - Consolidación de documentación
-- Limpieza de archivos obsoletos
 
 ### v1.2.0
 - Verificación de coherencia de proyectos en ramas
