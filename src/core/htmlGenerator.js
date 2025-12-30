@@ -614,6 +614,35 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                             var suppContent = extractNodeContent(suppClm.data, true, 'CLM');
                                             if (suppContent) result += '\\n' + suppContent + '\\n';
                                         }
+                                        
+                                        // EVDs del CLM de Soporte
+                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
+                                            for (var se = 0; se < suppClm.related_evds.length; se++) {
+                                                var suppEvdUid = suppClm.related_evds[se];
+                                                if (allNodes[suppEvdUid]) {
+                                                    var suppEvd = allNodes[suppEvdUid];
+                                                    var suppEvdTitle = cleanText((suppEvd.title || '').replace('[[EVD]] - ', ''));
+                                                    result += '##### [[EVD]] - ' + suppEvdTitle + '\\n\\n';
+                                                    
+                                                    var suppEvdMetadata = suppEvd.project_metadata || {};
+                                                    if (suppEvdMetadata.proyecto_asociado || suppEvdMetadata.seccion_tesis) {
+                                                        result += '**Información del proyecto:**\\n';
+                                                        if (suppEvdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\\n';
+                                                        if (suppEvdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\\n';
+                                                        result += '\\n';
+                                                    }
+                                                    
+                                                    if (config.EVD) {
+                                                        var suppEvdContent = extractNodeContent(suppEvd.data, true, 'EVD');
+                                                        if (suppEvdContent) {
+                                                            result += suppEvdContent + '\\n';
+                                                        } else {
+                                                            result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 result += '\\n';
@@ -817,6 +846,35 @@ DiscourseGraphToolkit.HtmlGenerator = {
                                         if (config.CLM) {
                                             var suppContent = extractNodeContent(suppClm.data, true, 'CLM');
                                             if (suppContent) result += '\\n' + suppContent + '\\n';
+                                        }
+                                        
+                                        // EVDs del CLM de Soporte
+                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
+                                            for (var se = 0; se < suppClm.related_evds.length; se++) {
+                                                var suppEvdUid = suppClm.related_evds[se];
+                                                if (allNodes[suppEvdUid]) {
+                                                    var suppEvd = allNodes[suppEvdUid];
+                                                    var suppEvdTitle = cleanText((suppEvd.title || '').replace('[[EVD]] - ', ''));
+                                                    result += '##### [[EVD]] - ' + suppEvdTitle + '\\n\\n';
+                                                    
+                                                    var suppEvdMetadata = suppEvd.project_metadata || {};
+                                                    if (suppEvdMetadata.proyecto_asociado || suppEvdMetadata.seccion_tesis) {
+                                                        result += '**Información del proyecto:**\\n';
+                                                        if (suppEvdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\\n';
+                                                        if (suppEvdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\\n';
+                                                        result += '\\n';
+                                                    }
+                                                    
+                                                    if (config.EVD) {
+                                                        var suppEvdContent = extractNodeContent(suppEvd.data, true, 'EVD');
+                                                        if (suppEvdContent) {
+                                                            result += suppEvdContent + '\\n';
+                                                        } else {
+                                                            result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

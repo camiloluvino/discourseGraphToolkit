@@ -81,6 +81,33 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                             result += "\n" + suppContent + "\n";
                                         }
                                         // -------------------------------------------
+
+                                        // --- NUEVO: EVDs del CLM de Soporte ---
+                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
+                                            for (const evdUid of suppClm.related_evds) {
+                                                if (allNodes[evdUid]) {
+                                                    const evd = allNodes[evdUid];
+                                                    const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+                                                    result += `##### [[EVD]] - ${evdTitle}\n\n`;
+
+                                                    const evdMetadata = evd.project_metadata || {};
+                                                    if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
+                                                        result += "**Información del proyecto:**\n";
+                                                        if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                                        if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                                        result += "\n";
+                                                    }
+
+                                                    const evdContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                                                    if (evdContent) {
+                                                        result += evdContent + "\n";
+                                                    } else {
+                                                        result += "*No se encontró contenido detallado para esta evidencia.*\n\n";
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        // --------------------------------------
                                     }
                                 }
                                 result += "\n";
