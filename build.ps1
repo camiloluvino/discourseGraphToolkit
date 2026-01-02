@@ -18,6 +18,10 @@ $files = @(
     "src/core/htmlGenerator.js",
     "src/core/markdownGenerator.js",
     "src/core/epubGenerator.js",
+    "src/ui/tabs/ProjectsTab.js",
+    "src/ui/tabs/BranchesTab.js",
+    "src/ui/tabs/ExportTab.js",
+    "src/ui/tabs/ImportTab.js",
     "src/ui/modal.js",
     "src/index.js"
 )
