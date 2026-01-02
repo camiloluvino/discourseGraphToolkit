@@ -39,7 +39,9 @@ Verifica la consistencia de tus ramas de investigación:
 Exporta tus grafos de discurso en múltiples formatos:
 - **JSON Nativo:** Compatible con el formato de Roam Research.
 - **HTML:** Documento interactivo con estilos y navegación.
-- **Markdown:** Para uso en otras herramientas o publicación.
+- **Markdown:** Formato estructurado con bullets e indentación.
+- **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
+- **EPUB:** Libro electrónico listo para lectores de eBooks (Kindle, Apple Books, Calibre).
 
 ### 5. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.
@@ -90,7 +92,7 @@ Si prefieres tener control total sobre la versión del plugin:
 |---------|---------|
 | **Proyectos** | Gestiona proyectos, valida existencia, busca sugerencias |
 | **Ramas** | Verifica coherencia de `Proyecto Asociado::` en todas las ramas |
-| **Exportar** | Exporta nodos a JSON, HTML o Markdown |
+| **Exportar** | Exporta nodos a JSON, HTML, Markdown o EPUB |
 | **Importar** | Importa grafos desde archivos JSON |
 
 ### Creando Nodos
@@ -102,7 +104,7 @@ Si prefieres tener control total sobre la versión del plugin:
 1. Abre el Toolkit.
 2. Ve a la pestaña **Exportar**.
 3. Selecciona proyectos y tipos de nodos.
-4. Haz clic en el formato deseado: JSON, HTML o Markdown.
+4. Haz clic en el formato deseado: JSON, HTML, Markdown, MD Plano o EPUB.
 
 ## Estructura del Proyecto
 
@@ -122,7 +124,8 @@ discourseGraphToolkit/
 │   │   ├── contentProcessor.js    # Procesamiento de contenido
 │   │   ├── relationshipMapper.js  # Mapeo de relaciones
 │   │   ├── htmlGenerator.js       # Generador HTML
-│   │   └── markdownGenerator.js   # Generador Markdown
+│   │   ├── markdownGenerator.js   # Generador Markdown
+│   │   └── epubGenerator.js       # Generador EPUB
 │   ├── ui/
 │   │   └── modal.js           # Interfaz de usuario (React)
 │   └── utils/

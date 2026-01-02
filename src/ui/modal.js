@@ -334,6 +334,80 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
         }
     };
 
+    const handleExportFlatMarkdown = async () => {
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+
+            setExportStatus("Generando Markdown Plano...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
+                questions, allNodes, contentConfig, excludeBitacora
+            );
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename + '_flat.md', mdContent, 'text/markdown');
+
+            setExportStatus(`✅ Exportación Markdown Plano completada.`);
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportEpub = async () => {
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+
+            setExportStatus("Generando Markdown para EPUB...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
+                questions, allNodes, contentConfig, excludeBitacora
+            );
+
+            setExportStatus("Cargando librería EPUB...");
+            await DiscourseGraphToolkit.EpubGenerator.loadJSZip();
+
+            setExportStatus("Generando EPUB...");
+            const epubBlob = await DiscourseGraphToolkit.EpubGenerator.generateEpub(mdContent, {
+                title: `Mapa de Discurso: ${pNames.join(', ')}`,
+                author: 'Discourse Graph Toolkit'
+            });
+
+            setExportStatus("Descargando EPUB...");
+            const url = URL.createObjectURL(epubBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename + '.epub';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            setExportStatus(`✅ Exportación EPUB completada.`);
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     // --- Helper: Preparar datos para export (común entre HTML y Markdown) ---
     const prepareExportData = async (pagesToExport, pNames) => {
         const uids = pagesToExport.map(p => p.pageUid);
@@ -990,8 +1064,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('button', {
                             onClick: handleExportMarkdown,
                             disabled: isExporting,
-                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem' }
-                        }, 'Exportar Markdown')
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                        }, 'Exportar Markdown'),
+                        React.createElement('button', {
+                            onClick: handleExportFlatMarkdown,
+                            disabled: isExporting,
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#9C27B0', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                        }, 'MD Plano'),
+                        React.createElement('button', {
+                            onClick: handleExportEpub,
+                            disabled: isExporting,
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#E91E63', color: 'white', border: 'none', borderRadius: '0.25rem' }
+                        }, '📚 EPUB')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
                     previewPages.length > 0 && React.createElement('div', { style: { marginTop: '0.9375rem', maxHeight: '12.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },

@@ -6,7 +6,7 @@
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -45,15 +45,19 @@ DiscourseGraphToolkit.ContentProcessor = {
                 // Pass
             } else {
                 if (blockString) {
-                    const indent = "  ".repeat(indentLevel);
-                    content += `${indent}- ${blockString}\n`;
+                    if (flatMode) {
+                        content += `${blockString}\n\n`;
+                    } else {
+                        const indent = "  ".repeat(indentLevel);
+                        content += `${indent}- ${blockString}\n`;
+                    }
                 }
             }
 
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
                     if (childContent) content += childContent;
                 }
             }
@@ -67,7 +71,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true) {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true, flatMode = false) {
         let detailedContent = "";
 
         try {
@@ -85,12 +89,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     if (!isStructuralMetadata) {
                         // Normal content block
                         if (childString) {
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
                             if (childContent) detailedContent += childContent;
                         } else {
                             // Empty block with children (e.g. indentation wrapper) -> recurse?
                             // extractBlockContent handles recursion.
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
                             if (childContent) detailedContent += childContent;
                         }
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
@@ -105,13 +109,13 @@ DiscourseGraphToolkit.ContentProcessor = {
                 // Fallback: contenido directo o título
                 const mainString = nodeData.string || nodeData[':block/string'] || "";
                 if (mainString) {
-                    detailedContent += `- ${mainString}\n`;
+                    detailedContent += flatMode ? `${mainString}\n\n` : `- ${mainString}\n`;
                 } else {
                     const title = nodeData.title || nodeData[':node/title'] || "";
                     if (title) {
                         const prefix = `[[${nodeType}]] - `;
                         const cleanTitle = title.replace(prefix, "").trim();
-                        if (cleanTitle) detailedContent += `- ${cleanTitle}\n`;
+                        if (cleanTitle) detailedContent += flatMode ? `${cleanTitle}\n\n` : `- ${cleanTitle}\n`;
                     }
                 }
             }

@@ -17,6 +17,7 @@ $files = @(
     "src/core/relationshipMapper.js",
     "src/core/htmlGenerator.js",
     "src/core/markdownGenerator.js",
+    "src/core/epubGenerator.js",
     "src/ui/modal.js",
     "src/index.js"
 )

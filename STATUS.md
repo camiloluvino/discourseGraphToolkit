@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2025-12-30
+**Última actualización:** 2026-01-02
 
 ## Versión Actual
 
@@ -16,9 +16,16 @@
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
+| Exportación EPUB | ✅ Estable | Generación completa con tabla de contenidos y estilos |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.2.2 (Enero 2026)
+- **Feature:** Exportación a EPUB completa directamente desde el navegador (usando JSZip)
+- **Feature:** Nueva opción de exportación Markdown Plano (sin bullets)
+- **UI:** Nuevos botones "MD Plano" y "EPUB" en la pestaña Exportar
+- **Tech:** Nuevo módulo `epubGenerator.js`
 
 ### v1.2.1 (Diciembre 2025)
 - **Fix:** Exportación Markdown ahora incluye EVDs de CLMs de soporte (estructura QUE→CLM→CLM(soporte)→EVD)

@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2025-12-30 17:56:26
+ * Bundled build: 2026-01-02 19:15:44
  */
 
 (function () {
@@ -1644,7 +1644,7 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -1683,15 +1683,19 @@ DiscourseGraphToolkit.ContentProcessor = {
                 // Pass
             } else {
                 if (blockString) {
-                    const indent = "  ".repeat(indentLevel);
-                    content += `${indent}- ${blockString}\n`;
+                    if (flatMode) {
+                        content += `${blockString}\n\n`;
+                    } else {
+                        const indent = "  ".repeat(indentLevel);
+                        content += `${indent}- ${blockString}\n`;
+                    }
                 }
             }
 
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
                     if (childContent) content += childContent;
                 }
             }
@@ -1705,7 +1709,7 @@ DiscourseGraphToolkit.ContentProcessor = {
         return content;
     },
 
-    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true) {
+    extractNodeContent: function (nodeData, extractAdditionalContent = false, nodeType = "EVD", excludeBitacora = true, flatMode = false) {
         let detailedContent = "";
 
         try {
@@ -1723,12 +1727,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     if (!isStructuralMetadata) {
                         // Normal content block
                         if (childString) {
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
                             if (childContent) detailedContent += childContent;
                         } else {
                             // Empty block with children (e.g. indentation wrapper) -> recurse?
                             // extractBlockContent handles recursion.
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
                             if (childContent) detailedContent += childContent;
                         }
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
@@ -1743,13 +1747,13 @@ DiscourseGraphToolkit.ContentProcessor = {
                 // Fallback: contenido directo o título
                 const mainString = nodeData.string || nodeData[':block/string'] || "";
                 if (mainString) {
-                    detailedContent += `- ${mainString}\n`;
+                    detailedContent += flatMode ? `${mainString}\n\n` : `- ${mainString}\n`;
                 } else {
                     const title = nodeData.title || nodeData[':node/title'] || "";
                     if (title) {
                         const prefix = `[[${nodeType}]] - `;
                         const cleanTitle = title.replace(prefix, "").trim();
-                        if (cleanTitle) detailedContent += `- ${cleanTitle}\n`;
+                        if (cleanTitle) detailedContent += flatMode ? `${cleanTitle}\n\n` : `- ${cleanTitle}\n`;
                     }
                 }
             }
@@ -3076,7 +3080,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false) {
         // Compatibilidad hacia atrás: si contentConfig es booleano (bool legacy), lo convertimos a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
@@ -3093,15 +3097,20 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                 // Metadata
                 const metadata = question.project_metadata || {};
                 if (metadata.proyecto_asociado || metadata.seccion_tesis) {
-                    result += "**Información del proyecto:**\n";
-                    if (metadata.proyecto_asociado) result += `- Proyecto Asociado: ${metadata.proyecto_asociado}\n`;
-                    if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
-                    result += "\n";
+                    if (flatMode) {
+                        if (metadata.proyecto_asociado) result += `Proyecto Asociado: ${metadata.proyecto_asociado}\n\n`;
+                        if (metadata.seccion_tesis) result += `Sección Narrativa: ${metadata.seccion_tesis}\n\n`;
+                    } else {
+                        result += "**Información del proyecto:**\n";
+                        if (metadata.proyecto_asociado) result += `- Proyecto Asociado: ${metadata.proyecto_asociado}\n`;
+                        if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
+                        result += "\n";
+                    }
                 }
 
                 // --- Contenido de la Pregunta ---
                 // Se extrae si QUE está habilitado
-                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora, flatMode);
                 if (queContent) {
                     result += queContent + "\n";
                 }
@@ -3125,16 +3134,20 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                             const clmMetadata = clm.project_metadata || {};
                             if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
-                                result += "**Información del proyecto:**\n";
-                                if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
-                                if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
-                                result += "\n";
-                                result += "\n";
+                                if (flatMode) {
+                                    if (clmMetadata.proyecto_asociado) result += `Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n\n`;
+                                    if (clmMetadata.seccion_tesis) result += `Sección Narrativa: ${clmMetadata.seccion_tesis}\n\n`;
+                                } else {
+                                    result += "**Información del proyecto:**\n";
+                                    if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
+                                    if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
+                                    result += "\n\n";
+                                }
                             }
 
                             // --- NUEVO: Contenido del CLM ---
                             // Se extrae si CLM está habilitado
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora, flatMode);
                             if (clmContent) {
                                 result += clmContent + "\n";
                             }
@@ -3148,7 +3161,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${suppTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM de Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora, flatMode);
                                         if (suppContent) {
                                             result += "\n" + suppContent + "\n";
                                         }
@@ -3164,13 +3177,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                                                     const evdMetadata = evd.project_metadata || {};
                                                     if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                                        result += "**Información del proyecto:**\n";
-                                                        if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                                        if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                                        result += "\n";
+                                                        if (flatMode) {
+                                                            if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                                            if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                                        } else {
+                                                            result += "**Información del proyecto:**\n";
+                                                            if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                                            if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                                            result += "\n";
+                                                        }
                                                     }
 
-                                                    const evdContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                                                    const evdContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                                                     if (evdContent) {
                                                         result += evdContent + "\n";
                                                     } else {
@@ -3199,13 +3217,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                                         const evdMetadata = evd.project_metadata || {};
                                         if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                            result += "**Información del proyecto:**\n";
-                                            if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                            if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                            result += "\n";
+                                            if (flatMode) {
+                                                if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                                if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                            } else {
+                                                result += "**Información del proyecto:**\n";
+                                                if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                                if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                                result += "\n";
+                                            }
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                                         if (detailedContent) {
                                             result += detailedContent + "\n";
                                         } else {
@@ -3228,13 +3251,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                             const evdMetadata = evd.project_metadata || {};
                             if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                result += "**Información del proyecto:**\n";
-                                if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                result += "\n";
+                                if (flatMode) {
+                                    if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                    if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                } else {
+                                    result += "**Información del proyecto:**\n";
+                                    if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                    if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                    result += "\n";
+                                }
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                             if (detailedContent) {
                                 result += detailedContent + "\n";
                             } else {
@@ -3250,6 +3278,352 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         }
 
         return result;
+    },
+
+    // Convenience wrapper for flat markdown export (EPUB-ready)
+    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true);
+    }
+};
+
+
+// --- MODULE: src/core/epubGenerator.js ---
+// ============================================================================
+// CORE: EPUB Generator
+// Generates EPUB files directly in the browser using JSZip
+// ============================================================================
+
+DiscourseGraphToolkit.EpubGenerator = {
+    // JSZip will be loaded dynamically
+    JSZip: null,
+
+    // Load JSZip from CDN if not already loaded
+    loadJSZip: async function () {
+        if (this.JSZip) return this.JSZip;
+        if (window.JSZip) {
+            this.JSZip = window.JSZip;
+            return this.JSZip;
+        }
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+            script.onload = () => {
+                this.JSZip = window.JSZip;
+                resolve(this.JSZip);
+            };
+            script.onerror = () => reject(new Error('Failed to load JSZip'));
+            document.head.appendChild(script);
+        });
+    },
+
+    // Convert flat markdown to EPUB
+    generateEpub: async function (flatMarkdown, metadata = {}) {
+        const JSZip = await this.loadJSZip();
+        const zip = new JSZip();
+
+        const title = metadata.title || 'Discourse Graph Export';
+        const author = metadata.author || 'Discourse Graph Toolkit';
+        const date = new Date().toISOString().split('T')[0];
+        const uuid = 'urn:uuid:' + this.generateUUID();
+
+        // Parse markdown into chapters
+        const chapters = this.parseMarkdownToChapters(flatMarkdown);
+
+        // Create EPUB structure
+        // 1. mimetype (must be first and uncompressed)
+        zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+        // 2. META-INF/container.xml
+        zip.file('META-INF/container.xml', this.createContainerXml());
+
+        // 3. OEBPS/content.opf (package file)
+        zip.file('OEBPS/content.opf', this.createContentOpf(title, author, date, uuid, chapters));
+
+        // 4. OEBPS/toc.ncx (navigation)
+        zip.file('OEBPS/toc.ncx', this.createTocNcx(title, uuid, chapters));
+
+        // 5. OEBPS/nav.xhtml (EPUB3 navigation)
+        zip.file('OEBPS/nav.xhtml', this.createNavXhtml(title, chapters));
+
+        // 6. OEBPS/styles.css
+        zip.file('OEBPS/styles.css', this.createStylesCss());
+
+        // 7. OEBPS/chapter files
+        chapters.forEach((chapter, index) => {
+            zip.file(`OEBPS/chapter${index + 1}.xhtml`, this.createChapterXhtml(chapter, index + 1));
+        });
+
+        // Generate the zip file
+        const blob = await zip.generateAsync({
+            type: 'blob',
+            mimeType: 'application/epub+zip',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 9 }
+        });
+
+        return blob;
+    },
+
+    // Parse flat markdown into chapters based on ## headings (QUE nodes)
+    parseMarkdownToChapters: function (markdown) {
+        const chapters = [];
+        const lines = markdown.split('\n');
+        let currentChapter = null;
+
+        for (const line of lines) {
+            // H1 is the main title, skip it
+            if (line.startsWith('# ') && !line.startsWith('## ')) {
+                continue;
+            }
+
+            // H2 (##) starts a new chapter (QUE)
+            if (line.startsWith('## ')) {
+                if (currentChapter) {
+                    chapters.push(currentChapter);
+                }
+                currentChapter = {
+                    title: this.cleanTitle(line.replace(/^##\s*/, '')),
+                    level: 2,
+                    content: []
+                };
+            } else if (currentChapter) {
+                currentChapter.content.push(line);
+            }
+        }
+
+        if (currentChapter) {
+            chapters.push(currentChapter);
+        }
+
+        return chapters;
+    },
+
+    // Clean title from Roam markup
+    cleanTitle: function (title) {
+        return title
+            .replace(/\[\[QUE\]\]\s*-\s*/g, '')
+            .replace(/\[\[CLM\]\]\s*-\s*/g, '')
+            .replace(/\[\[EVD\]\]\s*-\s*/g, '')
+            .replace(/\[\[([^\]]+)\]\]/g, '$1')
+            .trim();
+    },
+
+    // Convert markdown content to XHTML
+    markdownToXhtml: function (lines) {
+        let html = '';
+        let inParagraph = false;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                if (inParagraph) {
+                    html += '</p>\n';
+                    inParagraph = false;
+                }
+                continue;
+            }
+
+            // Headers
+            if (trimmed.startsWith('##### ')) {
+                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
+                html += `<h5>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+            } else if (trimmed.startsWith('#### ')) {
+                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
+                html += `<h4>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+            } else if (trimmed.startsWith('### ')) {
+                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
+                html += `<h3>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+            } else {
+                // Regular paragraph
+                const cleanedLine = this.processInlineMarkdown(trimmed);
+                if (!inParagraph) {
+                    html += '<p>';
+                    inParagraph = true;
+                } else {
+                    html += '<br/>\n';
+                }
+                html += cleanedLine;
+            }
+        }
+
+        if (inParagraph) {
+            html += '</p>\n';
+        }
+
+        return html;
+    },
+
+    // Process inline markdown (bold, links, etc.)
+    processInlineMarkdown: function (text) {
+        let result = this.escapeHtml(text);
+        // Bold **text**
+        result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Italic *text*
+        result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        // Clean Roam references [[text]]
+        result = result.replace(/\[\[([^\]]+)\]\]/g, '$1');
+        // Clean Roam block references ((uid))
+        result = result.replace(/\(\([a-zA-Z0-9_-]+\)\)/g, '');
+        return result;
+    },
+
+    escapeHtml: function (text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    generateUUID: function () {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    },
+
+    // EPUB Structure Files
+    createContainerXml: function () {
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+    },
+
+    createContentOpf: function (title, author, date, uuid, chapters) {
+        const manifestItems = chapters.map((_, i) =>
+            `    <item id="chapter${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`
+        ).join('\n');
+
+        const spineItems = chapters.map((_, i) =>
+            `    <itemref idref="chapter${i + 1}"/>`
+        ).join('\n');
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${uuid}</dc:identifier>
+    <dc:title>${this.escapeHtml(title)}</dc:title>
+    <dc:creator>${this.escapeHtml(author)}</dc:creator>
+    <dc:language>es</dc:language>
+    <dc:date>${date}</dc:date>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="css" href="styles.css" media-type="text/css"/>
+${manifestItems}
+  </manifest>
+  <spine toc="ncx">
+${spineItems}
+  </spine>
+</package>`;
+    },
+
+    createTocNcx: function (title, uuid, chapters) {
+        const navPoints = chapters.map((chapter, i) => `
+    <navPoint id="navpoint${i + 1}" playOrder="${i + 1}">
+      <navLabel><text>${this.escapeHtml(chapter.title.substring(0, 80))}</text></navLabel>
+      <content src="chapter${i + 1}.xhtml"/>
+    </navPoint>`
+        ).join('');
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${uuid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${this.escapeHtml(title)}</text></docTitle>
+  <navMap>${navPoints}
+  </navMap>
+</ncx>`;
+    },
+
+    createNavXhtml: function (title, chapters) {
+        const navItems = chapters.map((chapter, i) =>
+            `        <li><a href="chapter${i + 1}.xhtml">${this.escapeHtml(chapter.title.substring(0, 80))}</a></li>`
+        ).join('\n');
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <title>${this.escapeHtml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>Tabla de Contenidos</h1>
+    <ol>
+${navItems}
+    </ol>
+  </nav>
+</body>
+</html>`;
+    },
+
+    createStylesCss: function () {
+        return `body {
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 1em;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: Helvetica, Arial, sans-serif;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+h1 { font-size: 2em; }
+h2 { font-size: 1.5em; color: #2196F3; }
+h3 { font-size: 1.3em; color: #4CAF50; }
+h4 { font-size: 1.1em; color: #FF9800; }
+h5 { font-size: 1em; color: #666; }
+
+p {
+  margin: 0.5em 0;
+  text-align: justify;
+}
+
+strong { font-weight: bold; }
+em { font-style: italic; }
+
+nav ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+nav li {
+  margin: 0.3em 0;
+}`;
+    },
+
+    createChapterXhtml: function (chapter, chapterNum) {
+        const content = this.markdownToXhtml(chapter.content);
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>${this.escapeHtml(chapter.title)}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <h2>${this.escapeHtml(chapter.title)}</h2>
+${content}
+</body>
+</html>`;
     }
 };
 
@@ -3583,6 +3957,80 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             DiscourseGraphToolkit.downloadFile(filename + '.md', mdContent, 'text/markdown');
 
             setExportStatus(`✅ Exportación Markdown completada.`);
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportFlatMarkdown = async () => {
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+
+            setExportStatus("Generando Markdown Plano...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
+                questions, allNodes, contentConfig, excludeBitacora
+            );
+
+            setExportStatus("Descargando...");
+            DiscourseGraphToolkit.downloadFile(filename + '_flat.md', mdContent, 'text/markdown');
+
+            setExportStatus(`✅ Exportación Markdown Plano completada.`);
+        } catch (e) {
+            console.error(e);
+            setExportStatus("❌ Error: " + e.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportEpub = async () => {
+        let pagesToExport = previewPages;
+        if (pagesToExport.length === 0) {
+            pagesToExport = await handlePreview();
+            if (!pagesToExport || pagesToExport.length === 0) return;
+        }
+
+        setIsExporting(true);
+        try {
+            const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+            const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+
+            setExportStatus("Generando Markdown para EPUB...");
+            const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
+                questions, allNodes, contentConfig, excludeBitacora
+            );
+
+            setExportStatus("Cargando librería EPUB...");
+            await DiscourseGraphToolkit.EpubGenerator.loadJSZip();
+
+            setExportStatus("Generando EPUB...");
+            const epubBlob = await DiscourseGraphToolkit.EpubGenerator.generateEpub(mdContent, {
+                title: `Mapa de Discurso: ${pNames.join(', ')}`,
+                author: 'Discourse Graph Toolkit'
+            });
+
+            setExportStatus("Descargando EPUB...");
+            const url = URL.createObjectURL(epubBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename + '.epub';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            setExportStatus(`✅ Exportación EPUB completada.`);
         } catch (e) {
             console.error(e);
             setExportStatus("❌ Error: " + e.message);
@@ -4247,8 +4695,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                         React.createElement('button', {
                             onClick: handleExportMarkdown,
                             disabled: isExporting,
-                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem' }
-                        }, 'Exportar Markdown')
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                        }, 'Exportar Markdown'),
+                        React.createElement('button', {
+                            onClick: handleExportFlatMarkdown,
+                            disabled: isExporting,
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#9C27B0', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                        }, 'MD Plano'),
+                        React.createElement('button', {
+                            onClick: handleExportEpub,
+                            disabled: isExporting,
+                            style: { padding: '0.625rem 1.25rem', backgroundColor: '#E91E63', color: 'white', border: 'none', borderRadius: '0.25rem' }
+                        }, '📚 EPUB')
                     ),
                     exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
                     previewPages.length > 0 && React.createElement('div', { style: { marginTop: '0.9375rem', maxHeight: '12.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },

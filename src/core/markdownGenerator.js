@@ -4,7 +4,7 @@
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false) {
         // Compatibilidad hacia atrás: si contentConfig es booleano (bool legacy), lo convertimos a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
@@ -21,15 +21,20 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                 // Metadata
                 const metadata = question.project_metadata || {};
                 if (metadata.proyecto_asociado || metadata.seccion_tesis) {
-                    result += "**Información del proyecto:**\n";
-                    if (metadata.proyecto_asociado) result += `- Proyecto Asociado: ${metadata.proyecto_asociado}\n`;
-                    if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
-                    result += "\n";
+                    if (flatMode) {
+                        if (metadata.proyecto_asociado) result += `Proyecto Asociado: ${metadata.proyecto_asociado}\n\n`;
+                        if (metadata.seccion_tesis) result += `Sección Narrativa: ${metadata.seccion_tesis}\n\n`;
+                    } else {
+                        result += "**Información del proyecto:**\n";
+                        if (metadata.proyecto_asociado) result += `- Proyecto Asociado: ${metadata.proyecto_asociado}\n`;
+                        if (metadata.seccion_tesis) result += `- Sección Narrativa: ${metadata.seccion_tesis}\n`;
+                        result += "\n";
+                    }
                 }
 
                 // --- Contenido de la Pregunta ---
                 // Se extrae si QUE está habilitado
-                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora, flatMode);
                 if (queContent) {
                     result += queContent + "\n";
                 }
@@ -53,16 +58,20 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                             const clmMetadata = clm.project_metadata || {};
                             if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
-                                result += "**Información del proyecto:**\n";
-                                if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
-                                if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
-                                result += "\n";
-                                result += "\n";
+                                if (flatMode) {
+                                    if (clmMetadata.proyecto_asociado) result += `Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n\n`;
+                                    if (clmMetadata.seccion_tesis) result += `Sección Narrativa: ${clmMetadata.seccion_tesis}\n\n`;
+                                } else {
+                                    result += "**Información del proyecto:**\n";
+                                    if (clmMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${clmMetadata.proyecto_asociado}\n`;
+                                    if (clmMetadata.seccion_tesis) result += `- Sección Narrativa: ${clmMetadata.seccion_tesis}\n`;
+                                    result += "\n\n";
+                                }
                             }
 
                             // --- NUEVO: Contenido del CLM ---
                             // Se extrae si CLM está habilitado
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
+                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora, flatMode);
                             if (clmContent) {
                                 result += clmContent + "\n";
                             }
@@ -76,7 +85,7 @@ DiscourseGraphToolkit.MarkdownGenerator = {
                                         result += `#### [[CLM]] - ${suppTitle}\n`;
 
                                         // --- NUEVO: Contenido del CLM de Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
+                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora, flatMode);
                                         if (suppContent) {
                                             result += "\n" + suppContent + "\n";
                                         }
@@ -92,13 +101,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                                                     const evdMetadata = evd.project_metadata || {};
                                                     if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                                        result += "**Información del proyecto:**\n";
-                                                        if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                                        if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                                        result += "\n";
+                                                        if (flatMode) {
+                                                            if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                                            if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                                        } else {
+                                                            result += "**Información del proyecto:**\n";
+                                                            if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                                            if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                                            result += "\n";
+                                                        }
                                                     }
 
-                                                    const evdContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                                                    const evdContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                                                     if (evdContent) {
                                                         result += evdContent + "\n";
                                                     } else {
@@ -127,13 +141,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                                         const evdMetadata = evd.project_metadata || {};
                                         if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                            result += "**Información del proyecto:**\n";
-                                            if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                            if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                            result += "\n";
+                                            if (flatMode) {
+                                                if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                                if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                            } else {
+                                                result += "**Información del proyecto:**\n";
+                                                if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                                if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                                result += "\n";
+                                            }
                                         }
 
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                                         if (detailedContent) {
                                             result += detailedContent + "\n";
                                         } else {
@@ -156,13 +175,18 @@ DiscourseGraphToolkit.MarkdownGenerator = {
 
                             const evdMetadata = evd.project_metadata || {};
                             if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                result += "**Información del proyecto:**\n";
-                                if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
-                                if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
-                                result += "\n";
+                                if (flatMode) {
+                                    if (evdMetadata.proyecto_asociado) result += `Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n\n`;
+                                    if (evdMetadata.seccion_tesis) result += `Sección Narrativa: ${evdMetadata.seccion_tesis}\n\n`;
+                                } else {
+                                    result += "**Información del proyecto:**\n";
+                                    if (evdMetadata.proyecto_asociado) result += `- Proyecto Asociado: ${evdMetadata.proyecto_asociado}\n`;
+                                    if (evdMetadata.seccion_tesis) result += `- Sección Narrativa: ${evdMetadata.seccion_tesis}\n`;
+                                    result += "\n";
+                                }
                             }
 
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora, flatMode);
                             if (detailedContent) {
                                 result += detailedContent + "\n";
                             } else {
@@ -178,5 +202,10 @@ DiscourseGraphToolkit.MarkdownGenerator = {
         }
 
         return result;
+    },
+
+    // Convenience wrapper for flat markdown export (EPUB-ready)
+    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
+        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true);
     }
 };
