@@ -1,6 +1,6 @@
-﻿/**
+/**
  * DISCOURSE GRAPH TOOLKIT v1.2.4
- * Bundled build: 2026-01-03 02:09:14
+ * Bundled build: 2026-01-03 03:32:03
  */
 
 (function () {
@@ -29,11 +29,12 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de bloque ---
-    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode) {
+    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType) {
         var content = '';
         if (!visitedBlocks) visitedBlocks = {};
         if (indentLevel === undefined) indentLevel = 0;
         if (maxDepth === undefined) maxDepth = this.MAX_RECURSION_DEPTH;
+        if (nodeType === undefined) nodeType = null;
         if (indentLevel > maxDepth) return content;
         if (!block || typeof block !== 'object') return content;
 
@@ -56,16 +57,27 @@ var MarkdownCore = {
         } else {
             if (blockString) {
                 if (flatMode) {
-                    // En flatMode, primer nivel usa estilo de marcador
+                    // En flatMode, primer nivel usa estilo de marcador (excepto EVD)
                     if (indentLevel === 0) {
-                        content += '*— ' + blockString + ' —*\\n\\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal (contenido sustantivo extenso)
+                            content += blockString + '\\n\\n';
+                        } else {
+                            // QUE/CLM: cursiva con marcador (metadatos/estructura)
+                            content += '*— ' + blockString + ' —*\\n\\n';
+                        }
                     } else {
                         content += blockString + '\\n\\n';
                     }
                 } else {
                     if (indentLevel === 0) {
-                        // Marcador de primer nivel (cursiva con guiones largos)
-                        content += '*— ' + blockString + ' —*\\n\\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal
+                            content += blockString + '\\n\\n';
+                        } else {
+                            // Marcador de primer nivel (cursiva con guiones largos)
+                            content += '*— ' + blockString + ' —*\\n\\n';
+                        }
                     } else {
                         var indent = '';
                         for (var i = 0; i < indentLevel; i++) indent += '  ';
@@ -78,7 +90,7 @@ var MarkdownCore = {
         var children = block.children || block[':block/children'] || [];
         if (Array.isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
+                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
                 if (childContent) content += childContent;
             }
         }
@@ -107,7 +119,7 @@ var MarkdownCore = {
                 }
 
                 if (!isStructuralMetadata) {
-                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                     if (childContent) detailedContent += childContent;
                 }
             }
@@ -2178,7 +2190,7 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false, nodeType = null) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -2218,16 +2230,27 @@ DiscourseGraphToolkit.ContentProcessor = {
             } else {
                 if (blockString) {
                     if (flatMode) {
-                        // En flatMode, primer nivel usa estilo de marcador
+                        // En flatMode, primer nivel usa estilo de marcador (excepto EVD)
                         if (indentLevel === 0) {
-                            content += `*— ${blockString} —*\n\n`;
+                            if (nodeType === 'EVD') {
+                                // EVD: texto normal (contenido sustantivo extenso)
+                                content += `${blockString}\n\n`;
+                            } else {
+                                // QUE/CLM: cursiva con marcador (metadatos/estructura)
+                                content += `*— ${blockString} —*\n\n`;
+                            }
                         } else {
                             content += `${blockString}\n\n`;
                         }
                     } else {
                         if (indentLevel === 0) {
-                            // Marcador de primer nivel (cursiva con guiones largos)
-                            content += `*— ${blockString} —*\n\n`;
+                            if (nodeType === 'EVD') {
+                                // EVD: texto normal
+                                content += `${blockString}\n\n`;
+                            } else {
+                                // Marcador de primer nivel (cursiva con guiones largos)
+                                content += `*— ${blockString} —*\n\n`;
+                            }
                         } else {
                             const indent = "  ".repeat(indentLevel);
                             content += `${indent}- ${blockString}\n`;
@@ -2239,7 +2262,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
                     if (childContent) content += childContent;
                 }
             }
@@ -2271,12 +2294,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     if (!isStructuralMetadata) {
                         // Normal content block
                         if (childString) {
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                             if (childContent) detailedContent += childContent;
                         } else {
                             // Empty block with children (e.g. indentation wrapper) -> recurse?
                             // extractBlockContent handles recursion.
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                             if (childContent) detailedContent += childContent;
                         }
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
@@ -2663,11 +2686,12 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de bloque ---
-    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode) {
+    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType) {
         var content = '';
         if (!visitedBlocks) visitedBlocks = {};
         if (indentLevel === undefined) indentLevel = 0;
         if (maxDepth === undefined) maxDepth = this.MAX_RECURSION_DEPTH;
+        if (nodeType === undefined) nodeType = null;
         if (indentLevel > maxDepth) return content;
         if (!block || typeof block !== 'object') return content;
 
@@ -2690,16 +2714,27 @@ var MarkdownCore = {
         } else {
             if (blockString) {
                 if (flatMode) {
-                    // En flatMode, primer nivel usa estilo de marcador
+                    // En flatMode, primer nivel usa estilo de marcador (excepto EVD)
                     if (indentLevel === 0) {
-                        content += '*— ' + blockString + ' —*\n\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal (contenido sustantivo extenso)
+                            content += blockString + '\n\n';
+                        } else {
+                            // QUE/CLM: cursiva con marcador (metadatos/estructura)
+                            content += '*— ' + blockString + ' —*\n\n';
+                        }
                     } else {
                         content += blockString + '\n\n';
                     }
                 } else {
                     if (indentLevel === 0) {
-                        // Marcador de primer nivel (cursiva con guiones largos)
-                        content += '*— ' + blockString + ' —*\n\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal
+                            content += blockString + '\n\n';
+                        } else {
+                            // Marcador de primer nivel (cursiva con guiones largos)
+                            content += '*— ' + blockString + ' —*\n\n';
+                        }
                     } else {
                         var indent = '';
                         for (var i = 0; i < indentLevel; i++) indent += '  ';
@@ -2712,7 +2747,7 @@ var MarkdownCore = {
         var children = block.children || block[':block/children'] || [];
         if (Array.isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
+                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
                 if (childContent) content += childContent;
             }
         }
@@ -2741,7 +2776,7 @@ var MarkdownCore = {
                 }
 
                 if (!isStructuralMetadata) {
-                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                     if (childContent) detailedContent += childContent;
                 }
             }
@@ -3564,13 +3599,13 @@ DiscourseGraphToolkit.EpubGenerator = {
             // Headers - with explicit level prefixes for e-ink readability
             if (trimmed.startsWith('##### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h5>[H5] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+                html += `<h5>[H5] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
             } else if (trimmed.startsWith('#### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h4>[H4] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+                html += `<h4>[H4] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
             } else if (trimmed.startsWith('### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h3>[H3] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+                html += `<h3>[H3] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
                 // Regular paragraph
                 const cleanedLine = this.processInlineMarkdown(trimmed);
@@ -3612,6 +3647,14 @@ DiscourseGraphToolkit.EpubGenerator = {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    },
+
+    // Strip markdown formatting for plain text contexts (titles, TOC)
+    stripMarkdown: function (text) {
+        return text
+            .replace(/\*\*([^*]+)\*\*/g, '$1')  // Remove bold **text** → text
+            .replace(/\*([^*]+)\*/g, '$1')       // Remove italic *text* → text
+            .replace(/\[\[([^\]]+)\]\]/g, '$1'); // Remove [[links]] → links
     },
 
     generateUUID: function () {
@@ -3666,7 +3709,7 @@ ${spineItems}
     createTocNcx: function (title, uuid, chapters) {
         const navPoints = chapters.map((chapter, i) => `
     <navPoint id="navpoint${i + 1}" playOrder="${i + 1}">
-      <navLabel><text>${this.escapeHtml(chapter.title.substring(0, 80))}</text></navLabel>
+      <navLabel><text>${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</text></navLabel>
       <content src="chapter${i + 1}.xhtml"/>
     </navPoint>`
         ).join('');
@@ -3687,7 +3730,7 @@ ${spineItems}
 
     createNavXhtml: function (title, chapters) {
         const navItems = chapters.map((chapter, i) =>
-            `        <li><a href="chapter${i + 1}.xhtml">${this.escapeHtml(chapter.title.substring(0, 80))}</a></li>`
+            `        <li><a href="chapter${i + 1}.xhtml">${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a></li>`
         ).join('\n');
 
         return `<?xml version="1.0" encoding="UTF-8"?>
@@ -3752,11 +3795,11 @@ nav li {
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <title>${this.escapeHtml(chapter.title)}</title>
+  <title>${this.escapeHtml(this.stripMarkdown(chapter.title))}</title>
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <h2>[H2] ${this.escapeHtml(chapter.title)}</h2>
+  <h2>[H2] ${this.processInlineMarkdown(chapter.title)}</h2>
 ${content}
 </body>
 </html>`;

@@ -17,11 +17,12 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de bloque ---
-    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode) {
+    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType) {
         var content = '';
         if (!visitedBlocks) visitedBlocks = {};
         if (indentLevel === undefined) indentLevel = 0;
         if (maxDepth === undefined) maxDepth = this.MAX_RECURSION_DEPTH;
+        if (nodeType === undefined) nodeType = null;
         if (indentLevel > maxDepth) return content;
         if (!block || typeof block !== 'object') return content;
 
@@ -44,16 +45,27 @@ var MarkdownCore = {
         } else {
             if (blockString) {
                 if (flatMode) {
-                    // En flatMode, primer nivel usa estilo de marcador
+                    // En flatMode, primer nivel usa estilo de marcador (excepto EVD)
                     if (indentLevel === 0) {
-                        content += '*— ' + blockString + ' —*\n\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal (contenido sustantivo extenso)
+                            content += blockString + '\n\n';
+                        } else {
+                            // QUE/CLM: cursiva con marcador (metadatos/estructura)
+                            content += '*— ' + blockString + ' —*\n\n';
+                        }
                     } else {
                         content += blockString + '\n\n';
                     }
                 } else {
                     if (indentLevel === 0) {
-                        // Marcador de primer nivel (cursiva con guiones largos)
-                        content += '*— ' + blockString + ' —*\n\n';
+                        if (nodeType === 'EVD') {
+                            // EVD: texto normal
+                            content += blockString + '\n\n';
+                        } else {
+                            // Marcador de primer nivel (cursiva con guiones largos)
+                            content += '*— ' + blockString + ' —*\n\n';
+                        }
                     } else {
                         var indent = '';
                         for (var i = 0; i < indentLevel; i++) indent += '  ';
@@ -66,7 +78,7 @@ var MarkdownCore = {
         var children = block.children || block[':block/children'] || [];
         if (Array.isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
+                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
                 if (childContent) content += childContent;
             }
         }
@@ -95,7 +107,7 @@ var MarkdownCore = {
                 }
 
                 if (!isStructuralMetadata) {
-                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                     if (childContent) detailedContent += childContent;
                 }
             }

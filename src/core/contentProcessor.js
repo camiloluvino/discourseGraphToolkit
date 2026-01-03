@@ -6,7 +6,7 @@
 DiscourseGraphToolkit.ContentProcessor = {
     MAX_RECURSION_DEPTH: 20,
 
-    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false) {
+    extractBlockContent: function (block, indentLevel = 0, skipMetadata = true, visitedBlocks = null, maxDepth = this.MAX_RECURSION_DEPTH, excludeBitacora = true, flatMode = false, nodeType = null) {
         let content = "";
 
         if (!visitedBlocks) visitedBlocks = new Set();
@@ -46,16 +46,27 @@ DiscourseGraphToolkit.ContentProcessor = {
             } else {
                 if (blockString) {
                     if (flatMode) {
-                        // En flatMode, primer nivel usa estilo de marcador
+                        // En flatMode, primer nivel usa estilo de marcador (excepto EVD)
                         if (indentLevel === 0) {
-                            content += `*— ${blockString} —*\n\n`;
+                            if (nodeType === 'EVD') {
+                                // EVD: texto normal (contenido sustantivo extenso)
+                                content += `${blockString}\n\n`;
+                            } else {
+                                // QUE/CLM: cursiva con marcador (metadatos/estructura)
+                                content += `*— ${blockString} —*\n\n`;
+                            }
                         } else {
                             content += `${blockString}\n\n`;
                         }
                     } else {
                         if (indentLevel === 0) {
-                            // Marcador de primer nivel (cursiva con guiones largos)
-                            content += `*— ${blockString} —*\n\n`;
+                            if (nodeType === 'EVD') {
+                                // EVD: texto normal
+                                content += `${blockString}\n\n`;
+                            } else {
+                                // Marcador de primer nivel (cursiva con guiones largos)
+                                content += `*— ${blockString} —*\n\n`;
+                            }
                         } else {
                             const indent = "  ".repeat(indentLevel);
                             content += `${indent}- ${blockString}\n`;
@@ -67,7 +78,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             const children = block.children || block[':block/children'] || [];
             if (Array.isArray(children)) {
                 for (const child of children) {
-                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode);
+                    const childContent = this.extractBlockContent(child, indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
                     if (childContent) content += childContent;
                 }
             }
@@ -99,12 +110,12 @@ DiscourseGraphToolkit.ContentProcessor = {
                     if (!isStructuralMetadata) {
                         // Normal content block
                         if (childString) {
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                             if (childContent) detailedContent += childContent;
                         } else {
                             // Empty block with children (e.g. indentation wrapper) -> recurse?
                             // extractBlockContent handles recursion.
-                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode);
+                            const childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
                             if (childContent) detailedContent += childContent;
                         }
                     } else if (childString === "#RelatedTo" && (child.children || child[':block/children'])) {
