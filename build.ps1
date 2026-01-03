@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.2.2"
+$version = "1.2.3"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
@@ -28,6 +28,19 @@ $files = @(
 
 Write-Host "Building Discourse Graph Toolkit v$version..."
 
+# --- Leer y preparar el script embebido para HTML ---
+$embeddedScriptPath = "src/core/htmlEmbeddedScript.js"
+if (Test-Path $embeddedScriptPath) {
+    Write-Host "  Reading embedded HTML script..."
+    $embeddedScript = Get-Content $embeddedScriptPath -Raw -Encoding UTF8
+    # Escapar para uso dentro de template string JavaScript
+    $embeddedScriptEscaped = $embeddedScript.Replace('\', '\\').Replace('`', '\`').Replace('$', '`$')
+}
+else {
+    Write-Error "CRITICAL: $embeddedScriptPath not found! Build aborted."
+    exit 1
+}
+
 $content = @"
 /**
  * DISCOURSE GRAPH TOOLKIT v$version
@@ -39,6 +52,9 @@ $content = @"
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
     DiscourseGraphToolkit.VERSION = "$version";
+
+// --- EMBEDDED SCRIPT FOR HTML EXPORT (from htmlEmbeddedScript.js) ---
+DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `` `$($embeddedScriptEscaped)`` `;
 
 "@
 
@@ -62,3 +78,15 @@ $content += @"
 
 Set-Content -Path $outputFile -Value $content -Encoding UTF8
 Write-Host "Build complete: $outputFile"
+
+# --- Verificar sintaxis ---
+Write-Host "Verifying syntax..."
+$syntaxCheck = & node -c $outputFile 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "SYNTAX ERROR in $outputFile!"
+    Write-Host $syntaxCheck
+    exit 1
+}
+else {
+    Write-Host "Syntax OK!"
+}

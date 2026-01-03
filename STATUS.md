@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.2**
+**v1.2.3**
 
 ## Estado de Funcionalidades
 
@@ -20,6 +20,12 @@
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.2.3 (Enero 2026)
+- **Refactoring:** Extraído JavaScript embebido de `htmlGenerator.js` a `htmlEmbeddedScript.js`
+- **Mejora:** `htmlGenerator.js` reducido de 972 a ~355 líneas
+- **Build:** `build.ps1` ahora inyecta automáticamente el script embebido y verifica sintaxis
+- **DX:** El JavaScript del HTML exportado ahora es un archivo .js normal con syntax highlighting
 
 ### v1.2.2 (Enero 2026)
 - **Feature:** Exportación a EPUB completa directamente desde el navegador (usando JSZip)
