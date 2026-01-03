@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.2.1
- * Bundled build: 2026-01-02 20:51:51
+ * Bundled build: 2026-01-02 21:15:50
  */
 
 (function () {
@@ -3425,16 +3425,16 @@ DiscourseGraphToolkit.EpubGenerator = {
                 continue;
             }
 
-            // Headers
+            // Headers - with explicit level prefixes for e-ink readability
             if (trimmed.startsWith('##### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h5>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+                html += `<h5>[H5] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
             } else if (trimmed.startsWith('#### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h4>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+                html += `<h4>[H4] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
             } else if (trimmed.startsWith('### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h3>${this.escapeHtml(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+                html += `<h3>[H3] ${this.escapeHtml(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
                 // Regular paragraph
                 const cleanedLine = this.processInlineMarkdown(trimmed);
@@ -3620,7 +3620,7 @@ nav li {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <h2>${this.escapeHtml(chapter.title)}</h2>
+  <h2>[H2] ${this.escapeHtml(chapter.title)}</h2>
 ${content}
 </body>
 </html>`;
