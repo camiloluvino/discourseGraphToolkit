@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.1**
+**v1.2.2**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,7 @@
 ### v1.2.2 (Enero 2026)
 - **Feature:** Exportación a EPUB completa directamente desde el navegador (usando JSZip)
 - **Feature:** Nueva opción de exportación Markdown Plano (sin bullets)
+- **Mejora:** Prefijos de encabezado explícitos ([H2]-[H5]) en EPUB para mejor legibilidad en dispositivos e-ink
 - **UI:** Nuevos botones "MD Plano" y "EPUB" en la pestaña Exportar
 - **Tech:** Nuevo módulo `epubGenerator.js`
 
