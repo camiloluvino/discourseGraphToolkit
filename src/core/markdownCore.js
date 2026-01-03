@@ -44,11 +44,21 @@ var MarkdownCore = {
         } else {
             if (blockString) {
                 if (flatMode) {
-                    content += blockString + '\n\n';
+                    // En flatMode, primer nivel usa estilo de marcador
+                    if (indentLevel === 0) {
+                        content += '*— ' + blockString + ' —*\n\n';
+                    } else {
+                        content += blockString + '\n\n';
+                    }
                 } else {
-                    var indent = '';
-                    for (var i = 0; i < indentLevel; i++) indent += '  ';
-                    content += indent + '- ' + blockString + '\n';
+                    if (indentLevel === 0) {
+                        // Marcador de primer nivel (cursiva con guiones largos)
+                        content += '*— ' + blockString + ' —*\n\n';
+                    } else {
+                        var indent = '';
+                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        content += indent + '- ' + blockString + '\n';
+                    }
                 }
             }
         }
