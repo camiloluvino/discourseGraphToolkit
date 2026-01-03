@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.2.4
- * Bundled build: 2026-01-03 03:32:03
+ * Bundled build: 2026-01-03 03:42:50
  */
 
 (function () {
@@ -3701,6 +3701,7 @@ DiscourseGraphToolkit.EpubGenerator = {
 ${manifestItems}
   </manifest>
   <spine toc="ncx">
+    <itemref idref="nav"/>
 ${spineItems}
   </spine>
 </package>`;
@@ -3708,11 +3709,17 @@ ${spineItems}
 
     createTocNcx: function (title, uuid, chapters) {
         const navPoints = chapters.map((chapter, i) => `
-    <navPoint id="navpoint${i + 1}" playOrder="${i + 1}">
+    <navPoint id="navpoint${i + 2}" playOrder="${i + 2}">
       <navLabel><text>${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</text></navLabel>
       <content src="chapter${i + 1}.xhtml"/>
     </navPoint>`
         ).join('');
+
+        const tocNavPoint = `
+    <navPoint id="navpoint1" playOrder="1">
+      <navLabel><text>Tabla de Contenidos</text></navLabel>
+      <content src="nav.xhtml"/>
+    </navPoint>`;
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
@@ -3723,7 +3730,8 @@ ${spineItems}
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
   <docTitle><text>${this.escapeHtml(title)}</text></docTitle>
-  <navMap>${navPoints}
+  <navMap>
+${tocNavPoint}${navPoints}
   </navMap>
 </ncx>`;
     },
