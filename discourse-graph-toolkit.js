@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.2.4
- * Bundled build: 2026-01-03 00:23:14
+ * Bundled build: 2026-01-03 01:16:10
  */
 
 (function () {
@@ -2953,315 +2953,14 @@ var MarkdownCore = {
 };
 
 
-// --- MODULE: src/core/htmlGenerator.js ---
+// --- MODULE: src/core/html/htmlStyles.js ---
 // ============================================================================
-// CORE: HTML Generator
-// Ported from roamMap/core/html_generator.py
+// HTML: Styles
+// CSS embebido para el HTML exportado
 // ============================================================================
 
-DiscourseGraphToolkit.HtmlGenerator = {
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true) {
-        // Compatibilidad legacy
-        let config = contentConfig;
-        if (typeof contentConfig === 'boolean') {
-            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
-        }
-
-        const css = this._getCSS();
-        const js = this._getJS();
-
-        let html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    ${css}
-</head>
-<body>
-    <h1>${title}</h1>
-    
-    <div class="controls">
-        <button id="expandAll" class="btn">Expandir Todo</button>
-        <button id="collapseAll" class="btn">Contraer Todo</button>
-        <button id="copyAll" class="btn btn-copy">Copiar Texto</button>
-        <button id="exportMarkdown" class="btn btn-export">Exportar Markdown</button>
-    </div>
-`;
-
-        for (let i = 0; i < questions.length; i++) {
-            try {
-                const question = questions[i];
-                const qId = `q${i}`;
-                const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
-
-                html += `<div id="${qId}" class="node que-node">`;
-                html += `<h2 class="collapsible">`;
-                html += `<span class="node-tag">[[QUE]]</span> - ${qTitle}`;
-                html += `<button class="btn-copy-individual" onclick="copyIndividualQuestion('${qId}')">Copiar</button>`;
-                html += `<button class="btn-export-md" onclick="exportQuestionMarkdown(${i})" title="Exportar Markdown">MD</button>`;
-                html += `<button class="btn-reorder btn-reorder-up" onclick="moveQuestionUp('${qId}')" title="Mover hacia arriba">↑</button>`;
-                html += `<button class="btn-reorder btn-reorder-down" onclick="moveQuestionDown('${qId}')" title="Mover hacia abajo">↓</button>`;
-                html += `</h2>`;
-                html += `<div class="content">`;
-
-                // Metadata
-                const metadata = question.project_metadata || {};
-                html += this._generateMetadataHtml(metadata);
-
-                // --- Contenido QUE ---
-                const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
-                if (queContent) {
-                    html += `<div class="node content-node" style="margin-bottom: 10px;">`;
-                    html += `<p>${this._formatContentForHtml(queContent)}</p>`;
-                    html += `</div>`;
-                }
-                // ---------------------
-
-                const hasClms = question.related_clms && question.related_clms.length > 0;
-                const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
-
-                if (!hasClms && !hasDirectEvds) {
-                    html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
-                    html += '</div></div>';
-                    continue;
-                }
-
-                // CLMs
-                if (question.related_clms) {
-                    for (let j = 0; j < question.related_clms.length; j++) {
-                        const clmUid = question.related_clms[j];
-                        if (allNodes[clmUid]) {
-                            const clm = allNodes[clmUid];
-                            const clmId = `q${i}_c${j}`;
-                            const clmTitle = DiscourseGraphToolkit.cleanText(clm.title.replace("[[CLM]] - ", ""));
-
-                            html += `<div id="${clmId}" class="node clm-node">`;
-                            html += `<h3 class="collapsible">`;
-                            html += `<span class="node-tag">[[CLM]]</span> - ${clmTitle}`;
-                            html += `<button class="btn-copy-individual" onclick="copyIndividualCLM('${clmId}')">Copiar</button>`;
-                            html += `</h3>`;
-                            html += `<div class="content">`;
-
-                            html += this._generateMetadataHtml(clm.project_metadata || {});
-
-                            // --- NUEVO: Contenido del CLM ---
-                            const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
-                            if (clmContent) {
-                                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
-                                html += `<p>${this._formatContentForHtml(clmContent)}</p>`;
-                                html += `</div>`;
-                            }
-                            // --------------------------------
-
-                            // Supporting CLMs
-                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                html += '<div class="supporting-clms">';
-                                // html += '<div class="connected-clm-title" style="color: #005a9e;"><strong>CLMs de soporte (SupportedBy):</strong></div>';
-
-                                for (let suppIdx = 0; suppIdx < clm.supporting_clms.length; suppIdx++) {
-                                    const suppUid = clm.supporting_clms[suppIdx];
-                                    if (allNodes[suppUid]) {
-                                        const suppClm = allNodes[suppUid];
-                                        const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
-
-                                        html += `<div class="supporting-clm-item">`;
-                                        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${suppTitle}</h5>`;
-                                        html += `<div class="content">`;
-                                        html += this._generateMetadataHtml(suppClm.project_metadata || {}, true);
-
-                                        // --- NUEVO: Contenido CLM Soporte ---
-                                        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
-                                        if (suppContent) {
-                                            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
-                                            html += `<p>${this._formatContentForHtml(suppContent)}</p>`;
-                                            html += `</div>`;
-                                        }
-                                        // ------------------------------------
-
-                                        // Evidencias de soporte
-                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            // html += '<div style="margin-left: 15px;"><strong>Evidencias:</strong></div>';
-                                            for (const evdUid of suppClm.related_evds) {
-                                                if (allNodes[evdUid]) {
-                                                    const evd = allNodes[evdUid];
-                                                    const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
-                                                    html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
-                                                    html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
-                                                    html += `<div class="content">`;
-                                                    const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
-                                                    if (detailedContent) {
-                                                        html += '<div style="margin-left: 15px; font-size: 11px; color: #555;">';
-                                                        html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
-                                                        html += '</div>';
-                                                    }
-                                                    html += `</div></div>`;
-                                                }
-                                            }
-                                        }
-                                        html += `</div></div>`;
-                                    }
-                                }
-                                html += '</div>';
-                            }
-
-
-                            // EVDs
-                            if (clm.related_evds && clm.related_evds.length > 0) {
-                                // html += '<div style="margin-top: 15px;"><strong>Evidencias que respaldan esta afirmación:</strong></div>';
-                                for (let k = 0; k < clm.related_evds.length; k++) {
-                                    const evdUid = clm.related_evds[k];
-                                    if (allNodes[evdUid]) {
-                                        const evd = allNodes[evdUid];
-                                        const evdId = `q${i}_c${j}_e${k}`;
-                                        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
-
-                                        html += `<div id="${evdId}" class="node evd-node">`;
-                                        html += `<h4 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h4>`;
-                                        html += `<div class="content">`;
-                                        html += this._generateMetadataHtml(evd.project_metadata || {});
-
-                                        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
-                                        if (detailedContent) {
-                                            html += '<div class="node content-node">';
-                                            // html += '<p><strong>Contenido detallado:</strong></p>';
-                                            html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
-                                            html += '</div>';
-                                        }
-                                        html += `</div></div>`;
-                                    }
-                                }
-                            } else if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
-                                html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
-                            }
-
-                            html += `</div></div>`;
-                        }
-                    }
-                }
-
-                // Direct EVDs
-                if (question.direct_evds) {
-                    for (let j = 0; j < question.direct_evds.length; j++) {
-                        const evdUid = question.direct_evds[j];
-                        if (allNodes[evdUid]) {
-                            const evd = allNodes[evdUid];
-                            const evdId = `q${i}_de${j}`;
-                            const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
-
-                            html += `<div id="${evdId}" class="node direct-evd-node">`;
-                            html += `<h3 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h3>`;
-                            html += `<div class="content">`;
-                            html += this._generateMetadataHtml(evd.project_metadata || {});
-
-                            const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
-                            if (detailedContent) {
-                                html += '<div class="node direct-content-node">';
-                                // html += '<p><strong>Contenido detallado:</strong></p>';
-                                html += `<p>${this._formatContentForHtml(detailedContent)}</p>`;
-                                html += '</div>';
-                            }
-                            html += `</div></div>`;
-                        }
-                    }
-                }
-
-                html += `</div></div>`;
-
-            } catch (e) {
-                console.error(`Error procesando pregunta ${i}: ${e}`);
-                html += `<div class="error-message">Error procesando pregunta: ${e}</div>`;
-            }
-        }
-
-        // Helper para copiar estructura de bloques sin referencias circulares
-        const cleanBlockData = (block, depth = 0) => {
-            if (!block || typeof block !== 'object' || depth > 25) return null;
-
-            const clean = {};
-
-            // Copiar solo propiedades seguras
-            if (block.string !== undefined) clean.string = block.string;
-            if (block[':block/string'] !== undefined) clean.string = block[':block/string'];
-            if (block.uid !== undefined) clean.uid = block.uid;
-            if (block[':block/uid'] !== undefined) clean.uid = block[':block/uid'];
-            if (block.title !== undefined) clean.title = block.title;
-            if (block[':node/title'] !== undefined) clean.title = block[':node/title'];
-
-            // Copiar children recursivamente
-            const children = block.children || block[':block/children'];
-            if (Array.isArray(children) && children.length > 0) {
-                clean.children = children.map(child => cleanBlockData(child, depth + 1)).filter(c => c !== null);
-            }
-
-            return clean;
-        };
-
-        // Preparar datos para embeber en el HTML (para que exportToMarkdown use los mismos datos)
-        const embeddedData = {
-            questions: questions.map(q => ({
-                title: q.title,
-                uid: q.uid,
-                project_metadata: q.project_metadata,
-                related_clms: q.related_clms,
-                direct_evds: q.direct_evds,
-                data: cleanBlockData(q.data || q)
-            })),
-            allNodes: Object.fromEntries(
-                Object.entries(allNodes).map(([uid, node]) => [uid, {
-                    title: node.title,
-                    uid: node.uid,
-                    type: node.type,
-                    project_metadata: node.project_metadata,
-                    related_evds: node.related_evds,
-                    supporting_clms: node.supporting_clms,
-                    data: cleanBlockData(node.data || node)
-                }])
-            ),
-            config: config,
-            excludeBitacora: excludeBitacora
-        };
-
-        html += `
-    <script id="embedded-data" type="application/json">${JSON.stringify(embeddedData)}</script>
-    ${js}
-</body>
-</html>`;
-        return html;
-    },
-
-    _generateMetadataHtml: function (metadata, small = false) {
-        if (!metadata || Object.keys(metadata).length === 0) return "";
-
-        const proyecto = metadata.proyecto_asociado;
-        const seccion = metadata.seccion_tesis;
-
-        if (!proyecto && !seccion) return "";
-
-        let html = '<div class="project-metadata"';
-        if (small) html += ' style="font-size: 10px; padding: 6px 8px; margin: 6px 0 8px 0;"';
-        html += '>';
-
-        if (proyecto) html += `<div class="metadata-item"><span class="metadata-label">Proyecto Asociado:</span><span class="metadata-value">${proyecto}</span></div>`;
-        if (seccion) html += `<div class="metadata-item"><span class="metadata-label">Sección Narrativa:</span><span class="metadata-value">${seccion}</span></div>`;
-
-        html += '</div>';
-        return html;
-    },
-
-    _formatContentForHtml: function (content) {
-        if (!content) return "";
-        // Simple escape and newline to br
-        return content
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;")
-            .replace(/\n/g, "<br>");
-    },
-
-    _getCSS: function () {
+DiscourseGraphToolkit.HtmlStyles = {
+    getCSS: function () {
         return `
     <style>
         * { box-sizing: border-box; }
@@ -3299,10 +2998,375 @@ DiscourseGraphToolkit.HtmlGenerator = {
         .copy-success { position: fixed; top: 20px; right: 20px; background: #1a1a1a; color: #fff; padding: 8px 16px; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
         .copy-success.show { opacity: 1; }
     </style>`;
+    }
+};
+
+
+// --- MODULE: src/core/html/htmlHelpers.js ---
+// ============================================================================
+// HTML: Helpers
+// Funciones auxiliares para generación de HTML
+// ============================================================================
+
+DiscourseGraphToolkit.HtmlHelpers = {
+
+    // Formatea contenido para HTML (escape + newlines a br)
+    formatContentForHtml: function (content) {
+        if (!content) return "";
+        return content
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;")
+            .replace(/\n/g, "<br>");
     },
 
-    // _getJS: Retorna el JavaScript embebido para el HTML exportado.
-    // El contenido viene de htmlEmbeddedScript.js, inyectado durante el build.
+    // Genera HTML para metadata de proyecto
+    generateMetadataHtml: function (metadata, small = false) {
+        if (!metadata || Object.keys(metadata).length === 0) return "";
+
+        const proyecto = metadata.proyecto_asociado;
+        const seccion = metadata.seccion_tesis;
+
+        if (!proyecto && !seccion) return "";
+
+        let html = '<div class="project-metadata"';
+        if (small) html += ' style="font-size: 10px; padding: 6px 8px; margin: 6px 0 8px 0;"';
+        html += '>';
+
+        if (proyecto) html += `<div class="metadata-item"><span class="metadata-label">Proyecto Asociado:</span><span class="metadata-value">${proyecto}</span></div>`;
+        if (seccion) html += `<div class="metadata-item"><span class="metadata-label">Sección Narrativa:</span><span class="metadata-value">${seccion}</span></div>`;
+
+        html += '</div>';
+        return html;
+    },
+
+    // Copia estructura de bloques sin referencias circulares (para embeddedData)
+    cleanBlockData: function (block, depth = 0) {
+        if (!block || typeof block !== 'object' || depth > 25) return null;
+
+        const clean = {};
+
+        // Copiar solo propiedades seguras
+        if (block.string !== undefined) clean.string = block.string;
+        if (block[':block/string'] !== undefined) clean.string = block[':block/string'];
+        if (block.uid !== undefined) clean.uid = block.uid;
+        if (block[':block/uid'] !== undefined) clean.uid = block[':block/uid'];
+        if (block.title !== undefined) clean.title = block.title;
+        if (block[':node/title'] !== undefined) clean.title = block[':node/title'];
+
+        // Copiar children recursivamente
+        const children = block.children || block[':block/children'];
+        if (Array.isArray(children) && children.length > 0) {
+            clean.children = children.map(child => this.cleanBlockData(child, depth + 1)).filter(c => c !== null);
+        }
+
+        return clean;
+    }
+};
+
+
+// --- MODULE: src/core/html/htmlNodeRenderers.js ---
+// ============================================================================
+// HTML: Node Renderers
+// Funciones de renderizado para cada tipo de nodo (QUE, CLM, EVD)
+// ============================================================================
+
+DiscourseGraphToolkit.HtmlNodeRenderers = {
+
+    // Renderiza un EVD (usado tanto para EVDs de CLM como para EVDs de soporte)
+    renderEVD: function (evd, evdId, config, excludeBitacora, isNested = false) {
+        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        let html = '';
+
+        if (isNested) {
+            // EVD dentro de un supporting CLM - estilo más compacto
+            html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
+            html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
+        } else {
+            // EVD normal
+            html += `<div id="${evdId}" class="node evd-node">`;
+            html += `<h4 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h4>`;
+        }
+
+        html += `<div class="content">`;
+        html += helpers.generateMetadataHtml(evd.project_metadata || {});
+
+        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+        if (detailedContent) {
+            const style = isNested ? 'margin-left: 15px; font-size: 11px; color: #555;' : '';
+            html += `<div class="node content-node"${style ? ` style="${style}"` : ''}>`;
+            html += `<p>${helpers.formatContentForHtml(detailedContent)}</p>`;
+            html += '</div>';
+        }
+
+        html += `</div></div>`;
+        return html;
+    },
+
+    // Renderiza un CLM de soporte (bajo #SupportedBy de otro CLM)
+    renderSupportingCLM: function (suppClm, allNodes, config, excludeBitacora) {
+        const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        let html = `<div class="supporting-clm-item">`;
+        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${suppTitle}</h5>`;
+        html += `<div class="content">`;
+        html += helpers.generateMetadataHtml(suppClm.project_metadata || {}, true);
+
+        // Contenido del CLM de soporte
+        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
+        if (suppContent) {
+            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
+            html += `<p>${helpers.formatContentForHtml(suppContent)}</p>`;
+            html += `</div>`;
+        }
+
+        // EVDs del CLM de soporte
+        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
+            for (const evdUid of suppClm.related_evds) {
+                if (allNodes[evdUid]) {
+                    html += this.renderEVD(allNodes[evdUid], '', config, excludeBitacora, true);
+                }
+            }
+        }
+
+        html += `</div></div>`;
+        return html;
+    },
+
+    // Renderiza un CLM completo con sus EVDs y CLMs de soporte
+    renderCLM: function (clm, qIndex, cIndex, allNodes, config, excludeBitacora) {
+        const clmId = `q${qIndex}_c${cIndex}`;
+        const clmTitle = DiscourseGraphToolkit.cleanText(clm.title.replace("[[CLM]] - ", ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        let html = `<div id="${clmId}" class="node clm-node">`;
+        html += `<h3 class="collapsible">`;
+        html += `<span class="node-tag">[[CLM]]</span> - ${clmTitle}`;
+        html += `<button class="btn-copy-individual" onclick="copyIndividualCLM('${clmId}')">Copiar</button>`;
+        html += `</h3>`;
+        html += `<div class="content">`;
+
+        html += helpers.generateMetadataHtml(clm.project_metadata || {});
+
+        // Contenido del CLM
+        const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
+        if (clmContent) {
+            html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+            html += `<p>${helpers.formatContentForHtml(clmContent)}</p>`;
+            html += `</div>`;
+        }
+
+        // Supporting CLMs
+        if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+            html += '<div class="supporting-clms">';
+            for (const suppUid of clm.supporting_clms) {
+                if (allNodes[suppUid]) {
+                    html += this.renderSupportingCLM(allNodes[suppUid], allNodes, config, excludeBitacora);
+                }
+            }
+            html += '</div>';
+        }
+
+        // EVDs directos del CLM
+        if (clm.related_evds && clm.related_evds.length > 0) {
+            for (let k = 0; k < clm.related_evds.length; k++) {
+                const evdUid = clm.related_evds[k];
+                if (allNodes[evdUid]) {
+                    const evdId = `q${qIndex}_c${cIndex}_e${k}`;
+                    html += this.renderEVD(allNodes[evdUid], evdId, config, excludeBitacora, false);
+                }
+            }
+        } else if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
+            html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
+        }
+
+        html += `</div></div>`;
+        return html;
+    },
+
+    // Renderiza un EVD directo de una pregunta (no bajo un CLM)
+    renderDirectEVD: function (evd, qIndex, dIndex, config, excludeBitacora) {
+        const evdId = `q${qIndex}_de${dIndex}`;
+        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        let html = `<div id="${evdId}" class="node direct-evd-node">`;
+        html += `<h3 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h3>`;
+        html += `<div class="content">`;
+        html += helpers.generateMetadataHtml(evd.project_metadata || {});
+
+        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
+        if (detailedContent) {
+            html += '<div class="node direct-content-node">';
+            html += `<p>${helpers.formatContentForHtml(detailedContent)}</p>`;
+            html += '</div>';
+        }
+
+        html += `</div></div>`;
+        return html;
+    },
+
+    // Renderiza una pregunta completa con todos sus hijos
+    renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora) {
+        const qId = `q${qIndex}`;
+        const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        let html = `<div id="${qId}" class="node que-node">`;
+        html += `<h2 class="collapsible">`;
+        html += `<span class="node-tag">[[QUE]]</span> - ${qTitle}`;
+        html += `<button class="btn-copy-individual" onclick="copyIndividualQuestion('${qId}')">Copiar</button>`;
+        html += `<button class="btn-export-md" onclick="exportQuestionMarkdown(${qIndex})" title="Exportar Markdown">MD</button>`;
+        html += `<button class="btn-reorder btn-reorder-up" onclick="moveQuestionUp('${qId}')" title="Mover hacia arriba">↑</button>`;
+        html += `<button class="btn-reorder btn-reorder-down" onclick="moveQuestionDown('${qId}')" title="Mover hacia abajo">↓</button>`;
+        html += `</h2>`;
+        html += `<div class="content">`;
+
+        // Metadata
+        html += helpers.generateMetadataHtml(question.project_metadata || {});
+
+        // Contenido QUE
+        const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+        if (queContent) {
+            html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+            html += `<p>${helpers.formatContentForHtml(queContent)}</p>`;
+            html += `</div>`;
+        }
+
+        const hasClms = question.related_clms && question.related_clms.length > 0;
+        const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+
+        if (!hasClms && !hasDirectEvds) {
+            html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            html += '</div></div>';
+            return html;
+        }
+
+        // CLMs
+        if (question.related_clms) {
+            for (let j = 0; j < question.related_clms.length; j++) {
+                const clmUid = question.related_clms[j];
+                if (allNodes[clmUid]) {
+                    html += this.renderCLM(allNodes[clmUid], qIndex, j, allNodes, config, excludeBitacora);
+                }
+            }
+        }
+
+        // Direct EVDs
+        if (question.direct_evds) {
+            for (let j = 0; j < question.direct_evds.length; j++) {
+                const evdUid = question.direct_evds[j];
+                if (allNodes[evdUid]) {
+                    html += this.renderDirectEVD(allNodes[evdUid], qIndex, j, config, excludeBitacora);
+                }
+            }
+        }
+
+        html += `</div></div>`;
+        return html;
+    }
+};
+
+
+// --- MODULE: src/core/htmlGenerator.js ---
+// ============================================================================
+// CORE: HTML Generator
+// Orquestador para generación de HTML exportado
+// Usa: HtmlStyles, HtmlHelpers, HtmlNodeRenderers
+// ============================================================================
+
+DiscourseGraphToolkit.HtmlGenerator = {
+
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true) {
+        // Compatibilidad legacy: si contentConfig es boolean, convertir a objeto
+        let config = contentConfig;
+        if (typeof contentConfig === 'boolean') {
+            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+        }
+
+        const css = DiscourseGraphToolkit.HtmlStyles.getCSS();
+        const js = this._getJS();
+
+        // Header del documento
+        let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    ${css}
+</head>
+<body>
+    <h1>${title}</h1>
+    
+    <div class="controls">
+        <button id="expandAll" class="btn">Expandir Todo</button>
+        <button id="collapseAll" class="btn">Contraer Todo</button>
+        <button id="copyAll" class="btn btn-copy">Copiar Texto</button>
+        <button id="exportMarkdown" class="btn btn-export">Exportar Markdown</button>
+    </div>
+`;
+
+        // Renderizar cada pregunta
+        for (let i = 0; i < questions.length; i++) {
+            try {
+                html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
+                    questions[i], i, allNodes, config, excludeBitacora
+                );
+            } catch (e) {
+                console.error(`Error procesando pregunta ${i}: ${e}`);
+                html += `<div class="error-message">Error procesando pregunta: ${e}</div>`;
+            }
+        }
+
+        // Preparar datos embebidos para el HTML
+        const embeddedData = this._prepareEmbeddedData(questions, allNodes, config, excludeBitacora);
+
+        // Footer con datos y scripts
+        html += `
+    <script id="embedded-data" type="application/json">${JSON.stringify(embeddedData)}</script>
+    ${js}
+</body>
+</html>`;
+
+        return html;
+    },
+
+    // Prepara los datos que se embeben en el HTML para exportación Markdown desde el navegador
+    _prepareEmbeddedData: function (questions, allNodes, config, excludeBitacora) {
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        return {
+            questions: questions.map(q => ({
+                title: q.title,
+                uid: q.uid,
+                project_metadata: q.project_metadata,
+                related_clms: q.related_clms,
+                direct_evds: q.direct_evds,
+                data: helpers.cleanBlockData(q.data || q)
+            })),
+            allNodes: Object.fromEntries(
+                Object.entries(allNodes).map(([uid, node]) => [uid, {
+                    title: node.title,
+                    uid: node.uid,
+                    type: node.type,
+                    project_metadata: node.project_metadata,
+                    related_evds: node.related_evds,
+                    supporting_clms: node.supporting_clms,
+                    data: helpers.cleanBlockData(node.data || node)
+                }])
+            ),
+            config: config,
+            excludeBitacora: excludeBitacora
+        };
+    },
+
+    // Retorna el JavaScript embebido (inyectado en build)
     _getJS: function () {
         const scriptContent = DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT;
         return `<script>${scriptContent}</script>`;

@@ -137,11 +137,6 @@ discourseGraphToolkit/
 └── discourse-graph-toolkit.js # Bundle final
 ```
 
-## Documentación Técnica
-
-- [Arquitectura y Estándares](docs/ARCHITECTURE_AND_STANDARDS.md)
-- [Especificación JSON](docs/json_structure_spec.md)
-
 ## Desarrollo
 
 El proyecto usa un sistema de build por concatenación. Para generar el bundle:
