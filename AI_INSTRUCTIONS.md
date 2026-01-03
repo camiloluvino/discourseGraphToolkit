@@ -34,9 +34,10 @@ src/
 │   ├── import.js      # Importación
 │   ├── contentProcessor.js    # Procesamiento de contenido
 │   ├── relationshipMapper.js  # Mapeo de relaciones entre nodos
+│   ├── markdownCore.js        # Core de generación Markdown (standalone)
+│   ├── markdownGenerator.js   # Wrapper de MarkdownCore para el plugin
 │   ├── htmlGenerator.js       # Generador HTML (usa htmlEmbeddedScript.js)
 │   ├── htmlEmbeddedScript.js  # JavaScript inyectado en HTML exportado
-│   ├── markdownGenerator.js   # Generador Markdown
 │   └── epubGenerator.js       # Generador EPUB
 ├── ui/modal.js        # Componente React (monolítico)
 └── utils/             # Helpers y toast notifications

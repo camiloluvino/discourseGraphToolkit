@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.3**
+**v1.2.4**
 
 ## Estado de Funcionalidades
 
@@ -21,13 +21,13 @@
 
 ## Historial Reciente
 
-### v1.2.3 (Enero 2026)
-- **Refactoring:** Extraído JavaScript embebido de `htmlGenerator.js` a `htmlEmbeddedScript.js`
-- **Mejora:** `htmlGenerator.js` reducido de 972 a ~355 líneas
-- **Build:** `build.ps1` ahora inyecta automáticamente el script embebido y verifica sintaxis
-- **DX:** El JavaScript del HTML exportado ahora es un archivo .js normal con syntax highlighting
+### v1.2.4 (Enero 2026)
+- **Refactoring:** Unificado código de generación Markdown en `markdownCore.js`
+- **Mejora:** Eliminadas ~400 líneas de código duplicado entre plugin y HTML
+- **Mejora:** `markdownGenerator.js` reducido de 212 a 16 líneas
+- **Mejora:** `htmlEmbeddedScript.js` reducido de 628 a 180 líneas
 
-### v1.2.2 (Enero 2026)
+### v1.2.3 (Enero 2026)
 - **Feature:** Exportación a EPUB completa directamente desde el navegador (usando JSZip)
 - **Feature:** Nueva opción de exportación Markdown Plano (sin bullets)
 - **Mejora:** Prefijos de encabezado explícitos ([H2]-[H5]) en EPUB para mejor legibilidad en dispositivos e-ink

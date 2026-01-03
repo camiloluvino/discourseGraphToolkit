@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.2.3"
+$version = "1.2.4"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
@@ -15,6 +15,7 @@ $files = @(
     "src/core/import.js",
     "src/core/contentProcessor.js",
     "src/core/relationshipMapper.js",
+    "src/core/markdownCore.js",
     "src/core/htmlGenerator.js",
     "src/core/markdownGenerator.js",
     "src/core/epubGenerator.js",
@@ -28,35 +29,38 @@ $files = @(
 
 Write-Host "Building Discourse Graph Toolkit v$version..."
 
-# --- Leer y preparar el script embebido para HTML ---
+# --- Leer markdownCore.js para inyectar en el HTML embebido ---
+$markdownCorePath = "src/core/markdownCore.js"
+if (Test-Path $markdownCorePath) {
+    Write-Host "  Reading MarkdownCore for HTML injection..."
+    $markdownCore = Get-Content $markdownCorePath -Raw -Encoding UTF8
+}
+else {
+    Write-Error "CRITICAL: $markdownCorePath not found! Build aborted."
+    exit 1
+}
+
+# --- Leer htmlEmbeddedScript.js ---
 $embeddedScriptPath = "src/core/htmlEmbeddedScript.js"
 if (Test-Path $embeddedScriptPath) {
     Write-Host "  Reading embedded HTML script..."
     $embeddedScript = Get-Content $embeddedScriptPath -Raw -Encoding UTF8
-    # Escapar para uso dentro de template string JavaScript
-    $embeddedScriptEscaped = $embeddedScript.Replace('\', '\\').Replace('`', '\`').Replace('$', '`$')
 }
 else {
     Write-Error "CRITICAL: $embeddedScriptPath not found! Build aborted."
     exit 1
 }
 
-$content = @"
-/**
- * DISCOURSE GRAPH TOOLKIT v$version
- * Bundled build: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
- */
+# --- Concatenar MarkdownCore + HTMLEmbeddedScript ---
+$fullEmbeddedScript = $markdownCore + "`n`n" + $embeddedScript
 
-(function () {
-    'use strict';
+# --- Escapar para uso dentro de template string JavaScript ---
+# Escapar: backslash -> \\, backtick -> \`, ${} -> \${}
+$embeddedScriptEscaped = $fullEmbeddedScript -replace '\\', '\\' -replace '`', '\`' -replace '\$\{', '\${'
 
-    var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "$version";
-
-// --- EMBEDDED SCRIPT FOR HTML EXPORT (from htmlEmbeddedScript.js) ---
-DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `` `$($embeddedScriptEscaped)`` `;
-
-"@
+# --- Construir el header del bundle ---
+$buildTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$content = "/**`n * DISCOURSE GRAPH TOOLKIT v$version`n * Bundled build: $buildTimestamp`n */`n`n(function () {`n    'use strict';`n`n    var DiscourseGraphToolkit = DiscourseGraphToolkit || {};`n    DiscourseGraphToolkit.VERSION = `"$version`";`n`n// --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---`nDiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = ``$embeddedScriptEscaped``;`n`n"
 
 foreach ($file in $files) {
     if (Test-Path $file) {
@@ -71,10 +75,7 @@ foreach ($file in $files) {
     }
 }
 
-$content += @"
-
-})();
-"@
+$content += "`n})();`n"
 
 Set-Content -Path $outputFile -Value $content -Encoding UTF8
 Write-Host "Build complete: $outputFile"
