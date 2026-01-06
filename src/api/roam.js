@@ -131,13 +131,17 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
 };
 
 // --- Lógica de Búsqueda ---
+// Match jerárquico: incluye proyecto exacto Y sub-proyectos
+// Ej: "tesis/marco" matchea "tesis/marco" y "tesis/marco/posicionamiento"
 DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
     const PM = this.ProjectManager;
     const trimmedProject = projectName.trim();
 
     const escapedPattern = PM.getEscapedFieldPattern();
     const escapedProject = this.escapeDatalogString(trimmedProject);
+    const escapedProjectPrefix = this.escapeDatalogString(trimmedProject + '/');
 
+    // Query con OR: match exacto O sub-proyecto (prefijo/)
     const query = `[
             :find ?page-title ?page-uid
             :where
@@ -146,7 +150,10 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
             [?block :block/page ?page]
             [?block :block/string ?string]
             [(clojure.string/includes? ?string "${escapedPattern}")]
-            [(clojure.string/includes? ?string "[[${escapedProject}]]")]
+            (or
+                [(clojure.string/includes? ?string "[[${escapedProject}]]")]
+                [(clojure.string/includes? ?string "[[${escapedProjectPrefix}")]
+            )
         ]`;
 
     const results = await window.roamAlphaAPI.data.async.q(query);

@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.2.2  
+**Versión:** 1.2.4  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -28,6 +28,8 @@ Organiza tu investigación en proyectos separados:
 - Asigna nodos automáticamente al proyecto activo.
 - Sincroniza proyectos con una página dedicada en Roam.
 - Descubre proyectos existentes en el grafo con "Buscar Sugerencias".
+- **Auto-descubrimiento:** Al abrir el Toolkit, detecta proyectos no registrados y muestra una alerta para agregarlos con un clic.
+- **Match jerárquico:** Al exportar, seleccionar un proyecto padre automáticamente incluye todos sus sub-proyectos (ej. `tesis/marco` incluye `tesis/marco/epistemología`).
 
 ### 3. Verificación de Coherencia (Ramas)
 Verifica la consistencia de tus ramas de investigación:
@@ -38,10 +40,12 @@ Verifica la consistencia de tus ramas de investigación:
 ### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:
 - **JSON Nativo:** Compatible con el formato de Roam Research.
-- **HTML:** Documento interactivo con estilos y navegación.
+- **HTML:** Documento interactivo con estilos, navegación y reordenamiento.
 - **Markdown:** Formato estructurado con bullets e indentación.
 - **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
 - **EPUB:** Libro electrónico listo para lectores de eBooks (Kindle, Apple Books, Calibre).
+
+**Reordenamiento de Preguntas:** Después de hacer "Vista Previa", puedes reordenar las preguntas (QUE) usando botones ↑↓ antes de exportar. El orden personalizado se aplica a todos los formatos de exportación.
 
 ### 5. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.

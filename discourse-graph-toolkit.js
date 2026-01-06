@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.2.4
- * Bundled build: 2026-01-06 15:07:22
+ * Bundled build: 2026-01-06 19:12:39
  */
 
 (function () {
@@ -1111,13 +1111,17 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
 };
 
 // --- Lógica de Búsqueda ---
+// Match jerárquico: incluye proyecto exacto Y sub-proyectos
+// Ej: "tesis/marco" matchea "tesis/marco" y "tesis/marco/posicionamiento"
 DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
     const PM = this.ProjectManager;
     const trimmedProject = projectName.trim();
 
     const escapedPattern = PM.getEscapedFieldPattern();
     const escapedProject = this.escapeDatalogString(trimmedProject);
+    const escapedProjectPrefix = this.escapeDatalogString(trimmedProject + '/');
 
+    // Query con OR: match exacto O sub-proyecto (prefijo/)
     const query = `[
             :find ?page-title ?page-uid
             :where
@@ -1126,7 +1130,10 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
             [?block :block/page ?page]
             [?block :block/string ?string]
             [(clojure.string/includes? ?string "${escapedPattern}")]
-            [(clojure.string/includes? ?string "[[${escapedProject}]]")]
+            (or
+                [(clojure.string/includes? ?string "[[${escapedProject}]]")]
+                [(clojure.string/includes? ?string "[[${escapedProjectPrefix}")]
+            )
         ]`;
 
     const results = await window.roamAlphaAPI.data.async.q(query);
@@ -4906,6 +4913,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [suggestions, setSuggestions] = React.useState([]);
     const [isScanning, setIsScanning] = React.useState(false);
     const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
+    const [newProjectsAlert, setNewProjectsAlert] = React.useState([]);
 
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
@@ -4939,6 +4947,18 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             if (projs.length > 0) {
                 const val = await DiscourseGraphToolkit.validateProjectsInGraph(projs);
                 setValidation(val);
+            }
+
+            // Auto-descubrir proyectos nuevos en el grafo
+            try {
+                const discovered = await DiscourseGraphToolkit.discoverProjectsInGraph();
+                const current = DiscourseGraphToolkit.getProjects();
+                const newProjects = discovered.filter(p => !current.includes(p));
+                if (newProjects.length > 0) {
+                    setNewProjectsAlert(newProjects);
+                }
+            } catch (e) {
+                console.warn('Error discovering projects:', e);
             }
 
             const verificationCache = DiscourseGraphToolkit.getVerificationCache();
@@ -4981,6 +5001,58 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
+
+            // Alerta de proyectos nuevos descubiertos
+            newProjectsAlert.length > 0 && React.createElement('div', {
+                style: {
+                    padding: '0.75rem 1.25rem',
+                    backgroundColor: '#fff3e0',
+                    borderBottom: '1px solid #ffcc80',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap'
+                }
+            },
+                React.createElement('span', { style: { fontWeight: 'bold', color: '#e65100' } },
+                    `⚠️ ${newProjectsAlert.length} proyecto${newProjectsAlert.length > 1 ? 's' : ''} no registrado${newProjectsAlert.length > 1 ? 's' : ''}:`
+                ),
+                React.createElement('span', { style: { color: '#bf360c', fontSize: '0.8125rem' } },
+                    newProjectsAlert.slice(0, 3).join(', ') + (newProjectsAlert.length > 3 ? ` (+${newProjectsAlert.length - 3} más)` : '')
+                ),
+                React.createElement('button', {
+                    onClick: async () => {
+                        const merged = [...new Set([...projects, ...newProjectsAlert])].sort();
+                        DiscourseGraphToolkit.saveProjects(merged);
+                        await DiscourseGraphToolkit.syncProjectsToRoam(merged);
+                        setProjects(merged);
+                        setNewProjectsAlert([]);
+                    },
+                    style: {
+                        padding: '0.25rem 0.75rem',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.25rem',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        marginLeft: 'auto'
+                    }
+                }, '➕ Agregar todos'),
+                React.createElement('button', {
+                    onClick: () => setNewProjectsAlert([]),
+                    style: {
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: 'transparent',
+                        color: '#666',
+                        border: '1px solid #ccc',
+                        borderRadius: '0.25rem',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem'
+                    }
+                }, '✕')
+            ),
+
             // Content
             React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
 

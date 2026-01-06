@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-02
+**Última actualización:** 2026-01-06
 
 ## Versión Actual
 
@@ -12,16 +12,22 @@
 |---------------|--------|-------|
 | Creación de nodos (QUE/CLM/EVD) | ✅ Estable | Atajos Ctrl+Shift+Q/C/E |
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
+| Auto-descubrimiento de proyectos | ✅ Nuevo | Alerta al abrir Toolkit si hay proyectos no registrados |
+| Match jerárquico de proyectos | ✅ Nuevo | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Estable | Detecta y propaga `Proyecto Asociado::` |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
 | Exportación EPUB | ✅ Estable | Generación completa con tabla de contenidos y estilos |
+| Reordenamiento de preguntas | ✅ Nuevo | Buttons ↑↓ para reordenar QUEs antes de exportar |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
 
 ### v1.2.4 (Enero 2026)
+- **Feature:** Reordenamiento de preguntas (QUE) en la pestaña Exportar con botones ↑↓
+- **Feature:** Match jerárquico de proyectos — seleccionar `proyecto/sub` incluye `proyecto/sub/hijo`
+- **Feature:** Auto-descubrimiento de proyectos al abrir el Toolkit con alerta "Agregar todos"
 - **Refactoring:** Unificado código de generación Markdown en `markdownCore.js`
 - **Mejora:** Eliminadas ~400 líneas de código duplicado entre plugin y HTML
 - **Mejora:** `markdownGenerator.js` reducido de 212 a 16 líneas
