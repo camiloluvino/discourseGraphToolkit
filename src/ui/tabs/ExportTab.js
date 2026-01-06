@@ -13,8 +13,40 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         excludeBitacora, setExcludeBitacora,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
-        previewPages, setPreviewPages
+        previewPages, setPreviewPages,
+        orderedQuestions, setOrderedQuestions
     } = props;
+
+    // --- Helpers de Reordenamiento ---
+    const moveQuestionUp = (index) => {
+        if (index === 0) return;
+        const newOrder = [...orderedQuestions];
+        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+        setOrderedQuestions(newOrder);
+    };
+
+    const moveQuestionDown = (index) => {
+        if (index === orderedQuestions.length - 1) return;
+        const newOrder = [...orderedQuestions];
+        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+        setOrderedQuestions(newOrder);
+    };
+
+    const reorderQuestionsByUIDs = (questions, ordered) => {
+        if (!ordered || ordered.length === 0) return questions;
+        const uidOrder = ordered.map(q => q.uid);
+        return [...questions].sort((a, b) => {
+            const indexA = uidOrder.indexOf(a.uid);
+            const indexB = uidOrder.indexOf(b.uid);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+    };
+
+    const cleanTitleForDisplay = (title) => {
+        return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
+    };
 
     // --- Handlers ---
     const handlePreview = async () => {
@@ -43,7 +75,24 @@ DiscourseGraphToolkit.ExportTab = function (props) {
             }
 
             setPreviewPages(uniquePages);
-            setExportStatus(`Encontradas ${uniquePages.length} páginas.`);
+
+            // Inicializar orderedQuestions con las QUEs encontradas
+            const quePages = uniquePages.filter(p => {
+                const type = DiscourseGraphToolkit.getNodeType(p.pageTitle);
+                return type === 'QUE';
+            }).map(p => ({ uid: p.pageUid, title: p.pageTitle }));
+
+            // Solo actualizar si las QUEs son diferentes
+            const currentUIDs = orderedQuestions.map(q => q.uid);
+            const newUIDs = quePages.map(q => q.uid);
+            const sameQuestions = currentUIDs.length === newUIDs.length &&
+                currentUIDs.every(uid => newUIDs.includes(uid));
+
+            if (!sameQuestions) {
+                setOrderedQuestions(quePages);
+            }
+
+            setExportStatus(`Encontradas ${uniquePages.length} páginas (${quePages.length} preguntas).`);
             return uniquePages;
         } catch (e) {
             console.error(e);
@@ -94,6 +143,16 @@ DiscourseGraphToolkit.ExportTab = function (props) {
             return type === 'QUE';
         });
 
+        // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes
+        const currentUIDs = orderedQuestions.map(q => q.uid);
+        const newUIDs = questions.map(q => q.uid);
+        const sameQuestions = currentUIDs.length === newUIDs.length &&
+            currentUIDs.every(uid => newUIDs.includes(uid));
+
+        if (!sameQuestions) {
+            setOrderedQuestions(questions);
+        }
+
         const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}`;
 
         return { questions, allNodes, filename };
@@ -135,10 +194,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
-                questions, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora
+                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora
             );
 
             setExportStatus("Descargando...");
@@ -164,10 +224,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
-                questions, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora
             );
 
             setExportStatus("Descargando...");
@@ -193,10 +254,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questions, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora
             );
 
             setExportStatus("Descargando...");
@@ -222,10 +284,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
+            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questions, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora
             );
 
             setExportStatus("Cargando librería EPUB...");
@@ -358,6 +421,73 @@ DiscourseGraphToolkit.ExportTab = function (props) {
             }, '📚 EPUB')
         ),
         exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
+
+        // --- UI de Reordenamiento de Preguntas ---
+        orderedQuestions.length > 0 && React.createElement('div', {
+            style: {
+                marginTop: '1rem',
+                padding: '0.75rem',
+                border: '1px solid #ddd',
+                borderRadius: '0.25rem',
+                backgroundColor: '#fafafa'
+            }
+        },
+            React.createElement('h4', { style: { margin: '0 0 0.5rem 0', fontSize: '0.875rem' } },
+                `Orden de Preguntas (${orderedQuestions.length})`
+            ),
+            React.createElement('div', {
+                style: {
+                    maxHeight: '10rem',
+                    overflowY: 'auto'
+                }
+            },
+                orderedQuestions.map((q, index) =>
+                    React.createElement('div', {
+                        key: q.uid,
+                        style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '0.25rem 0',
+                            borderBottom: index < orderedQuestions.length - 1 ? '1px solid #eee' : 'none'
+                        }
+                    },
+                        React.createElement('button', {
+                            onClick: () => moveQuestionUp(index),
+                            disabled: index === 0,
+                            style: {
+                                padding: '0.125rem 0.375rem',
+                                marginRight: '0.25rem',
+                                cursor: index === 0 ? 'not-allowed' : 'pointer',
+                                opacity: index === 0 ? 0.4 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '0.125rem',
+                                backgroundColor: '#fff'
+                            }
+                        }, '↑'),
+                        React.createElement('button', {
+                            onClick: () => moveQuestionDown(index),
+                            disabled: index === orderedQuestions.length - 1,
+                            style: {
+                                padding: '0.125rem 0.375rem',
+                                marginRight: '0.5rem',
+                                cursor: index === orderedQuestions.length - 1 ? 'not-allowed' : 'pointer',
+                                opacity: index === orderedQuestions.length - 1 ? 0.4 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '0.125rem',
+                                backgroundColor: '#fff'
+                            }
+                        }, '↓'),
+                        React.createElement('span', {
+                            style: {
+                                fontSize: '0.8125rem',
+                                color: '#333'
+                            }
+                        }, `${index + 1}. ${cleanTitleForDisplay(q.title)}`)
+                    )
+                )
+            )
+        ),
+
         previewPages.length > 0 && React.createElement('div', { style: { marginTop: '0.9375rem', maxHeight: '12.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },
             React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
             React.createElement('ul', { style: { paddingLeft: '1.25rem' } },

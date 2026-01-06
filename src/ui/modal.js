@@ -29,6 +29,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
+    const [orderedQuestions, setOrderedQuestions] = React.useState([]);
 
     // --- Estados de Ramas (Verificación Bulk) ---
     const [bulkVerificationResults, setBulkVerificationResults] = React.useState([]);
@@ -119,7 +120,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     isPropagating: isPropagating, setIsPropagating: setIsPropagating
                 }),
 
-                // Pestaña Exportar
                 activeTab === 'exportar' && React.createElement(DiscourseGraphToolkit.ExportTab, {
                     projects: projects,
                     selectedProjects: selectedProjects, setSelectedProjects: setSelectedProjects,
@@ -129,7 +129,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     excludeBitacora: excludeBitacora, setExcludeBitacora: setExcludeBitacora,
                     isExporting: isExporting, setIsExporting: setIsExporting,
                     exportStatus: exportStatus, setExportStatus: setExportStatus,
-                    previewPages: previewPages, setPreviewPages: setPreviewPages
+                    previewPages: previewPages, setPreviewPages: setPreviewPages,
+                    orderedQuestions: orderedQuestions, setOrderedQuestions: setOrderedQuestions
                 }),
 
                 // Pestaña Importar
