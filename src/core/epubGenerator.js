@@ -92,8 +92,10 @@ DiscourseGraphToolkit.EpubGenerator = {
                 if (currentChapter) {
                     chapters.push(currentChapter);
                 }
+                const rawTitle = line.replace(/^##\s*/, '');
                 currentChapter = {
-                    title: this.cleanTitle(line.replace(/^##\s*/, '')),
+                    title: this.cleanTitle(rawTitle),
+                    nodeType: this.extractNodeType(rawTitle),
                     level: 2,
                     content: []
                 };
@@ -107,6 +109,14 @@ DiscourseGraphToolkit.EpubGenerator = {
         }
 
         return chapters;
+    },
+
+    // Detect node type from title
+    extractNodeType: function (title) {
+        if (title.indexOf('[[QUE]]') !== -1) return 'QUE';
+        if (title.indexOf('[[CLM]]') !== -1) return 'CLM';
+        if (title.indexOf('[[EVD]]') !== -1) return 'EVD';
+        return null;
     },
 
     // Clean title from Roam markup
@@ -135,16 +145,22 @@ DiscourseGraphToolkit.EpubGenerator = {
                 continue;
             }
 
-            // Headers - with explicit level prefixes for e-ink readability
+            // Headers - with explicit level and node type prefixes for e-ink readability
             if (trimmed.startsWith('##### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h5>[H5] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h5>[H5]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
             } else if (trimmed.startsWith('#### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h4>[H4] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h4>[H4]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
             } else if (trimmed.startsWith('### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h3>[H3] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h3>[H3]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
                 // Regular paragraph
                 const cleanedLine = this.processInlineMarkdown(trimmed);
@@ -346,7 +362,7 @@ nav li {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <h2>[H2] ${this.processInlineMarkdown(chapter.title)}</h2>
+  <h2>[H2]${chapter.nodeType ? `[${chapter.nodeType}]` : ''} ${this.processInlineMarkdown(chapter.title)}</h2>
 ${content}
 </body>
 </html>`;

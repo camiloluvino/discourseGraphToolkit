@@ -24,7 +24,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
-    const [includeReferenced, setIncludeReferenced] = React.useState(false);
     const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
@@ -189,7 +188,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     projects: projects,
                     selectedProjects: selectedProjects, setSelectedProjects: setSelectedProjects,
                     selectedTypes: selectedTypes, setSelectedTypes: setSelectedTypes,
-                    includeReferenced: includeReferenced, setIncludeReferenced: setIncludeReferenced,
                     contentConfig: contentConfig, setContentConfig: setContentConfig,
                     excludeBitacora: excludeBitacora, setExcludeBitacora: setExcludeBitacora,
                     isExporting: isExporting, setIsExporting: setIsExporting,

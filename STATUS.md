@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.4**
+**v1.2.5**
 
 ## Estado de Funcionalidades
 
@@ -12,17 +12,20 @@
 |---------------|--------|-------|
 | Creación de nodos (QUE/CLM/EVD) | ✅ Estable | Atajos Ctrl+Shift+Q/C/E |
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
-| Auto-descubrimiento de proyectos | ✅ Nuevo | Alerta al abrir Toolkit si hay proyectos no registrados |
-| Match jerárquico de proyectos | ✅ Nuevo | Al exportar, proyecto padre incluye sub-proyectos |
+| Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
+| Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Estable | Detecta y propaga `Proyecto Asociado::` |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
-| Exportación EPUB | ✅ Estable | Generación completa con tabla de contenidos y estilos |
-| Reordenamiento de preguntas | ✅ Nuevo | Buttons ↑↓ para reordenar QUEs antes de exportar |
+| Exportación EPUB | ✅ Mejorado | Prefijos `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` |
+| Reordenamiento de preguntas | ✅ Estable | Buttons ↑↓ para reordenar QUEs antes de exportar |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.2.5 (Enero 2026)
+- **Feature:** Prefijos de tipo de nodo en EPUB — los encabezados ahora muestran `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` para indicar tanto el nivel jerárquico como el tipo de elemento del discurso
 
 ### v1.2.4 (Enero 2026)
 - **Feature:** Reordenamiento de preguntas (QUE) en la pestaña Exportar con botones ↑↓

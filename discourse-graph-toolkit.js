@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.2.4
- * Bundled build: 2026-01-06 19:12:39
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.2.5
+ * Bundled build: 2026-01-07 15:32:36
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.2.4";
+    DiscourseGraphToolkit.VERSION = "1.2.5";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -977,9 +977,9 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
 
 
 
-// --- MODULE: src/api/roam.js ---
+// --- MODULE: src/api/roamProjects.js ---
 // ============================================================================
-// API: Roam Interactions
+// API: Roam Projects Management
 // ============================================================================
 
 DiscourseGraphToolkit.findProjectsPage = async function () {
@@ -1110,6 +1110,12 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
     return Array.from(discovered).sort();
 };
 
+
+// --- MODULE: src/api/roamSearch.js ---
+// ============================================================================
+// API: Roam Search - Discourse Pages
+// ============================================================================
+
 // --- Lógica de Búsqueda ---
 // Match jerárquico: incluye proyecto exacto Y sub-proyectos
 // Ej: "tesis/marco" matchea "tesis/marco" y "tesis/marco/posicionamiento"
@@ -1146,43 +1152,6 @@ DiscourseGraphToolkit.queryDiscoursePages = async function (projectName, selecte
     return pages.filter(p => prefixes.some(prefix => p.pageTitle.startsWith(prefix)));
 };
 
-DiscourseGraphToolkit.findReferencedDiscoursePages = async function (pageUids, selectedTypes) {
-    if (!pageUids || pageUids.length === 0) return [];
-
-    const prefixes = selectedTypes.map(t => this.TYPES[t].prefix); // "QUE", "CLM"
-    const query = `[:find ?string :in $ [?page-uid ...] :where [?page :block/uid ?page-uid] [?block :block/page ?page] [?block :block/string ?string]]`;
-
-    const results = await window.roamAlphaAPI.data.async.q(query, pageUids);
-    const referencedTitles = new Set();
-
-    results.forEach(r => {
-        const str = r[0];
-        prefixes.forEach(prefix => {
-            const target = `[[[[${prefix}]]`; // Busca [[[[QUE]]
-            if (str.includes(target)) {
-                // Extracción simple de brackets balanceados (simplificada)
-                const regex = new RegExp(`\\[\\[\\[\\[${prefix}\\]\\] - (.*?)\\]\\]`, 'g');
-                let match;
-                while ((match = regex.exec(str)) !== null) {
-                    referencedTitles.add(`[[${prefix}]] - ${match[1]}`);
-                }
-            }
-        });
-    });
-
-    if (referencedTitles.size === 0) return [];
-
-    const titleArray = Array.from(referencedTitles);
-    const pageQuery = `[:find ?title ?uid :in $ [?title ...] :where [?page :node/title ?title] [?page :block/uid ?uid]]`;
-    const pageResults = await window.roamAlphaAPI.data.async.q(pageQuery, titleArray);
-
-    return pageResults.map(r => ({ pageTitle: r[0], pageUid: r[1] }));
-};
-
-// ============================================================================
-// API: Verificación de Proyecto Asociado
-// ============================================================================
-
 /**
  * Obtiene todas las preguntas (QUE) del grafo
  * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
@@ -1199,6 +1168,12 @@ DiscourseGraphToolkit.getAllQuestions = async function () {
         .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
         .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
 };
+
+
+// --- MODULE: src/api/roamBranchVerification.js ---
+// ============================================================================
+// API: Roam Branch Verification
+// ============================================================================
 
 /**
  * Obtiene todos los nodos (CLM, EVD) descendientes de una pregunta RECURSIVAMENTE
@@ -1558,8 +1533,10 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
     }
 };
 
+
+// --- MODULE: src/api/roamStructureVerification.js ---
 // ============================================================================
-// API: Verificación de Estructura del Grafo
+// API: Roam Structure Verification
 // ============================================================================
 
 /**
@@ -1699,8 +1676,6 @@ DiscourseGraphToolkit.fixQueStructure = async function (questionUid) {
         return { success: false, fixed: 0 };
     }
 };
-
-
 
 
 // --- MODULE: src/core/nodes.js ---
@@ -3560,8 +3535,10 @@ DiscourseGraphToolkit.EpubGenerator = {
                 if (currentChapter) {
                     chapters.push(currentChapter);
                 }
+                const rawTitle = line.replace(/^##\s*/, '');
                 currentChapter = {
-                    title: this.cleanTitle(line.replace(/^##\s*/, '')),
+                    title: this.cleanTitle(rawTitle),
+                    nodeType: this.extractNodeType(rawTitle),
                     level: 2,
                     content: []
                 };
@@ -3575,6 +3552,14 @@ DiscourseGraphToolkit.EpubGenerator = {
         }
 
         return chapters;
+    },
+
+    // Detect node type from title
+    extractNodeType: function (title) {
+        if (title.indexOf('[[QUE]]') !== -1) return 'QUE';
+        if (title.indexOf('[[CLM]]') !== -1) return 'CLM';
+        if (title.indexOf('[[EVD]]') !== -1) return 'EVD';
+        return null;
     },
 
     // Clean title from Roam markup
@@ -3603,16 +3588,22 @@ DiscourseGraphToolkit.EpubGenerator = {
                 continue;
             }
 
-            // Headers - with explicit level prefixes for e-ink readability
+            // Headers - with explicit level and node type prefixes for e-ink readability
             if (trimmed.startsWith('##### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h5>[H5] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h5>[H5]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
             } else if (trimmed.startsWith('#### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h4>[H4] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h4>[H4]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
             } else if (trimmed.startsWith('### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                html += `<h3>[H3] ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+                const nodeType = this.extractNodeType(trimmed);
+                const typePrefix = nodeType ? `[${nodeType}]` : '';
+                html += `<h3>[H3]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
                 // Regular paragraph
                 const cleanedLine = this.processInlineMarkdown(trimmed);
@@ -3814,7 +3805,7 @@ nav li {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <h2>[H2] ${this.processInlineMarkdown(chapter.title)}</h2>
+  <h2>[H2]${chapter.nodeType ? `[${chapter.nodeType}]` : ''} ${this.processInlineMarkdown(chapter.title)}</h2>
 ${content}
 </body>
 </html>`;
@@ -4340,7 +4331,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         projects,
         selectedProjects, setSelectedProjects,
         selectedTypes, setSelectedTypes,
-        includeReferenced, setIncludeReferenced,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
         isExporting, setIsExporting,
@@ -4380,6 +4370,17 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
     };
 
+    // --- Helpers para Seleccionar Todo ---
+    const selectAllProjects = () => {
+        const allSelected = {};
+        projects.forEach(p => allSelected[p] = true);
+        setSelectedProjects(allSelected);
+    };
+
+    const selectAllTypes = () => {
+        setSelectedTypes({ QUE: true, CLM: true, EVD: true });
+    };
+
     // --- Handlers ---
     const handlePreview = async () => {
         try {
@@ -4399,12 +4400,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
             }
 
             let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
-
-            if (includeReferenced) {
-                setExportStatus("Buscando referencias...");
-                const referenced = await DiscourseGraphToolkit.findReferencedDiscoursePages(uniquePages.map(p => p.pageUid), tTypes);
-                uniquePages = Array.from(new Map([...uniquePages, ...referenced].map(item => [item.pageUid, item])).values());
-            }
 
             setPreviewPages(uniquePages);
 
@@ -4656,7 +4651,13 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' } },
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('h4', { style: { marginTop: 0 } }, '1. Proyectos'),
+                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                    React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '1. Proyectos'),
+                    projects.length > 0 && React.createElement('button', {
+                        onClick: selectAllProjects,
+                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                    }, 'Seleccionar todos')
+                ),
                 React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },
                     projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
                         React.createElement('div', { key: p },
@@ -4673,7 +4674,13 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 )
             ),
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('h4', { style: { marginTop: 0 } }, '2. Tipos'),
+                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                    React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
+                    React.createElement('button', {
+                        onClick: selectAllTypes,
+                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                    }, 'Seleccionar todos')
+                ),
                 ['QUE', 'CLM', 'EVD'].map(t =>
                     React.createElement('div', { key: t },
                         React.createElement('label', null,
@@ -4684,17 +4691,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                             }),
                             ` ${t}`
                         )
-                    )
-                ),
-
-                React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('label', null,
-                        React.createElement('input', {
-                            type: 'checkbox',
-                            checked: includeReferenced,
-                            onChange: e => setIncludeReferenced(e.target.checked)
-                        }),
-                        ' Incluir nodos referenciados'
                     )
                 ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
@@ -4918,7 +4914,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
     const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
-    const [includeReferenced, setIncludeReferenced] = React.useState(false);
     const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
@@ -5083,7 +5078,6 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     projects: projects,
                     selectedProjects: selectedProjects, setSelectedProjects: setSelectedProjects,
                     selectedTypes: selectedTypes, setSelectedTypes: setSelectedTypes,
-                    includeReferenced: includeReferenced, setIncludeReferenced: setIncludeReferenced,
                     contentConfig: contentConfig, setContentConfig: setContentConfig,
                     excludeBitacora: excludeBitacora, setExcludeBitacora: setExcludeBitacora,
                     isExporting: isExporting, setIsExporting: setIsExporting,

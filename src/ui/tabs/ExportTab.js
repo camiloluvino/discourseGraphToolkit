@@ -8,7 +8,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         projects,
         selectedProjects, setSelectedProjects,
         selectedTypes, setSelectedTypes,
-        includeReferenced, setIncludeReferenced,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
         isExporting, setIsExporting,
@@ -48,6 +47,17 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
     };
 
+    // --- Helpers para Seleccionar Todo ---
+    const selectAllProjects = () => {
+        const allSelected = {};
+        projects.forEach(p => allSelected[p] = true);
+        setSelectedProjects(allSelected);
+    };
+
+    const selectAllTypes = () => {
+        setSelectedTypes({ QUE: true, CLM: true, EVD: true });
+    };
+
     // --- Handlers ---
     const handlePreview = async () => {
         try {
@@ -67,12 +77,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
             }
 
             let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
-
-            if (includeReferenced) {
-                setExportStatus("Buscando referencias...");
-                const referenced = await DiscourseGraphToolkit.findReferencedDiscoursePages(uniquePages.map(p => p.pageUid), tTypes);
-                uniquePages = Array.from(new Map([...uniquePages, ...referenced].map(item => [item.pageUid, item])).values());
-            }
 
             setPreviewPages(uniquePages);
 
@@ -324,7 +328,13 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' } },
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('h4', { style: { marginTop: 0 } }, '1. Proyectos'),
+                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                    React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '1. Proyectos'),
+                    projects.length > 0 && React.createElement('button', {
+                        onClick: selectAllProjects,
+                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                    }, 'Seleccionar todos')
+                ),
                 React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },
                     projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
                         React.createElement('div', { key: p },
@@ -341,7 +351,13 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 )
             ),
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('h4', { style: { marginTop: 0 } }, '2. Tipos'),
+                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                    React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
+                    React.createElement('button', {
+                        onClick: selectAllTypes,
+                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                    }, 'Seleccionar todos')
+                ),
                 ['QUE', 'CLM', 'EVD'].map(t =>
                     React.createElement('div', { key: t },
                         React.createElement('label', null,
@@ -352,17 +368,6 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                             }),
                             ` ${t}`
                         )
-                    )
-                ),
-
-                React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('label', null,
-                        React.createElement('input', {
-                            type: 'checkbox',
-                            checked: includeReferenced,
-                            onChange: e => setIncludeReferenced(e.target.checked)
-                        }),
-                        ' Incluir nodos referenciados'
                     )
                 ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
