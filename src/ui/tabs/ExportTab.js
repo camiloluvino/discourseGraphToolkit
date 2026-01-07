@@ -22,6 +22,9 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const newOrder = [...orderedQuestions];
         [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
         setOrderedQuestions(newOrder);
+        // Guardar orden persistente
+        const projectKey = getProjectKey();
+        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
     };
 
     const moveQuestionDown = (index) => {
@@ -29,6 +32,9 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const newOrder = [...orderedQuestions];
         [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
         setOrderedQuestions(newOrder);
+        // Guardar orden persistente
+        const projectKey = getProjectKey();
+        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
     };
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
@@ -45,6 +51,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
 
     const cleanTitleForDisplay = (title) => {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
+    };
+
+    // Helper para obtener clave de proyecto actual
+    const getProjectKey = () => {
+        return Object.keys(selectedProjects).filter(k => selectedProjects[k]).sort().join('|');
     };
 
     // --- Helpers para Seleccionar Todo ---
@@ -93,7 +104,19 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 currentUIDs.every(uid => newUIDs.includes(uid));
 
             if (!sameQuestions) {
-                setOrderedQuestions(quePages);
+                // Intentar restaurar orden guardado
+                const projectKey = pNames.sort().join('|');
+                const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+                if (savedOrder && savedOrder.length > 0) {
+                    const reordered = savedOrder
+                        .map(uid => quePages.find(q => q.uid === uid))
+                        .filter(Boolean);
+                    // Agregar QUEs nuevas que no estaban en el orden guardado
+                    const newQues = quePages.filter(q => !savedOrder.includes(q.uid));
+                    setOrderedQuestions([...reordered, ...newQues]);
+                } else {
+                    setOrderedQuestions(quePages);
+                }
             }
 
             setExportStatus(`Encontradas ${uniquePages.length} páginas (${quePages.length} preguntas).`);

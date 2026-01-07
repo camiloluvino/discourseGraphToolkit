@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.5**
+**v1.2.7**
 
 ## Estado de Funcionalidades
 
@@ -18,11 +18,17 @@
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
-| Exportación EPUB | ✅ Mejorado | Prefijos `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` |
-| Reordenamiento de preguntas | ✅ Estable | Buttons ↑↓ para reordenar QUEs antes de exportar |
+| Exportación EPUB | ✅ Mejorado | Bloques estructurales con espaciado visual |
+| Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.2.7 (Enero 2026)
+- **Feature:** Persistencia del orden de preguntas — el orden personalizado de QUEs se guarda por proyecto y se restaura automáticamente al reabrir
+
+### v1.2.6 (Enero 2026)
+- **Feature:** Espaciado visual en bloques estructurales EPUB — los bloques `*— texto —*` ahora tienen márgenes adicionales (1.2em) para mejor legibilidad
 
 ### v1.2.5 (Enero 2026)
 - **Feature:** Prefijos de tipo de nodo en EPUB — los encabezados ahora muestran `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` para indicar tanto el nivel jerárquico como el tipo de elemento del discurso

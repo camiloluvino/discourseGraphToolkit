@@ -162,15 +162,22 @@ DiscourseGraphToolkit.EpubGenerator = {
                 const typePrefix = nodeType ? `[${nodeType}]` : '';
                 html += `<h3>[H3]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
-                // Regular paragraph
-                const cleanedLine = this.processInlineMarkdown(trimmed);
-                if (!inParagraph) {
-                    html += '<p>';
-                    inParagraph = true;
+                // Detectar bloque estructural: *— texto —*
+                const isStructuralBlock = /^\*—\s.+\s—\*$/.test(trimmed);
+                if (isStructuralBlock) {
+                    if (inParagraph) { html += '</p>\n'; inParagraph = false; }
+                    html += `<p class="structural-block">${this.processInlineMarkdown(trimmed)}</p>\n`;
                 } else {
-                    html += '<br/>\n';
+                    // Regular paragraph
+                    const cleanedLine = this.processInlineMarkdown(trimmed);
+                    if (!inParagraph) {
+                        html += '<p>';
+                        inParagraph = true;
+                    } else {
+                        html += '<br/>\n';
+                    }
+                    html += cleanedLine;
                 }
-                html += cleanedLine;
             }
         }
 
@@ -340,6 +347,11 @@ p {
 
 strong { font-weight: bold; }
 em { font-style: italic; }
+
+.structural-block {
+  margin-top: 1.2em;
+  margin-bottom: 1.2em;
+}
 
 nav ol {
   list-style-type: decimal;

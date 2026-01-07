@@ -11,7 +11,8 @@ DiscourseGraphToolkit.STORAGE = {
     TEMPLATES: "discourseGraphToolkit_templates",
     PROJECTS: "discourseGraphToolkit_projects",
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
-    HISTORY_EXPORT: "discourseGraphToolkit_history_export"
+    HISTORY_EXPORT: "discourseGraphToolkit_history_export",
+    QUESTION_ORDER: "discourseGraphToolkit_question_order"
 };
 
 // Get current graph name from Roam API or URL

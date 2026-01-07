@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.2.5
- * Bundled build: 2026-01-07 15:32:36
+ * DISCOURSE GRAPH TOOLKIT v1.2.7
+ * Bundled build: 2026-01-07 17:28:11
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.2.5";
+    DiscourseGraphToolkit.VERSION = "1.2.7";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -569,7 +569,8 @@ DiscourseGraphToolkit.STORAGE = {
     TEMPLATES: "discourseGraphToolkit_templates",
     PROJECTS: "discourseGraphToolkit_projects",
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
-    HISTORY_EXPORT: "discourseGraphToolkit_history_export"
+    HISTORY_EXPORT: "discourseGraphToolkit_history_export",
+    QUESTION_ORDER: "discourseGraphToolkit_question_order"
 };
 
 // Get current graph name from Roam API or URL
@@ -975,6 +976,29 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
     localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
 };
 
+// --- Persistencia del Orden de Preguntas ---
+DiscourseGraphToolkit.saveQuestionOrder = function (projectKey, order) {
+    if (!projectKey) return; // No guardar si no hay proyecto
+    const allOrders = this.loadAllQuestionOrders();
+    allOrders[projectKey] = order.map(q => q.uid); // Solo guardamos UIDs
+    localStorage.setItem(
+        this.getStorageKey(this.STORAGE.QUESTION_ORDER),
+        JSON.stringify(allOrders)
+    );
+};
+
+DiscourseGraphToolkit.loadAllQuestionOrders = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.QUESTION_ORDER)
+    );
+    return stored ? JSON.parse(stored) : {};
+};
+
+DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
+    if (!projectKey) return null;
+    const allOrders = this.loadAllQuestionOrders();
+    return allOrders[projectKey] || null;
+};
 
 
 // --- MODULE: src/api/roamProjects.js ---
@@ -3605,15 +3629,22 @@ DiscourseGraphToolkit.EpubGenerator = {
                 const typePrefix = nodeType ? `[${nodeType}]` : '';
                 html += `<h3>[H3]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
             } else {
-                // Regular paragraph
-                const cleanedLine = this.processInlineMarkdown(trimmed);
-                if (!inParagraph) {
-                    html += '<p>';
-                    inParagraph = true;
+                // Detectar bloque estructural: *— texto —*
+                const isStructuralBlock = /^\*—\s.+\s—\*$/.test(trimmed);
+                if (isStructuralBlock) {
+                    if (inParagraph) { html += '</p>\n'; inParagraph = false; }
+                    html += `<p class="structural-block">${this.processInlineMarkdown(trimmed)}</p>\n`;
                 } else {
-                    html += '<br/>\n';
+                    // Regular paragraph
+                    const cleanedLine = this.processInlineMarkdown(trimmed);
+                    if (!inParagraph) {
+                        html += '<p>';
+                        inParagraph = true;
+                    } else {
+                        html += '<br/>\n';
+                    }
+                    html += cleanedLine;
                 }
-                html += cleanedLine;
             }
         }
 
@@ -3783,6 +3814,11 @@ p {
 
 strong { font-weight: bold; }
 em { font-style: italic; }
+
+.structural-block {
+  margin-top: 1.2em;
+  margin-bottom: 1.2em;
+}
 
 nav ol {
   list-style-type: decimal;
@@ -4345,6 +4381,9 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const newOrder = [...orderedQuestions];
         [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
         setOrderedQuestions(newOrder);
+        // Guardar orden persistente
+        const projectKey = getProjectKey();
+        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
     };
 
     const moveQuestionDown = (index) => {
@@ -4352,6 +4391,9 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const newOrder = [...orderedQuestions];
         [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
         setOrderedQuestions(newOrder);
+        // Guardar orden persistente
+        const projectKey = getProjectKey();
+        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
     };
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
@@ -4368,6 +4410,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
 
     const cleanTitleForDisplay = (title) => {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
+    };
+
+    // Helper para obtener clave de proyecto actual
+    const getProjectKey = () => {
+        return Object.keys(selectedProjects).filter(k => selectedProjects[k]).sort().join('|');
     };
 
     // --- Helpers para Seleccionar Todo ---
@@ -4416,7 +4463,19 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 currentUIDs.every(uid => newUIDs.includes(uid));
 
             if (!sameQuestions) {
-                setOrderedQuestions(quePages);
+                // Intentar restaurar orden guardado
+                const projectKey = pNames.sort().join('|');
+                const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+                if (savedOrder && savedOrder.length > 0) {
+                    const reordered = savedOrder
+                        .map(uid => quePages.find(q => q.uid === uid))
+                        .filter(Boolean);
+                    // Agregar QUEs nuevas que no estaban en el orden guardado
+                    const newQues = quePages.filter(q => !savedOrder.includes(q.uid));
+                    setOrderedQuestions([...reordered, ...newQues]);
+                } else {
+                    setOrderedQuestions(quePages);
+                }
             }
 
             setExportStatus(`Encontradas ${uniquePages.length} páginas (${quePages.length} preguntas).`);

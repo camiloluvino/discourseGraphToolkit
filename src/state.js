@@ -180,3 +180,26 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
     localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
 };
 
+// --- Persistencia del Orden de Preguntas ---
+DiscourseGraphToolkit.saveQuestionOrder = function (projectKey, order) {
+    if (!projectKey) return; // No guardar si no hay proyecto
+    const allOrders = this.loadAllQuestionOrders();
+    allOrders[projectKey] = order.map(q => q.uid); // Solo guardamos UIDs
+    localStorage.setItem(
+        this.getStorageKey(this.STORAGE.QUESTION_ORDER),
+        JSON.stringify(allOrders)
+    );
+};
+
+DiscourseGraphToolkit.loadAllQuestionOrders = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.QUESTION_ORDER)
+    );
+    return stored ? JSON.parse(stored) : {};
+};
+
+DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
+    if (!projectKey) return null;
+    const allOrders = this.loadAllQuestionOrders();
+    return allOrders[projectKey] || null;
+};
