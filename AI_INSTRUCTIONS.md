@@ -26,7 +26,11 @@ src/
 ├── config.js          # Constantes, tipos de nodos, configuración por defecto
 ├── state.js           # Gestión de localStorage (multi-grafo)
 ├── index.js           # Inicialización y registro de comandos
-├── api/roam.js        # Abstracción de window.roamAlphaAPI
+├── api/               # Módulos de acceso a Roam API (por dominio)
+│   ├── roamProjects.js           # Proyectos en Roam
+│   ├── roamSearch.js             # Búsquedas y queries
+│   ├── roamBranchVerification.js # Verificación de ramas
+│   └── roamStructureVerification.js # Verificación de estructura
 ├── core/              # Lógica de negocio
 │   ├── nodes.js       # Creación de nodos QUE/CLM/EVD
 │   ├── projects.js    # Gestión de proyectos
@@ -53,7 +57,7 @@ src/
 ├─────────────────────────────────────────────┤
 │  core/* (Lógica de negocio)                 │
 ├─────────────────────────────────────────────┤
-│  api/roam.js (Abstracción de Roam API)      │
+│  api/* (Módulos de Roam API por dominio)    │
 ├─────────────────────────────────────────────┤
 │  window.roamAlphaAPI (API de Roam)          │
 └─────────────────────────────────────────────┘
@@ -64,8 +68,13 @@ src/
 - Todo se registra en `window.DiscourseGraphToolkit`
 - USA React y Blueprint disponibles globalmente en Roam
 
-### Regla de abstracción de API:
-**Ningún componente de UI o core debe invocar `window.roamAlphaAPI` directamente.** Todas las interacciones con Roam deben pasar por `src/api/roam.js`.
+### Acceso a Roam API:
+Las llamadas a `window.roamAlphaAPI` están permitidas en:
+- **`src/api/*`**: Módulos especializados por dominio (proyectos, búsquedas, verificación)
+- **`src/index.js`**: Registro de comandos y verificación inicial
+- **`src/config.js`**: Detección del nombre del grafo
+
+Los módulos en `core/` y `ui/` deben preferir usar funciones de `api/*` cuando existan, pero pueden acceder a `roamAlphaAPI` directamente si no hay wrapper disponible.
 
 ## Decisiones de Diseño
 
@@ -116,10 +125,36 @@ Existen 3 formas de generar Markdown:
 > - **Causa común:** Paréntesis faltantes en `modal.js`, objetos mal cerrados
 > - **Prevención:** SIEMPRE ejecutar `node -c discourse-graph-toolkit.js` después del build
 
+## Restricción de Roam: Triple Backticks
+
+> [!CAUTION]
+> **El código JavaScript NO puede contener la secuencia literal de triple backticks.**
+>
+> Roam ejecuta el plugin dentro de un bloque de código delimitado por ` ``` `. Si el código JavaScript contiene esa misma secuencia (incluso en comentarios), **rompe el bloque de Roam** y el plugin no carga.
+
+**Solución:** Usar concatenación de strings:
+```javascript
+// ❌ INCORRECTO - rompe Roam:
+blockString.includes('```')
+
+// ✅ CORRECTO - seguro para Roam:
+blockString.includes('`' + '``')
+```
+
+**Aplica también a comentarios:**
+```javascript
+// ❌ INCORRECTO:
+// Detecta backticks simples (`) y triples (```)
+
+// ✅ CORRECTO:
+// Detecta backticks simples y triples (bloques de código)
+```
+
 ## Errores Comunes de IA
 
 1. **Editar el bundle en lugar de `src/`** — Todo cambio se perderá
 2. **Olvidar el build** — Los cambios en `src/` no se reflejan hasta correr `./build.ps1`
 3. **No verificar sintaxis** — Un error minúsculo rompe todo el plugin
-4. **Llamar a `roamAlphaAPI` directamente** — Debe pasar por `api/roam.js`
-5. **Inconsistencia en exportadores Markdown** — Verificar que todos generen la misma estructura
+4. **Inconsistencia en exportadores Markdown** — Verificar que todos generen la misma estructura
+5. **Usar triple backticks literales** — Rompe el bloque de código de Roam (ver sección anterior)
+

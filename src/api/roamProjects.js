@@ -2,6 +2,19 @@
 // API: Roam Projects Management
 // ============================================================================
 
+/**
+ * Verifica si un bloque contiene el patrón de proyecto escapado con backticks.
+ * Detecta tanto backticks simples como triples (bloques de código).
+ * @param {string} blockString - Contenido del bloque
+ * @param {string} fieldPattern - Patrón del campo (e.g., "Proyecto Asociado::")
+ * @returns {boolean} true si está escapado y debe ignorarse
+ */
+DiscourseGraphToolkit.isEscapedProjectField = function (blockString, fieldPattern) {
+    // Nota: Usamos concatenación '`' + '``' en lugar del literal para evitar
+    // romper el bloque de código cuando el plugin se carga en Roam
+    return blockString.includes('`' + fieldPattern) || blockString.includes('`' + '``');
+};
+
 DiscourseGraphToolkit.findProjectsPage = async function () {
     const escapedTitle = this.escapeDatalogString(this.ROAM.PROJECTS_PAGE);
     const results = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
@@ -99,8 +112,16 @@ DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
     const results = await window.roamAlphaAPI.data.async.q(query);
     const inGraph = new Set();
     const regex = PM.getFieldRegex();
+    const fieldPattern = PM.getFieldPattern();
     results.forEach(r => {
-        const match = r[0].match(regex);
+        const blockString = r[0];
+
+        // Excluir bloques escapados con backticks
+        if (this.isEscapedProjectField(blockString, fieldPattern)) {
+            return;
+        }
+
+        const match = blockString.match(regex);
         if (match) inGraph.add(match[1].trim());
     });
 
@@ -120,8 +141,16 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
     const discovered = new Set();
     const regex = PM.getFieldRegex();
 
+    const fieldPattern = PM.getFieldPattern();
     results.forEach(r => {
-        const match = r[0].match(regex);
+        const blockString = r[0];
+
+        // Excluir bloques escapados con backticks
+        if (this.isEscapedProjectField(blockString, fieldPattern)) {
+            return;
+        }
+
+        const match = blockString.match(regex);
         if (match && match[1]) {
             discovered.add(match[1].trim());
         }

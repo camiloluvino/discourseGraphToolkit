@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.2.5  
+**Versión:** 1.2.7  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -118,8 +118,11 @@ discourseGraphToolkit/
 │   ├── config.js              # Configuración y constantes
 │   ├── state.js               # Gestión de almacenamiento
 │   ├── index.js               # Inicialización
-│   ├── api/
-│   │   └── roam.js            # Interacción con Roam API
+│   ├── api/                   # Módulos de Roam API
+│   │   ├── roamProjects.js    # Gestión de proyectos en Roam
+│   │   ├── roamSearch.js      # Búsquedas y queries
+│   │   ├── roamBranchVerification.js    # Verificación de ramas
+│   │   └── roamStructureVerification.js # Verificación de estructura
 │   ├── core/
 │   │   ├── nodes.js           # Creación de nodos
 │   │   ├── projects.js        # Gestión de proyectos
@@ -127,15 +130,16 @@ discourseGraphToolkit/
 │   │   ├── import.js          # Importación de datos
 │   │   ├── contentProcessor.js    # Procesamiento de contenido
 │   │   ├── relationshipMapper.js  # Mapeo de relaciones
-│   │   ├── htmlGenerator.js       # Generador HTML
+│   │   ├── markdownCore.js        # Core de Markdown (compartido)
 │   │   ├── markdownGenerator.js   # Generador Markdown
+│   │   ├── htmlGenerator.js       # Generador HTML
 │   │   └── epubGenerator.js       # Generador EPUB
 │   ├── ui/
-│   │   └── modal.js           # Interfaz de usuario (React)
+│   │   ├── modal.js           # Modal principal (React)
+│   │   └── tabs/              # Pestañas del modal
 │   └── utils/
 │       ├── helpers.js         # Funciones auxiliares
 │       └── toast.js           # Notificaciones
-├── docs/                      # Documentación técnica
 ├── ejemplos/                  # Ejemplos de exportación
 ├── build.ps1                  # Script de build
 └── discourse-graph-toolkit.js # Bundle final

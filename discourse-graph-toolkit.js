@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.2.7
- * Bundled build: 2026-01-07 17:28:11
+ * Bundled build: 2026-01-09 17:32:54
  */
 
 (function () {
@@ -1006,6 +1006,19 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
 // API: Roam Projects Management
 // ============================================================================
 
+/**
+ * Verifica si un bloque contiene el patrón de proyecto escapado con backticks.
+ * Detecta tanto backticks simples como triples (bloques de código).
+ * @param {string} blockString - Contenido del bloque
+ * @param {string} fieldPattern - Patrón del campo (e.g., "Proyecto Asociado::")
+ * @returns {boolean} true si está escapado y debe ignorarse
+ */
+DiscourseGraphToolkit.isEscapedProjectField = function (blockString, fieldPattern) {
+    // Nota: Usamos concatenación '`' + '``' en lugar del literal para evitar
+    // romper el bloque de código cuando el plugin se carga en Roam
+    return blockString.includes('`' + fieldPattern) || blockString.includes('`' + '``');
+};
+
 DiscourseGraphToolkit.findProjectsPage = async function () {
     const escapedTitle = this.escapeDatalogString(this.ROAM.PROJECTS_PAGE);
     const results = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
@@ -1103,8 +1116,16 @@ DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
     const results = await window.roamAlphaAPI.data.async.q(query);
     const inGraph = new Set();
     const regex = PM.getFieldRegex();
+    const fieldPattern = PM.getFieldPattern();
     results.forEach(r => {
-        const match = r[0].match(regex);
+        const blockString = r[0];
+
+        // Excluir bloques escapados con backticks
+        if (this.isEscapedProjectField(blockString, fieldPattern)) {
+            return;
+        }
+
+        const match = blockString.match(regex);
         if (match) inGraph.add(match[1].trim());
     });
 
@@ -1124,8 +1145,16 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
     const discovered = new Set();
     const regex = PM.getFieldRegex();
 
+    const fieldPattern = PM.getFieldPattern();
     results.forEach(r => {
-        const match = r[0].match(regex);
+        const blockString = r[0];
+
+        // Excluir bloques escapados con backticks
+        if (this.isEscapedProjectField(blockString, fieldPattern)) {
+            return;
+        }
+
+        const match = blockString.match(regex);
         if (match && match[1]) {
             discovered.add(match[1].trim());
         }
@@ -1353,6 +1382,13 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
         const results = await window.roamAlphaAPI.data.async.q(query);
         if (results && results.length > 0) {
             const blockString = results[0][0];
+            const fieldPattern = PM.getFieldPattern();
+
+            // Excluir bloques escapados con backticks
+            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                return null;
+            }
+
             // Extraer el valor entre [[ ]]
             const regex = PM.getFieldRegex();
             const match = blockString.match(regex);
@@ -1401,9 +1437,16 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
         const projectMap = new Map();
         const regex = PM.getFieldRegex();
 
+        const fieldPattern = PM.getFieldPattern();
         results.forEach(r => {
             const pageUid = r[0];
             const blockString = r[1];
+
+            // Excluir bloques escapados con backticks
+            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                return;
+            }
+
             const match = blockString.match(regex);
             if (match) {
                 projectMap.set(pageUid, match[1].trim());

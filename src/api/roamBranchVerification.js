@@ -156,6 +156,13 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
         const results = await window.roamAlphaAPI.data.async.q(query);
         if (results && results.length > 0) {
             const blockString = results[0][0];
+            const fieldPattern = PM.getFieldPattern();
+
+            // Excluir bloques escapados con backticks
+            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                return null;
+            }
+
             // Extraer el valor entre [[ ]]
             const regex = PM.getFieldRegex();
             const match = blockString.match(regex);
@@ -204,9 +211,16 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
         const projectMap = new Map();
         const regex = PM.getFieldRegex();
 
+        const fieldPattern = PM.getFieldPattern();
         results.forEach(r => {
             const pageUid = r[0];
             const blockString = r[1];
+
+            // Excluir bloques escapados con backticks
+            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                return;
+            }
+
             const match = blockString.match(regex);
             if (match) {
                 projectMap.set(pageUid, match[1].trim());
