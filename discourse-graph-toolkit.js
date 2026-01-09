@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.2.7
- * Bundled build: 2026-01-09 17:32:54
+ * DISCOURSE GRAPH TOOLKIT v1.2.8
+ * Bundled build: 2026-01-09 17:48:59
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.2.7";
+    DiscourseGraphToolkit.VERSION = "1.2.8";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================

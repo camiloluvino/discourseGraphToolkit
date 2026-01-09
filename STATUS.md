@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-06
+**Última actualización:** 2026-01-09
 
 ## Versión Actual
 
-**v1.2.7**
+**v1.2.8**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,10 @@
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.2.8 (Enero 2026)
+- **Feature:** Filtrado de atributos `Proyecto Asociado::` escapados con backticks — evita que ejemplos en conversaciones de chatbot aparezcan como proyectos reales en "Buscar Sugerencias"
+- **Docs:** Documentada restricción de Roam sobre triple backticks en `AI_INSTRUCTIONS.md`
 
 ### v1.2.7 (Enero 2026)
 - **Feature:** Persistencia del orden de preguntas — el orden personalizado de QUEs se guarda por proyecto y se restaura automáticamente al reabrir
