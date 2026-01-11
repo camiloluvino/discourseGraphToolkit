@@ -29,7 +29,7 @@ src/
 ├── api/               # Módulos de acceso a Roam API (por dominio)
 │   ├── roamProjects.js           # Proyectos en Roam
 │   ├── roamSearch.js             # Búsquedas y queries
-│   ├── roamBranchVerification.js # Verificación de ramas
+│   ├── roamBranchVerification.js # Verificación de ramas (jerárquica padre-hijo)
 │   └── roamStructureVerification.js # Verificación de estructura
 ├── core/              # Lógica de negocio
 │   ├── nodes.js       # Creación de nodos QUE/CLM/EVD

@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-09
+**Última actualización:** 2026-01-11
 
 ## Versión Actual
 
