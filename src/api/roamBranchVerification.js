@@ -391,6 +391,60 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
 };
 
 /**
+ * Propaga el proyecto del padre directo a cada nodo (para corregir generalizaciones)
+ * Cada nodo recibe el proyecto de su parentProject específico.
+ * @param {Array<{uid: string, parentProject: string}>} nodesToFix - Nodos con generalización
+ * @returns {Promise<{success: boolean, updated: number, errors: Array}>}
+ */
+DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
+    const regex = PM.getFieldRegex();
+
+    let updated = 0;
+    const errors = [];
+
+    for (const node of nodesToFix) {
+        if (!node.parentProject) continue;
+
+        const newValue = PM.buildFieldValue(node.parentProject);
+
+        try {
+            // Buscar si ya tiene un bloque con Proyecto Asociado
+            const query = `[:find ?block-uid ?string
+                           :where 
+                           [?page :block/uid "${node.uid}"]
+                           [?block :block/page ?page]
+                           [?block :block/uid ?block-uid]
+                           [?block :block/string ?string]
+                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+            const results = await window.roamAlphaAPI.data.async.q(query);
+
+            if (results && results.length > 0) {
+                const blockUid = results[0][0];
+                await window.roamAlphaAPI.data.block.update({
+                    block: { uid: blockUid, string: newValue }
+                });
+                updated++;
+            } else {
+                // Crear nuevo bloque como primer hijo
+                await window.roamAlphaAPI.data.block.create({
+                    location: { 'parent-uid': node.uid, order: 0 },
+                    block: { string: newValue }
+                });
+                updated++;
+            }
+        } catch (e) {
+            console.error(`Error updating node ${node.uid}:`, e);
+            errors.push({ uid: node.uid, error: e.message });
+        }
+    }
+
+    return { success: errors.length === 0, updated, errors };
+};
+
+/**
  * Verifica cuáles nodos tienen la propiedad "Proyecto Asociado::" (legacy, mantener compatibilidad)
  * @param {Array<string>} nodeUids - Array de UIDs de páginas a verificar
  * @returns {Promise<{withProject: Array, withoutProject: Array}>}

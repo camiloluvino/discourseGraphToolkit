@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.3.1
- * Bundled build: 2026-01-10 23:20:24
+ * DISCOURSE GRAPH TOOLKIT v1.3.2
+ * Bundled build: 2026-01-10 23:44:11
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.3.1";
+    DiscourseGraphToolkit.VERSION = "1.3.2";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1614,6 +1614,60 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     }
 
     return { success: errors.length === 0, updated, created, errors };
+};
+
+/**
+ * Propaga el proyecto del padre directo a cada nodo (para corregir generalizaciones)
+ * Cada nodo recibe el proyecto de su parentProject específico.
+ * @param {Array<{uid: string, parentProject: string}>} nodesToFix - Nodos con generalización
+ * @returns {Promise<{success: boolean, updated: number, errors: Array}>}
+ */
+DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
+    const regex = PM.getFieldRegex();
+
+    let updated = 0;
+    const errors = [];
+
+    for (const node of nodesToFix) {
+        if (!node.parentProject) continue;
+
+        const newValue = PM.buildFieldValue(node.parentProject);
+
+        try {
+            // Buscar si ya tiene un bloque con Proyecto Asociado
+            const query = `[:find ?block-uid ?string
+                           :where 
+                           [?page :block/uid "${node.uid}"]
+                           [?block :block/page ?page]
+                           [?block :block/uid ?block-uid]
+                           [?block :block/string ?string]
+                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+            const results = await window.roamAlphaAPI.data.async.q(query);
+
+            if (results && results.length > 0) {
+                const blockUid = results[0][0];
+                await window.roamAlphaAPI.data.block.update({
+                    block: { uid: blockUid, string: newValue }
+                });
+                updated++;
+            } else {
+                // Crear nuevo bloque como primer hijo
+                await window.roamAlphaAPI.data.block.create({
+                    location: { 'parent-uid': node.uid, order: 0 },
+                    block: { string: newValue }
+                });
+                updated++;
+            }
+        } catch (e) {
+            console.error(`Error updating node ${node.uid}:`, e);
+            errors.push({ uid: node.uid, error: e.message });
+        }
+    }
+
+    return { success: errors.length === 0, updated, errors };
 };
 
 /**
@@ -4248,7 +4302,11 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             return;
         }
 
-        const nodesToUpdate = [...selectedBulkQuestion.coherence.different, ...selectedBulkQuestion.coherence.missing];
+        // Solo propagar a nodos sin proyecto o con proyecto diferente (no generalizaciones)
+        const nodesToUpdate = [
+            ...selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization'),
+            ...selectedBulkQuestion.coherence.missing
+        ];
         if (nodesToUpdate.length === 0) return;
 
         setIsPropagating(true);
@@ -4262,24 +4320,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             );
 
             if (result.success) {
-                setBulkVerifyStatus(`✅ Propagación completada. Refrescando...`);
-                const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedBulkQuestion.question.pageUid);
-                const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedBulkQuestion.question.pageUid, branchNodes);
-
-                let status = 'coherent';
-                if (cohResult.missing.length > 0) status = 'missing';
-                else if (cohResult.different.length > 0) status = 'different';
-                else if (cohResult.specialized.length > 0) status = 'specialized';
-
-                const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
-                const updatedResults = bulkVerificationResults.map(r =>
-                    r.question.pageUid === selectedBulkQuestion.question.pageUid ? updatedResult : r
-                );
-                setBulkVerificationResults(updatedResults);
-                setSelectedBulkQuestion(updatedResult);
-                const statusMsg = `✅ Propagación completada.`;
-                setBulkVerifyStatus(statusMsg);
-                DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
+                await refreshSelectedQuestion();
             } else {
                 setBulkVerifyStatus(`⚠️ Propagación con errores.`);
             }
@@ -4288,6 +4329,52 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         } finally {
             setIsPropagating(false);
         }
+    };
+
+    const handlePropagateFromParents = async () => {
+        if (!selectedBulkQuestion) return;
+
+        // Solo nodos con generalización (reason === 'generalization')
+        const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
+        if (generalizations.length === 0) return;
+
+        setIsPropagating(true);
+        setBulkVerifyStatus(`⏳ Heredando proyectos de padres para ${generalizations.length} nodos...`);
+
+        try {
+            const result = await DiscourseGraphToolkit.propagateFromParents(generalizations);
+
+            if (result.success) {
+                await refreshSelectedQuestion();
+            } else {
+                setBulkVerifyStatus(`⚠️ Propagación con errores.`);
+            }
+        } catch (e) {
+            setBulkVerifyStatus('❌ Error: ' + e.message);
+        } finally {
+            setIsPropagating(false);
+        }
+    };
+
+    const refreshSelectedQuestion = async () => {
+        setBulkVerifyStatus(`✅ Completado. Refrescando...`);
+        const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedBulkQuestion.question.pageUid);
+        const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedBulkQuestion.question.pageUid, branchNodes);
+
+        let status = 'coherent';
+        if (cohResult.missing.length > 0) status = 'missing';
+        else if (cohResult.different.length > 0) status = 'different';
+        else if (cohResult.specialized.length > 0) status = 'specialized';
+
+        const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
+        const updatedResults = bulkVerificationResults.map(r =>
+            r.question.pageUid === selectedBulkQuestion.question.pageUid ? updatedResult : r
+        );
+        setBulkVerificationResults(updatedResults);
+        setSelectedBulkQuestion(updatedResult);
+        const statusMsg = `✅ Propagación completada.`;
+        setBulkVerifyStatus(statusMsg);
+        DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
     };
 
     // --- Render ---
@@ -4388,7 +4475,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             React.createElement('h4', { style: { margin: '0 0 0.9375rem 0', fontSize: '0.9375rem', lineHeight: '1.4' } },
                 selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', '')),
 
-            // Proyecto editable
+            // Proyecto editable y botones de propagación
             React.createElement('div', { style: { marginBottom: '0.9375rem', display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' } },
                 React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap' } }, '📁 Proyecto:'),
                 React.createElement('input', {
@@ -4396,22 +4483,49 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                     value: editableProject,
                     onChange: (e) => setEditableProject(e.target.value),
                     style: { flex: 1, minWidth: '12.5rem', padding: '0.5rem 0.75rem', border: '1px solid #ccc', borderRadius: '0.25rem', fontSize: '0.875rem' }
-                }),
-                (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-                React.createElement('button', {
-                    onClick: handleBulkPropagateProject,
-                    disabled: isPropagating || !editableProject.trim(),
-                    style: {
-                        padding: '0.5rem 1rem',
-                        backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
-                        fontSize: '0.8125rem',
-                        fontWeight: 'bold'
-                    }
-                }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar a ${selectedBulkQuestion.coherence.different.length + selectedBulkQuestion.coherence.missing.length} nodos`)
+                })
+            ),
+
+            // Botones de propagación (separados por tipo de error)
+            React.createElement('div', { style: { marginBottom: '0.9375rem', display: 'flex', gap: '0.625rem', flexWrap: 'wrap' } },
+                // Botón 1: Propagar raíz (missing + different sin generalización)
+                (() => {
+                    const nonGeneralizations = selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization');
+                    const count = nonGeneralizations.length + selectedBulkQuestion.coherence.missing.length;
+                    return count > 0 && React.createElement('button', {
+                        onClick: handleBulkPropagateProject,
+                        disabled: isPropagating || !editableProject.trim(),
+                        style: {
+                            padding: '0.5rem 1rem',
+                            backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
+                            fontSize: '0.8125rem',
+                            fontWeight: 'bold'
+                        }
+                    }, isPropagating ? '⏳...' : `🔄 Propagar raíz (${count})`);
+                })(),
+
+                // Botón 2: Heredar de padres (solo generalizaciones)
+                (() => {
+                    const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
+                    return generalizations.length > 0 && React.createElement('button', {
+                        onClick: handlePropagateFromParents,
+                        disabled: isPropagating,
+                        style: {
+                            padding: '0.5rem 1rem',
+                            backgroundColor: isPropagating ? '#ccc' : '#2196F3',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: isPropagating ? 'not-allowed' : 'pointer',
+                            fontSize: '0.8125rem',
+                            fontWeight: 'bold'
+                        }
+                    }, isPropagating ? '⏳...' : `⬆️ Heredar de padres (${generalizations.length})`);
+                })()
             ),
 
             // Resumen
