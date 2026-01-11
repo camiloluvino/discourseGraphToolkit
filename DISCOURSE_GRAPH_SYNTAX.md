@@ -107,9 +107,16 @@ Proyecto Asociado:: [[tesis/marco/metodología]]
 |---------------|---------------|-----------|
 | `tesis` | `tesis` | ✅ Coherente |
 | `tesis` | `tesis/marco` | 🔀 Especializado |
-| `tesis/marco` | `tesis` | ⚠️ Diferente |
+| `tesis/marco` | `tesis` | ⚠️ Generalización (error) |
 
-**Regla:** Un nodo hijo puede **especializar** (agregar sufijo) pero no **generalizar** (quitar sufijo) el proyecto de su padre.
+**Regla jerárquica:** Un nodo debe tener un proyecto **igual o más específico** que su **padre directo** en la rama, no solo que el QUE raíz.
+
+Ejemplo:
+```
+QUE: tesis/metodología
+  └── CLM-A: tesis/metodología/muestra     ← 🔀 OK (especializa)
+      └── CLM-B: tesis/metodología         ← ⚠️ ERROR (generaliza al padre CLM-A)
+```
 
 ---
 

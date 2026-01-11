@@ -35,10 +35,13 @@ Organiza tu investigación en proyectos separados:
 Verifica la consistencia de tus ramas de investigación:
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado.
-- Propaga el proyecto de la rama a todos los nodos descendientes con un clic.
+- **Verificación jerárquica padre-hijo:** Cada nodo debe ser igual o más específico que su padre directo.
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
   - Nodos con sub-namespace son marcados como "🔀 Especializados" (coherentes pero con proyecto más específico).
-  - La propagación respeta especializaciones existentes.
+  - Detecta "generalizaciones" cuando un hijo tiene proyecto menos específico que su padre.
+- **Propagación inteligente con dos botones:**
+  - `🔄 Propagar raíz` — Aplica el proyecto del QUE a nodos sin proyecto o con proyecto diferente.
+  - `⬆️ Heredar de padres` — Corrige generalizaciones aplicando el proyecto del padre directo a cada nodo.
 
 ### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:
