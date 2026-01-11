@@ -6,17 +6,18 @@
  * Obtiene todos los nodos (CLM, EVD) descendientes de una pregunta RECURSIVAMENTE
  * Sigue la cadena completa: QUE -> CLM -> EVD, CLM -> CLM -> EVD, etc.
  * @param {string} questionUid - UID de la página de la pregunta
- * @returns {Promise<Array<{uid: string, title: string, type: string}>>}
+ * @returns {Promise<Array<{uid: string, title: string, type: string, parentUid: string}>>}
  */
 DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
     try {
-        const allNodes = new Map(); // uid -> {uid, title, type}
+        const allNodes = new Map(); // uid -> {uid, title, type, parentUid}
         const visited = new Set();
-        const toProcess = [questionUid];
+        // Cola de procesamiento: {uid, parentUid}
+        const toProcess = [{ uid: questionUid, parentUid: null }];
 
         // Procesar iterativamente para evitar stack overflow en ramas muy profundas
         while (toProcess.length > 0) {
-            const currentUid = toProcess.shift();
+            const { uid: currentUid, parentUid: currentParentUid } = toProcess.shift();
 
             if (visited.has(currentUid)) continue;
             visited.add(currentUid);
@@ -40,7 +41,8 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
                 allNodes.set(currentUid, {
                     uid: currentUid,
                     title: nodeData.title,
-                    type: nodeType
+                    type: nodeType,
+                    parentUid: currentParentUid || questionUid // Si no tiene padre, es hijo directo del QUE
                 });
             }
 
@@ -48,9 +50,10 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
             const referencedUids = this._extractAllReferencesFromNode(nodeData);
 
             // Agregar las referencias no visitadas a la cola de procesamiento
+            // El padre de estas referencias es el nodo actual
             for (const refUid of referencedUids) {
-                if (!visited.has(refUid) && !toProcess.includes(refUid)) {
-                    toProcess.push(refUid);
+                if (!visited.has(refUid) && !toProcess.some(p => p.uid === refUid)) {
+                    toProcess.push({ uid: refUid, parentUid: currentUid });
                 }
             }
         }
@@ -195,10 +198,11 @@ DiscourseGraphToolkit.isHierarchicallyCoherent = function (rootProject, nodeProj
 };
 
 /**
- * Verifica coherencia de proyectos en una rama
+ * Verifica coherencia de proyectos en una rama (verificación jerárquica padre-hijo)
+ * Cada nodo debe tener un proyecto igual o más específico que su padre directo.
  * @param {string} rootUid - UID del QUE raíz
- * @param {Array<{uid: string, title: string, type: string}>} branchNodes - Nodos de la rama
- * @returns {Promise<{rootProject: string|null, coherent: Array, different: Array, missing: Array}>}
+ * @param {Array<{uid: string, title: string, type: string, parentUid: string}>} branchNodes - Nodos de la rama
+ * @returns {Promise<{rootProject: string|null, coherent: Array, specialized: Array, different: Array, missing: Array}>}
  */
 DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNodes) {
     const PM = this.ProjectManager;
@@ -206,8 +210,8 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
     // 1. Obtener proyecto del QUE raíz
     const rootProject = await this.getProjectFromNode(rootUid);
 
-    // 2. Obtener proyecto de cada nodo
-    const nodeUids = branchNodes.map(n => n.uid);
+    // 2. Obtener proyecto de cada nodo (incluyendo padres)
+    const allUids = [...new Set([...branchNodes.map(n => n.uid), ...branchNodes.map(n => n.parentUid)])];
     const escapedPattern = PM.getEscapedFieldPattern();
 
     // Query para obtener todos los bloques de Proyecto Asociado de las páginas
@@ -219,19 +223,22 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
-    const coherent = [];    // Proyecto exacto
-    const specialized = [];  // Sub-namespace (especialización)
-    const different = [];
+    const coherent = [];    // Proyecto exacto al padre
+    const specialized = [];  // Sub-namespace del padre (especialización válida)
+    const different = [];    // Menos específico o diferente al padre
     const missing = [];
 
     try {
-        const results = await window.roamAlphaAPI.data.async.q(query, nodeUids);
+        const results = await window.roamAlphaAPI.data.async.q(query, allUids);
 
         // Crear mapa de UID -> proyecto
         const projectMap = new Map();
-        const regex = PM.getFieldRegex();
+        // El QUE raíz tiene su proyecto
+        projectMap.set(rootUid, rootProject);
 
+        const regex = PM.getFieldRegex();
         const fieldPattern = PM.getFieldPattern();
+
         results.forEach(r => {
             const pageUid = r[0];
             const blockString = r[1];
@@ -247,20 +254,25 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             }
         });
 
-        // 3. Clasificar nodos
+        // 3. Clasificar nodos según coherencia con su PADRE directo
         for (const node of branchNodes) {
             const nodeProject = projectMap.get(node.uid);
+            const parentProject = projectMap.get(node.parentUid) || rootProject;
 
             if (!nodeProject) {
-                missing.push({ ...node, project: null });
-            } else if (rootProject && nodeProject === rootProject) {
-                // Proyecto exactamente igual
-                coherent.push({ ...node, project: nodeProject });
-            } else if (rootProject && this.isHierarchicallyCoherent(rootProject, nodeProject)) {
-                // Sub-namespace (especialización)
-                specialized.push({ ...node, project: nodeProject });
+                missing.push({ ...node, project: null, parentProject });
+            } else if (parentProject && nodeProject === parentProject) {
+                // Exactamente igual al padre
+                coherent.push({ ...node, project: nodeProject, parentProject });
+            } else if (parentProject && nodeProject.startsWith(parentProject + '/')) {
+                // Más específico que el padre (especialización válida)
+                specialized.push({ ...node, project: nodeProject, parentProject });
+            } else if (parentProject && parentProject.startsWith(nodeProject + '/')) {
+                // MENOS específico que el padre (generalización - ERROR)
+                different.push({ ...node, project: nodeProject, parentProject, reason: 'generalization' });
             } else {
-                different.push({ ...node, project: nodeProject });
+                // Proyecto completamente diferente
+                different.push({ ...node, project: nodeProject, parentProject, reason: 'different' });
             }
         }
 

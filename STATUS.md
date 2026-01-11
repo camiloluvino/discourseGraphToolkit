@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.3.0**
+**v1.3.1**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,11 @@
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.3.1 (Enero 2026)
+- **Feature:** Verificación jerárquica padre-hijo — cada nodo debe tener proyecto igual o más específico que su padre directo
+- **Feature:** Detección de generalización — cuando un hijo tiene proyecto menos específico que su padre
+- **UI:** Muestra contexto del padre en errores: `⬆️ Generaliza: proyecto ← padre: proyecto/sub`
 
 ### v1.3.0 (Enero 2026)
 - **Feature:** Namespaces jerárquicos en verificación de ramas — sub-proyectos como `proyecto/sub/detalle` son coherentes con `proyecto/sub`

@@ -266,7 +266,13 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                         React.createElement('span', { style: { color: '#ff9800', fontSize: '0.875rem', flexShrink: 0 } }, '⚠️'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.4' } },
                             React.createElement('span', { style: { fontSize: '0.6875rem', fontWeight: 'bold', backgroundColor: '#fff3e0', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', marginRight: '0.5rem' } }, node.type),
-                            React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))
+                            React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
+                            // Mostrar contexto del padre
+                            React.createElement('div', { style: { fontSize: '0.6875rem', color: '#666', marginTop: '0.25rem' } },
+                                node.reason === 'generalization'
+                                    ? `⬆️ Generaliza: ${node.project} ← padre: ${node.parentProject}`
+                                    : `📁 ${node.project} ≠ padre: ${node.parentProject}`
+                            )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
@@ -279,7 +285,11 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                         React.createElement('span', { style: { color: '#f44336', fontSize: '0.875rem', flexShrink: 0 } }, '❌'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.4' } },
                             React.createElement('span', { style: { fontSize: '0.6875rem', fontWeight: 'bold', backgroundColor: '#ffebee', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', marginRight: '0.5rem' } }, node.type),
-                            React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))
+                            React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
+                            // Mostrar proyecto esperado del padre
+                            node.parentProject && React.createElement('div', { style: { fontSize: '0.6875rem', color: '#666', marginTop: '0.25rem' } },
+                                `📁 Padre espera: ${node.parentProject}`
+                            )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
