@@ -93,7 +93,23 @@ Proyecto Asociado:: [[artículo/sociabilidad en Simmel]]
 
 **Uso**:
 - Permite filtrar nodos por proyecto en la exportación
-- La pestaña "Ramas" verifica que todos los nodos de una rama tengan el mismo proyecto
+- La pestaña "Ramas" verifica que todos los nodos de una rama tengan proyectos coherentes
+
+### Namespaces Jerárquicos
+
+Los proyectos pueden usar `/` para crear jerarquías:
+
+```
+Proyecto Asociado:: [[tesis/marco/metodología]]
+```
+
+| Proyecto Raíz | Proyecto Nodo | Resultado |
+|---------------|---------------|-----------|
+| `tesis` | `tesis` | ✅ Coherente |
+| `tesis` | `tesis/marco` | 🔀 Especializado |
+| `tesis/marco` | `tesis` | ⚠️ Diferente |
+
+**Regla:** Un nodo hijo puede **especializar** (agregar sufijo) pero no **generalizar** (quitar sufijo) el proyecto de su padre.
 
 ---
 

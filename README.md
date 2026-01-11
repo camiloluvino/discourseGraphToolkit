@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.2.8  
+**Versión:** 1.3.0  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -36,6 +36,9 @@ Verifica la consistencia de tus ramas de investigación:
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado.
 - Propaga el proyecto de la rama a todos los nodos descendientes con un clic.
+- **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
+  - Nodos con sub-namespace son marcados como "🔀 Especializados" (coherentes pero con proyecto más específico).
+  - La propagación respeta especializaciones existentes.
 
 ### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:

@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.2.8
- * Bundled build: 2026-01-09 17:48:59
+ * DISCOURSE GRAPH TOOLKIT v1.3.0
+ * Bundled build: 2026-01-10 23:03:10
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.2.8";
+    DiscourseGraphToolkit.VERSION = "1.3.0";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1402,6 +1402,25 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
 };
 
 /**
+ * Verifica si un proyecto es jerárquicamente coherente con el proyecto raíz.
+ * Un proyecto es coherente si es exactamente igual o es un sub-namespace (especialización).
+ * @param {string} rootProject - Proyecto del nodo raíz
+ * @param {string} nodeProject - Proyecto del nodo a verificar
+ * @returns {boolean}
+ */
+DiscourseGraphToolkit.isHierarchicallyCoherent = function (rootProject, nodeProject) {
+    if (!rootProject || !nodeProject) return false;
+
+    // Exactamente igual
+    if (nodeProject === rootProject) return true;
+
+    // El nodo es sub-namespace del raíz (especialización con /)
+    if (nodeProject.startsWith(rootProject + '/')) return true;
+
+    return false;
+};
+
+/**
  * Verifica coherencia de proyectos en una rama
  * @param {string} rootUid - UID del QUE raíz
  * @param {Array<{uid: string, title: string, type: string}>} branchNodes - Nodos de la rama
@@ -1426,7 +1445,8 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
-    const coherent = [];
+    const coherent = [];    // Proyecto exacto
+    const specialized = [];  // Sub-namespace (especialización)
     const different = [];
     const missing = [];
 
@@ -1460,18 +1480,23 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             if (!nodeProject) {
                 missing.push({ ...node, project: null });
             } else if (rootProject && nodeProject === rootProject) {
+                // Proyecto exactamente igual
                 coherent.push({ ...node, project: nodeProject });
+            } else if (rootProject && this.isHierarchicallyCoherent(rootProject, nodeProject)) {
+                // Sub-namespace (especialización)
+                specialized.push({ ...node, project: nodeProject });
             } else {
                 different.push({ ...node, project: nodeProject });
             }
         }
 
-        return { rootProject, coherent, different, missing };
+        return { rootProject, coherent, specialized, different, missing };
     } catch (e) {
         console.error("Error verifying project coherence:", e);
         return {
             rootProject,
             coherent: [],
+            specialized: [],
             different: [],
             missing: branchNodes.map(n => ({ ...n, project: null }))
         };
@@ -1526,6 +1551,9 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     }
 
     // SEGUNDO: Actualizar los nodos hijos (CLM/EVD)
+    // Respetamos sub-namespaces existentes (especializaciones)
+    const regex = PM.getFieldRegex();
+    let skipped = 0;
 
     for (const node of nodesToUpdate) {
         try {
@@ -1541,8 +1569,20 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
             const results = await window.roamAlphaAPI.data.async.q(query);
 
             if (results && results.length > 0) {
-                // Actualizar el primer bloque encontrado
                 const blockUid = results[0][0];
+                const blockString = results[0][1];
+
+                // Extraer el proyecto actual del nodo
+                const match = blockString.match(regex);
+                const currentProject = match ? match[1].trim() : null;
+
+                // Si ya es coherente (exacto o sub-namespace), respetar la especialización
+                if (currentProject && this.isHierarchicallyCoherent(targetProject, currentProject)) {
+                    skipped++;
+                    continue;
+                }
+
+                // Actualizar solo si es incoherente
                 await window.roamAlphaAPI.data.block.update({
                     block: { uid: blockUid, string: newValue }
                 });
@@ -4160,6 +4200,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                 let status = 'coherent';
                 if (cohResult.missing.length > 0) status = 'missing';
                 else if (cohResult.different.length > 0) status = 'different';
+                else if (cohResult.specialized.length > 0) status = 'specialized';
 
                 results.push({
                     question: q,
@@ -4171,9 +4212,10 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent').length;
+            const specialized = results.filter(r => r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`;
+            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${specialized} especializados, ${different} diferentes, ${missing} sin proyecto.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
@@ -4215,6 +4257,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                 let status = 'coherent';
                 if (cohResult.missing.length > 0) status = 'missing';
                 else if (cohResult.different.length > 0) status = 'different';
+                else if (cohResult.specialized.length > 0) status = 'specialized';
 
                 const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
                 const updatedResults = bulkVerificationResults.map(r =>
@@ -4273,18 +4316,23 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         }, bulkVerifyStatus),
 
         // Dashboard de contadores
-        bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1.25rem' } },
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e8f5e9', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+        bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1.25rem', flexWrap: 'wrap' } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e8f5e9', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#4CAF50' } },
                     bulkVerificationResults.filter(r => r.status === 'coherent').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '✅ Coherentes')
             ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#fff3e0', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e3f2fd', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
+                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#2196F3' } },
+                    bulkVerificationResults.filter(r => r.status === 'specialized').length),
+                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '🔀 Especializados')
+            ),
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#fff3e0', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#ff9800' } },
                     bulkVerificationResults.filter(r => r.status === 'different').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '⚠️ Diferente')
             ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#ffebee', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#ffebee', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#f44336' } },
                     bulkVerificationResults.filter(r => r.status === 'missing').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '❌ Sin proyecto')
@@ -4311,7 +4359,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                         }
                     },
                         React.createElement('span', { style: { fontSize: '1.125rem', flexShrink: 0, marginTop: '0.125rem' } },
-                            result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
+                            result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
                         React.createElement('div', { style: { flex: 1 } },
                             React.createElement('div', { style: { fontSize: '0.875rem', fontWeight: '500', lineHeight: '1.4', marginBottom: '0.25rem' } },
                                 result.question.pageTitle.replace('[[QUE]] - ', '')),
@@ -4355,9 +4403,11 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             ),
 
             // Resumen
-            React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.9375rem', fontSize: '0.8125rem' } },
+            React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.9375rem', fontSize: '0.8125rem', flexWrap: 'wrap' } },
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#e8f5e9', borderRadius: '0.1875rem' } },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length} coherentes`),
+                React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#e3f2fd', borderRadius: '0.1875rem' } },
+                    `🔀 ${selectedBulkQuestion.coherence.specialized.length} especializados`),
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#fff3e0', borderRadius: '0.1875rem' } },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length} diferentes`),
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#ffebee', borderRadius: '0.1875rem' } },

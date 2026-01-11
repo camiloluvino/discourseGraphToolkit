@@ -176,6 +176,25 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
 };
 
 /**
+ * Verifica si un proyecto es jerárquicamente coherente con el proyecto raíz.
+ * Un proyecto es coherente si es exactamente igual o es un sub-namespace (especialización).
+ * @param {string} rootProject - Proyecto del nodo raíz
+ * @param {string} nodeProject - Proyecto del nodo a verificar
+ * @returns {boolean}
+ */
+DiscourseGraphToolkit.isHierarchicallyCoherent = function (rootProject, nodeProject) {
+    if (!rootProject || !nodeProject) return false;
+
+    // Exactamente igual
+    if (nodeProject === rootProject) return true;
+
+    // El nodo es sub-namespace del raíz (especialización con /)
+    if (nodeProject.startsWith(rootProject + '/')) return true;
+
+    return false;
+};
+
+/**
  * Verifica coherencia de proyectos en una rama
  * @param {string} rootUid - UID del QUE raíz
  * @param {Array<{uid: string, title: string, type: string}>} branchNodes - Nodos de la rama
@@ -200,7 +219,8 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
-    const coherent = [];
+    const coherent = [];    // Proyecto exacto
+    const specialized = [];  // Sub-namespace (especialización)
     const different = [];
     const missing = [];
 
@@ -234,18 +254,23 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             if (!nodeProject) {
                 missing.push({ ...node, project: null });
             } else if (rootProject && nodeProject === rootProject) {
+                // Proyecto exactamente igual
                 coherent.push({ ...node, project: nodeProject });
+            } else if (rootProject && this.isHierarchicallyCoherent(rootProject, nodeProject)) {
+                // Sub-namespace (especialización)
+                specialized.push({ ...node, project: nodeProject });
             } else {
                 different.push({ ...node, project: nodeProject });
             }
         }
 
-        return { rootProject, coherent, different, missing };
+        return { rootProject, coherent, specialized, different, missing };
     } catch (e) {
         console.error("Error verifying project coherence:", e);
         return {
             rootProject,
             coherent: [],
+            specialized: [],
             different: [],
             missing: branchNodes.map(n => ({ ...n, project: null }))
         };
@@ -300,6 +325,9 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     }
 
     // SEGUNDO: Actualizar los nodos hijos (CLM/EVD)
+    // Respetamos sub-namespaces existentes (especializaciones)
+    const regex = PM.getFieldRegex();
+    let skipped = 0;
 
     for (const node of nodesToUpdate) {
         try {
@@ -315,8 +343,20 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
             const results = await window.roamAlphaAPI.data.async.q(query);
 
             if (results && results.length > 0) {
-                // Actualizar el primer bloque encontrado
                 const blockUid = results[0][0];
+                const blockString = results[0][1];
+
+                // Extraer el proyecto actual del nodo
+                const match = blockString.match(regex);
+                const currentProject = match ? match[1].trim() : null;
+
+                // Si ya es coherente (exacto o sub-namespace), respetar la especialización
+                if (currentProject && this.isHierarchicallyCoherent(targetProject, currentProject)) {
+                    skipped++;
+                    continue;
+                }
+
+                // Actualizar solo si es incoherente
                 await window.roamAlphaAPI.data.block.update({
                     block: { uid: blockUid, string: newValue }
                 });

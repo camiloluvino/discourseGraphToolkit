@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.2.8**
+**v1.3.0**
 
 ## Estado de Funcionalidades
 
@@ -14,7 +14,7 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Estable | Detecta y propaga `Proyecto Asociado::` |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Soporta namespaces jerárquicos (sub-proyectos) |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
@@ -23,6 +23,11 @@
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 
 ## Historial Reciente
+
+### v1.3.0 (Enero 2026)
+- **Feature:** Namespaces jerárquicos en verificación de ramas — sub-proyectos como `proyecto/sub/detalle` son coherentes con `proyecto/sub`
+- **Feature:** Propagación inteligente — respeta especializaciones existentes al propagar proyectos
+- **UI:** Nueva categoría "🔀 Especializados" en pestaña Ramas para distinguir nodos con sub-namespaces
 
 ### v1.2.8 (Enero 2026)
 - **Feature:** Filtrado de atributos `Proyecto Asociado::` escapados con backticks — evita que ejemplos en conversaciones de chatbot aparezcan como proyectos reales en "Buscar Sugerencias"

@@ -44,6 +44,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                 let status = 'coherent';
                 if (cohResult.missing.length > 0) status = 'missing';
                 else if (cohResult.different.length > 0) status = 'different';
+                else if (cohResult.specialized.length > 0) status = 'specialized';
 
                 results.push({
                     question: q,
@@ -55,9 +56,10 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent').length;
+            const specialized = results.filter(r => r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${different} diferentes, ${missing} sin proyecto.`;
+            const statusMsg = `✅ Verificación completada: ${coherent} coherentes, ${specialized} especializados, ${different} diferentes, ${missing} sin proyecto.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
@@ -99,6 +101,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                 let status = 'coherent';
                 if (cohResult.missing.length > 0) status = 'missing';
                 else if (cohResult.different.length > 0) status = 'different';
+                else if (cohResult.specialized.length > 0) status = 'specialized';
 
                 const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
                 const updatedResults = bulkVerificationResults.map(r =>
@@ -157,18 +160,23 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         }, bulkVerifyStatus),
 
         // Dashboard de contadores
-        bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1.25rem' } },
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e8f5e9', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+        bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1.25rem', flexWrap: 'wrap' } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e8f5e9', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#4CAF50' } },
                     bulkVerificationResults.filter(r => r.status === 'coherent').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '✅ Coherentes')
             ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#fff3e0', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e3f2fd', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
+                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#2196F3' } },
+                    bulkVerificationResults.filter(r => r.status === 'specialized').length),
+                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '🔀 Especializados')
+            ),
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#fff3e0', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#ff9800' } },
                     bulkVerificationResults.filter(r => r.status === 'different').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '⚠️ Diferente')
             ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#ffebee', borderRadius: '0.25rem', textAlign: 'center', flex: 1 } },
+            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#ffebee', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
                 React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#f44336' } },
                     bulkVerificationResults.filter(r => r.status === 'missing').length),
                 React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '❌ Sin proyecto')
@@ -195,7 +203,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                         }
                     },
                         React.createElement('span', { style: { fontSize: '1.125rem', flexShrink: 0, marginTop: '0.125rem' } },
-                            result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
+                            result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
                         React.createElement('div', { style: { flex: 1 } },
                             React.createElement('div', { style: { fontSize: '0.875rem', fontWeight: '500', lineHeight: '1.4', marginBottom: '0.25rem' } },
                                 result.question.pageTitle.replace('[[QUE]] - ', '')),
@@ -239,9 +247,11 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             ),
 
             // Resumen
-            React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.9375rem', fontSize: '0.8125rem' } },
+            React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.9375rem', fontSize: '0.8125rem', flexWrap: 'wrap' } },
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#e8f5e9', borderRadius: '0.1875rem' } },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length} coherentes`),
+                React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#e3f2fd', borderRadius: '0.1875rem' } },
+                    `🔀 ${selectedBulkQuestion.coherence.specialized.length} especializados`),
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#fff3e0', borderRadius: '0.1875rem' } },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length} diferentes`),
                 React.createElement('span', { style: { padding: '0.3125rem 0.625rem', backgroundColor: '#ffebee', borderRadius: '0.1875rem' } },
