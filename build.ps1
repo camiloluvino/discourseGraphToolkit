@@ -1,12 +1,13 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.3.2"
+$version = "1.4.1"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
     "src/config.js",
     "src/utils/helpers.js",
     "src/utils/toast.js",
+    "src/utils/projectTreeUtils.js",
     "src/state.js",
     "src/api/roamProjects.js",
     "src/api/roamSearch.js",

@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.3.2  
+**Versión:** 1.4.1  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -39,6 +39,7 @@ Verifica la consistencia de tus ramas de investigación:
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
   - Nodos con sub-namespace son marcados como "🔀 Especializados" (coherentes pero con proyecto más específico).
   - Detecta "generalizaciones" cuando un hijo tiene proyecto menos específico que su padre.
+- **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
 - **Propagación inteligente con dos botones:**
   - `🔄 Propagar raíz` — Aplica el proyecto del QUE a nodos sin proyecto o con proyecto diferente.
   - `⬆️ Heredar de padres` — Corrige generalizaciones aplicando el proyecto del padre directo a cada nodo.
@@ -51,7 +52,8 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
 - **EPUB:** Libro electrónico listo para lectores de eBooks (Kindle, Apple Books, Calibre). Los encabezados incluyen prefijos de nivel y tipo: `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` para mejor legibilidad en pantallas e-ink.
 
-**Reordenamiento de Preguntas:** Después de hacer "Vista Previa", puedes reordenar las preguntas (QUE) usando botones ↑↓ antes de exportar. El orden personalizado se aplica a todos los formatos de exportación.
+- **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
+- **Reordenamiento de Preguntas:** Después de hacer "Vista Previa", puedes reordenar las preguntas (QUE) usando botones ↑↓ antes de exportar. El orden personalizado se aplica a todos los formatos de exportación.
 
 ### 5. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.

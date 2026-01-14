@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.3.2
- * Bundled build: 2026-01-10 23:44:11
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.4.1
+ * Bundled build: 2026-01-13 23:26:18
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.3.2";
+    DiscourseGraphToolkit.VERSION = "1.4.1";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -790,6 +790,205 @@ DiscourseGraphToolkit.showToast = function (message, type = 'success') {
     }, 3000);
 };
 
+
+
+
+// --- MODULE: src/utils/projectTreeUtils.js ---
+// ============================================================================
+// UTILS: Project Tree Utilities
+// Funciones para construir árbol jerárquico de proyectos por namespace
+// ============================================================================
+
+/**
+ * Construye un árbol jerárquico a partir de resultados de verificación
+ * @param {Array} results - Array de bulkVerificationResults
+ * @returns {Object} - Árbol jerárquico { projectName: { project, questions, children, aggregatedStatus, issueCount } }
+ */
+DiscourseGraphToolkit.buildProjectTree = function (results) {
+    const tree = {};
+    const noProject = { project: null, questions: [], children: {}, aggregatedStatus: 'missing', issueCount: 0 };
+
+    for (const result of results) {
+        const project = result.coherence.rootProject;
+
+        if (!project) {
+            noProject.questions.push(result);
+            continue;
+        }
+
+        // Dividir namespace en partes
+        const parts = project.split('/');
+        let currentLevel = tree;
+        let currentPath = '';
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            currentPath = currentPath ? currentPath + '/' + part : part;
+
+            if (!currentLevel[part]) {
+                currentLevel[part] = {
+                    project: currentPath,
+                    questions: [],
+                    children: {},
+                    aggregatedStatus: 'coherent',
+                    issueCount: 0
+                };
+            }
+
+            // Si es el último nivel, agregar la pregunta aquí
+            if (i === parts.length - 1) {
+                currentLevel[part].questions.push(result);
+            }
+
+            currentLevel = currentLevel[part].children;
+        }
+    }
+
+    // Agregar nodo para preguntas sin proyecto
+    if (noProject.questions.length > 0) {
+        tree['(sin proyecto)'] = noProject;
+    }
+
+    // Calcular estados agregados recursivamente
+    this._calculateAggregatedStatus(tree);
+
+    return tree;
+};
+
+/**
+ * Calcula el estado agregado y conteo de issues para cada nodo del árbol
+ * @param {Object} tree - Nodo del árbol o árbol completo
+ */
+DiscourseGraphToolkit._calculateAggregatedStatus = function (tree) {
+    const statusPriority = { 'missing': 4, 'different': 3, 'specialized': 2, 'coherent': 1 };
+
+    for (const key of Object.keys(tree)) {
+        const node = tree[key];
+
+        // Primero calcular hijos recursivamente
+        if (Object.keys(node.children).length > 0) {
+            this._calculateAggregatedStatus(node.children);
+        }
+
+        // Recopilar todos los estados (propios + hijos)
+        let worstStatus = 'coherent';
+        let issueCount = 0;
+
+        // Estados de preguntas propias
+        for (const q of node.questions) {
+            if (statusPriority[q.status] > statusPriority[worstStatus]) {
+                worstStatus = q.status;
+            }
+            if (q.status === 'different' || q.status === 'missing') {
+                issueCount++;
+            }
+        }
+
+        // Estados de hijos
+        for (const childKey of Object.keys(node.children)) {
+            const child = node.children[childKey];
+            if (statusPriority[child.aggregatedStatus] > statusPriority[worstStatus]) {
+                worstStatus = child.aggregatedStatus;
+            }
+            issueCount += child.issueCount;
+        }
+
+        node.aggregatedStatus = worstStatus;
+        node.issueCount = issueCount;
+    }
+};
+
+/**
+ * Cuenta el total de preguntas en un nodo (propias + descendientes)
+ * @param {Object} node - Nodo del árbol
+ * @returns {number}
+ */
+DiscourseGraphToolkit.countTreeQuestions = function (node) {
+    let count = node.questions.length;
+    for (const childKey of Object.keys(node.children)) {
+        count += this.countTreeQuestions(node.children[childKey]);
+    }
+    return count;
+};
+
+/**
+ * Obtiene todas las preguntas de un nodo (propias + descendientes) como array plano
+ * @param {Object} node - Nodo del árbol
+ * @returns {Array}
+ */
+DiscourseGraphToolkit.getTreeQuestions = function (node) {
+    let questions = [...node.questions];
+    for (const childKey of Object.keys(node.children)) {
+        questions = questions.concat(this.getTreeQuestions(node.children[childKey]));
+    }
+    return questions;
+};
+
+/**
+ * Construye un árbol jerárquico simple a partir de nombres de proyectos
+ * @param {Array<string>} projectNames - Array de nombres de proyectos
+ * @returns {Object} - Árbol jerárquico { key: { project, children, isLeaf } }
+ */
+DiscourseGraphToolkit.buildSimpleProjectTree = function (projectNames) {
+    const tree = {};
+
+    for (const project of projectNames) {
+        const parts = project.split('/');
+        let currentLevel = tree;
+        let currentPath = '';
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            currentPath = currentPath ? currentPath + '/' + part : part;
+
+            if (!currentLevel[part]) {
+                currentLevel[part] = {
+                    project: currentPath,
+                    children: {},
+                    isLeaf: false
+                };
+            }
+
+            // Marcar como hoja si es el último nivel
+            if (i === parts.length - 1) {
+                currentLevel[part].isLeaf = true;
+            }
+
+            currentLevel = currentLevel[part].children;
+        }
+    }
+
+    return tree;
+};
+
+/**
+ * Obtiene todos los proyectos descendientes de un nodo (incluyendo el propio)
+ * @param {Object} node - Nodo del árbol
+ * @returns {Array<string>} - Array de nombres de proyectos
+ */
+DiscourseGraphToolkit.getAllDescendantProjects = function (node) {
+    let projects = [];
+    if (node.isLeaf) {
+        projects.push(node.project);
+    }
+    for (const childKey of Object.keys(node.children)) {
+        projects = projects.concat(this.getAllDescendantProjects(node.children[childKey]));
+    }
+    return projects;
+};
+
+/**
+ * Cuenta cuántos proyectos hoja hay en un nodo
+ * @param {Object} node - Nodo del árbol
+ * @returns {number}
+ */
+DiscourseGraphToolkit.countLeafProjects = function (node) {
+    let count = node.isLeaf ? 1 : 0;
+    for (const childKey of Object.keys(node.children)) {
+        count += this.countLeafProjects(node.children[childKey]);
+    }
+    return count;
+};
 
 
 
@@ -4235,6 +4434,23 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         isPropagating, setIsPropagating
     } = props;
 
+    // --- Estado local para vista de árbol ---
+    const [expandedProjects, setExpandedProjects] = React.useState({});
+
+    // --- Árbol jerárquico (calculado) ---
+    const projectTree = React.useMemo(() => {
+        if (bulkVerificationResults.length === 0) return {};
+        return DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
+    }, [bulkVerificationResults]);
+
+    // --- Toggle expandir/colapsar proyecto ---
+    const toggleProjectExpand = (projectPath) => {
+        setExpandedProjects(prev => ({
+            ...prev,
+            [projectPath]: !prev[projectPath]
+        }));
+    };
+
     // --- Helpers ---
     const handleNavigateToPage = (uid) => {
         try {
@@ -4377,6 +4593,88 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
     };
 
+    // --- Render de nodo del árbol (recursivo) ---
+    const renderTreeNode = (node, key, depth) => {
+        const isExpanded = expandedProjects[node.project] !== false; // Expandido por defecto
+        const hasChildren = Object.keys(node.children).length > 0;
+        const hasQuestions = node.questions.length > 0;
+        const totalQuestions = DiscourseGraphToolkit.countTreeQuestions(node);
+        const statusIcon = node.aggregatedStatus === 'coherent' ? '✅' :
+            node.aggregatedStatus === 'specialized' ? '🔀' :
+                node.aggregatedStatus === 'different' ? '⚠️' : '❌';
+        const statusColor = node.aggregatedStatus === 'coherent' ? '#4CAF50' :
+            node.aggregatedStatus === 'specialized' ? '#2196F3' :
+                node.aggregatedStatus === 'different' ? '#ff9800' : '#f44336';
+
+        return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
+            // Encabezado del proyecto (si tiene más de una pregunta o tiene hijos)
+            (hasChildren || totalQuestions > 1 || depth === 0) && React.createElement('div', {
+                onClick: () => toggleProjectExpand(node.project),
+                style: {
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: depth === 0 ? '#f0f0f0' : '#f8f8f8',
+                    borderBottom: '1px solid #e0e0e0',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: depth === 0 ? 'bold' : '500'
+                }
+            },
+                React.createElement('span', { style: { color: '#666', fontSize: '0.75rem' } },
+                    isExpanded ? '▼' : '▶'),
+                React.createElement('span', null, '📁'),
+                React.createElement('span', { style: { flex: 1 } },
+                    node.project || '(sin proyecto)'),
+                React.createElement('span', {
+                    style: {
+                        fontSize: '0.6875rem',
+                        color: statusColor,
+                        backgroundColor: node.aggregatedStatus === 'coherent' ? '#e8f5e9' :
+                            node.aggregatedStatus === 'specialized' ? '#e3f2fd' :
+                                node.aggregatedStatus === 'different' ? '#fff3e0' : '#ffebee',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '0.1875rem'
+                    }
+                }, `${statusIcon} ${totalQuestions} preg${totalQuestions !== 1 ? 's' : ''}${node.issueCount > 0 ? `, ${node.issueCount} ⚠️` : ''}`)
+            ),
+
+            // Contenido (preguntas + hijos)
+            isExpanded && React.createElement('div', null,
+                // Preguntas directas de este nodo
+                node.questions.map(result =>
+                    React.createElement('div', {
+                        key: result.question.pageUid,
+                        onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
+                        style: {
+                            padding: '0.5rem 0.75rem',
+                            paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
+                            borderBottom: '1px solid #eee',
+                            cursor: 'pointer',
+                            backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8125rem'
+                        }
+                    },
+                        React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0 } },
+                            result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
+                        React.createElement('span', { style: { flex: 1, lineHeight: '1.3' } },
+                            result.question.pageTitle.replace('[[QUE]] - ', '')),
+                        React.createElement('span', { style: { fontSize: '0.6875rem', color: '#999', whiteSpace: 'nowrap' } },
+                            `${result.branchNodes.length} nodos`)
+                    )
+                ),
+                // Hijos recursivos
+                Object.keys(node.children).sort().map(childKey =>
+                    renderTreeNode(node.children[childKey], childKey, depth + 1)
+                )
+            )
+        );
+    };
+
     // --- Render ---
     return React.createElement('div', null,
         React.createElement('h3', { style: { marginTop: 0 } }, '🌿 Coherencia de Ramas'),
@@ -4438,34 +4736,14 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             )
         ),
 
-        // Lista de ramas
+        // Vista de árbol jerárquico por proyectos
         bulkVerificationResults.length > 0 && React.createElement('div', { style: { marginBottom: '1.25rem' } },
             React.createElement('div', {
-                style: { maxHeight: '15.625rem', overflowY: 'auto', border: '1px solid #eee', borderRadius: '0.25rem' }
+                style: { maxHeight: '18.75rem', overflowY: 'auto', border: '1px solid #eee', borderRadius: '0.25rem', backgroundColor: '#fafafa' }
             },
-                bulkVerificationResults.map(result =>
-                    React.createElement('div', {
-                        key: result.question.pageUid,
-                        onClick: () => handleBulkSelectQuestion(result),
-                        style: {
-                            padding: '0.75rem 0.9375rem',
-                            borderBottom: '1px solid #eee',
-                            cursor: 'pointer',
-                            backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '0.75rem'
-                        }
-                    },
-                        React.createElement('span', { style: { fontSize: '1.125rem', flexShrink: 0, marginTop: '0.125rem' } },
-                            result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
-                        React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('div', { style: { fontSize: '0.875rem', fontWeight: '500', lineHeight: '1.4', marginBottom: '0.25rem' } },
-                                result.question.pageTitle.replace('[[QUE]] - ', '')),
-                            React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } },
-                                `📁 ${result.coherence.rootProject || 'Sin proyecto'} • ${result.branchNodes.length} nodos`)
-                        )
-                    )
+                // Renderizar árbol recursivamente
+                Object.keys(projectTree).sort().map(projectKey =>
+                    renderTreeNode(projectTree[projectKey], projectKey, 0)
                 )
             )
         ),
@@ -4603,6 +4881,33 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
     } = props;
+
+    // --- Estado local para vista de árbol de proyectos ---
+    const [expandedExportProjects, setExpandedExportProjects] = React.useState({});
+
+    // --- Árbol jerárquico de proyectos (calculado) ---
+    const projectTree = React.useMemo(() => {
+        if (projects.length === 0) return {};
+        return DiscourseGraphToolkit.buildSimpleProjectTree(projects);
+    }, [projects]);
+
+    // --- Toggle expandir/colapsar proyecto ---
+    const toggleExportProjectExpand = (projectPath) => {
+        setExpandedExportProjects(prev => ({
+            ...prev,
+            [projectPath]: !prev[projectPath]
+        }));
+    };
+
+    // --- Selección en cascada ---
+    const handleProjectToggle = (node, checked) => {
+        const descendants = DiscourseGraphToolkit.getAllDescendantProjects(node);
+        const newSelected = { ...selectedProjects };
+        for (const proj of descendants) {
+            newSelected[proj] = checked;
+        }
+        setSelectedProjects(newSelected);
+    };
 
     // --- Helpers de Reordenamiento ---
     const moveQuestionUp = (index) => {
@@ -4934,6 +5239,60 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         }
     };
 
+    // --- Render de nodo del árbol de proyectos (recursivo) ---
+    const renderProjectTreeNode = (node, key, depth) => {
+        const isExpanded = expandedExportProjects[node.project] !== false;
+        const hasChildren = Object.keys(node.children).length > 0;
+        const descendants = DiscourseGraphToolkit.getAllDescendantProjects(node);
+        const selectedCount = descendants.filter(p => selectedProjects[p]).length;
+        const allSelected = selectedCount === descendants.length && descendants.length > 0;
+        const someSelected = selectedCount > 0 && selectedCount < descendants.length;
+
+        return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
+            React.createElement('div', {
+                style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.25rem 0',
+                    fontSize: '0.8125rem'
+                }
+            },
+                // Expand/collapse toggle (solo si tiene hijos)
+                hasChildren && React.createElement('span', {
+                    onClick: () => toggleExportProjectExpand(node.project),
+                    style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
+                }, isExpanded ? '▼' : '▶'),
+                !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
+                // Checkbox
+                React.createElement('input', {
+                    type: 'checkbox',
+                    checked: allSelected,
+                    ref: (el) => { if (el) el.indeterminate = someSelected; },
+                    onChange: (e) => handleProjectToggle(node, e.target.checked),
+                    style: { margin: 0 }
+                }),
+                // Label
+                React.createElement('span', {
+                    style: { cursor: 'pointer' },
+                    onClick: () => handleProjectToggle(node, !allSelected)
+                },
+                    hasChildren ? `📁 ${key}` : key
+                ),
+                // Badge con conteo si tiene hijos
+                hasChildren && React.createElement('span', {
+                    style: { fontSize: '0.625rem', color: '#999', marginLeft: '0.25rem' }
+                }, `(${selectedCount}/${descendants.length})`)
+            ),
+            // Hijos
+            hasChildren && isExpanded && React.createElement('div', null,
+                Object.keys(node.children).sort().map(childKey =>
+                    renderProjectTreeNode(node.children[childKey], childKey, depth + 1)
+                )
+            )
+        );
+    };
+
     // --- Render ---
     return React.createElement('div', null,
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
@@ -4946,19 +5305,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                         style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
                     }, 'Seleccionar todos')
                 ),
-                React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },
-                    projects.length === 0 ? 'No hay proyectos.' : projects.map(p =>
-                        React.createElement('div', { key: p },
-                            React.createElement('label', null,
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: selectedProjects[p] || false,
-                                    onChange: e => setSelectedProjects({ ...selectedProjects, [p]: e.target.checked })
-                                }),
-                                ' ' + p
-                            )
+                React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem', backgroundColor: '#fafafa' } },
+                    projects.length === 0 ? 'No hay proyectos.' :
+                        Object.keys(projectTree).sort().map(projectKey =>
+                            renderProjectTreeNode(projectTree[projectKey], projectKey, 0)
                         )
-                    )
                 )
             ),
             React.createElement('div', { style: { flex: 1 } },

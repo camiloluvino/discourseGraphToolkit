@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-11
+**Última actualización:** 2026-01-13
 
 ## Versión Actual
 
-**v1.3.2**
+**v1.4.1**
 
 ## Estado de Funcionalidades
 
@@ -14,15 +14,28 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Soporta namespaces jerárquicos (sub-proyectos) |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico por namespaces |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
 | Exportación EPUB | ✅ Mejorado | Bloques estructurales con espaciado visual |
 | Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
+| **Selector de proyectos (Exportar)** | ✅ **Nuevo** | **Vista de árbol con selección en cascada** |
 
 ## Historial Reciente
+
+### v1.4.1 (Enero 2026)
+- **Feature:** Vista de árbol jerárquico en selector de proyectos de pestaña Exportar
+- **UI:** Selección en cascada — marcar padre selecciona todos los hijos
+- **UI:** Checkbox indeterminado cuando solo algunos hijos están seleccionados
+- **UI:** Badge con conteo de proyectos seleccionados por carpeta
+
+### v1.4.0 (Enero 2026)
+- **Feature:** Vista de árbol jerárquico en pestaña Ramas — agrupa preguntas por namespace de proyecto
+- **UI:** Proyectos colapsables con indicador de estado agregado (✅/🔀/⚠️/❌)
+- **UI:** Muestra conteo de preguntas y problemas por proyecto
+- **Tech:** Nuevo módulo `projectTreeUtils.js` con lógica de construcción de árbol
 
 ### v1.3.2 (Enero 2026)
 - **UI:** Botones de propagación separados:
