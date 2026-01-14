@@ -152,7 +152,11 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
     };
 
     const refreshSelectedQuestion = async () => {
-        setBulkVerifyStatus(`✅ Completado. Refrescando...`);
+        setBulkVerifyStatus(`✅ Completado. Sincronizando con Roam...`);
+        // Delay para permitir que Roam sincronice los cambios en su cache interno
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        setBulkVerifyStatus(`✅ Refrescando datos...`);
         const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedBulkQuestion.question.pageUid);
         const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedBulkQuestion.question.pageUid, branchNodes);
 
@@ -291,28 +295,68 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             }
         }, bulkVerifyStatus),
 
-        // Dashboard de contadores
-        bulkVerificationResults.length > 0 && React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1.25rem', flexWrap: 'wrap' } },
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e8f5e9', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
-                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#4CAF50' } },
-                    bulkVerificationResults.filter(r => r.status === 'coherent').length),
-                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '✅ Coherentes')
-            ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#e3f2fd', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
-                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#2196F3' } },
-                    bulkVerificationResults.filter(r => r.status === 'specialized').length),
-                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '🔀 Especializados')
-            ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#fff3e0', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
-                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#ff9800' } },
-                    bulkVerificationResults.filter(r => r.status === 'different').length),
-                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '⚠️ Diferente')
-            ),
-            React.createElement('div', { style: { padding: '0.9375rem', backgroundColor: '#ffebee', borderRadius: '0.25rem', textAlign: 'center', flex: 1, minWidth: '70px' } },
-                React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 'bold', color: '#f44336' } },
-                    bulkVerificationResults.filter(r => r.status === 'missing').length),
-                React.createElement('div', { style: { fontSize: '0.75rem', color: '#666' } }, '❌ Sin proyecto')
-            )
+        // Dashboard de contadores (barra compacta)
+        bulkVerificationResults.length > 0 && React.createElement('div', {
+            style: {
+                display: 'flex',
+                gap: '0.5rem',
+                marginBottom: '0.75rem',
+                flexWrap: 'wrap',
+                alignItems: 'center'
+            }
+        },
+            React.createElement('span', {
+                style: {
+                    padding: '0.375rem 0.75rem',
+                    backgroundColor: '#e8f5e9',
+                    borderRadius: '1rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: '600',
+                    color: '#4CAF50',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                }
+            }, `✅ ${bulkVerificationResults.filter(r => r.status === 'coherent').length} Coherentes`),
+            React.createElement('span', {
+                style: {
+                    padding: '0.375rem 0.75rem',
+                    backgroundColor: '#e3f2fd',
+                    borderRadius: '1rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: '600',
+                    color: '#2196F3',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                }
+            }, `🔀 ${bulkVerificationResults.filter(r => r.status === 'specialized').length} Especializados`),
+            React.createElement('span', {
+                style: {
+                    padding: '0.375rem 0.75rem',
+                    backgroundColor: '#fff3e0',
+                    borderRadius: '1rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: '600',
+                    color: '#ff9800',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                }
+            }, `⚠️ ${bulkVerificationResults.filter(r => r.status === 'different').length} Diferente`),
+            React.createElement('span', {
+                style: {
+                    padding: '0.375rem 0.75rem',
+                    backgroundColor: '#ffebee',
+                    borderRadius: '1rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: '600',
+                    color: '#f44336',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                }
+            }, `❌ ${bulkVerificationResults.filter(r => r.status === 'missing').length} Sin proyecto`)
         ),
 
         // Vista de árbol jerárquico por proyectos

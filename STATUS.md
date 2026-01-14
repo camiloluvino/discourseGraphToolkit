@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.4.1**
+**v1.4.2**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,11 @@
 | **Selector de proyectos (Exportar)** | ✅ **Nuevo** | **Vista de árbol con selección en cascada** |
 
 ## Historial Reciente
+
+### v1.4.2 (Enero 2026)
+- **Feature:** Vista de árbol jerárquico en pestaña Proyectos — organiza proyectos por namespace
+- **UI:** Selección en cascada para eliminar múltiples proyectos
+- **UI:** Validación de existencia mostrada en árbol con indicadores ✅/⚠️
 
 ### v1.4.1 (Enero 2026)
 - **Feature:** Vista de árbol jerárquico en selector de proyectos de pestaña Exportar

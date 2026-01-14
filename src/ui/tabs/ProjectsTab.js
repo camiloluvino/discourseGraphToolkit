@@ -16,6 +16,23 @@ DiscourseGraphToolkit.ProjectsTab = function (props) {
         newProject, setNewProject
     } = props;
 
+    // --- Estado local para vista de árbol de proyectos ---
+    const [expandedProjects, setExpandedProjects] = React.useState({});
+
+    // --- Árbol jerárquico de proyectos (calculado) ---
+    const projectTree = React.useMemo(() => {
+        if (projects.length === 0) return {};
+        return DiscourseGraphToolkit.buildSimpleProjectTree(projects);
+    }, [projects]);
+
+    // --- Toggle expandir/colapsar proyecto ---
+    const toggleProjectExpand = (projectPath) => {
+        setExpandedProjects(prev => ({
+            ...prev,
+            [projectPath]: !prev[projectPath]
+        }));
+    };
+
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
         try {
@@ -152,6 +169,72 @@ DiscourseGraphToolkit.ProjectsTab = function (props) {
         }
     };
 
+    // --- Render de nodo del árbol de proyectos (recursivo) ---
+    const renderProjectTreeNode = (node, key, depth) => {
+        const isExpanded = expandedProjects[node.project] !== false;
+        const hasChildren = Object.keys(node.children).length > 0;
+        const descendants = DiscourseGraphToolkit.getAllDescendantProjects(node);
+        const selectedCount = descendants.filter(p => selectedProjectsForDelete[p]).length;
+        const allSelected = selectedCount === descendants.length && descendants.length > 0;
+        const someSelected = selectedCount > 0 && selectedCount < descendants.length;
+
+        // Obtener estado de validación del proyecto hoja
+        const validationStatus = node.isLeaf && validation[node.project] !== undefined
+            ? (validation[node.project] ? '✅' : '⚠️')
+            : '';
+
+        return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
+            React.createElement('div', {
+                style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.5rem',
+                    borderBottom: '1px solid #eee',
+                    backgroundColor: depth === 0 ? '#f8f8f8' : 'transparent',
+                    fontSize: '0.8125rem'
+                }
+            },
+                // Expand/collapse toggle
+                hasChildren && React.createElement('span', {
+                    onClick: () => toggleProjectExpand(node.project),
+                    style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
+                }, isExpanded ? '▼' : '▶'),
+                !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
+                // Checkbox para selección
+                React.createElement('input', {
+                    type: 'checkbox',
+                    checked: allSelected,
+                    ref: (el) => { if (el) el.indeterminate = someSelected; },
+                    onChange: (e) => {
+                        const newSelection = { ...selectedProjectsForDelete };
+                        for (const proj of descendants) {
+                            newSelection[proj] = e.target.checked;
+                        }
+                        setSelectedProjectsForDelete(newSelection);
+                    },
+                    style: { margin: 0 }
+                }),
+                // Nombre del proyecto
+                React.createElement('span', { style: { flex: 1 } },
+                    hasChildren ? `📁 ${key}` : key,
+                    validationStatus && React.createElement('span', { style: { marginLeft: '0.375rem' } }, validationStatus)
+                ),
+                // Botón eliminar solo para hojas
+                node.isLeaf && React.createElement('button', {
+                    onClick: () => handleRemoveProject(node.project),
+                    style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.75rem', padding: '0' }
+                }, '✕')
+            ),
+            // Hijos recursivos
+            hasChildren && isExpanded && React.createElement('div', null,
+                Object.keys(node.children).sort().map(childKey =>
+                    renderProjectTreeNode(node.children[childKey], childKey, depth + 1)
+                )
+            )
+        );
+    };
+
     // --- Render ---
     return React.createElement('div', null,
         // === SECCIÓN 1: LISTA DE PROYECTOS ===
@@ -195,24 +278,11 @@ DiscourseGraphToolkit.ProjectsTab = function (props) {
             }, 'Eliminar Seleccionados')
         ),
 
-        React.createElement('ul', { style: { listStyle: 'none', padding: 0, maxHeight: '25rem', overflowY: 'auto', border: '1px solid #eee' } },
-            projects.map(p =>
-                React.createElement('li', { key: p, style: { padding: '0.625rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                    React.createElement('label', { style: { display: 'flex', alignItems: 'center', flex: 1 } },
-                        React.createElement('input', {
-                            type: 'checkbox',
-                            checked: !!selectedProjectsForDelete[p],
-                            onChange: (e) => setSelectedProjectsForDelete({ ...selectedProjectsForDelete, [p]: e.target.checked }),
-                            style: { marginRight: '0.625rem' }
-                        }),
-                        React.createElement('span', null,
-                            p,
-                            validation[p] !== undefined ? (validation[p] ? " ✅" : " ⚠️ (No encontrado)") : ""
-                        )
-                    ),
-                    React.createElement('button', { onClick: () => handleRemoveProject(p), style: { color: 'red', border: 'none', background: 'none', cursor: 'pointer' } }, 'X')
+        React.createElement('div', { style: { maxHeight: '25rem', overflowY: 'auto', border: '1px solid #eee', backgroundColor: '#fafafa' } },
+            projects.length === 0 ? React.createElement('div', { style: { padding: '1rem', color: '#999' } }, 'No hay proyectos.') :
+                Object.keys(projectTree).sort().map(projectKey =>
+                    renderProjectTreeNode(projectTree[projectKey], projectKey, 0)
                 )
-            )
         )
     );
 };
