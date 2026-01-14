@@ -102,8 +102,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['proyectos', 'ramas', 'exportar', 'importar'].map(t =>
-                    React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) }, t.charAt(0).toUpperCase() + t.slice(1))
+                ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
+                    React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
+                        t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
                 )
             ),
 
@@ -182,6 +183,11 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
                     selectedBulkQuestion: selectedBulkQuestion, setSelectedBulkQuestion: setSelectedBulkQuestion,
                     editableProject: editableProject, setEditableProject: setEditableProject,
                     isPropagating: isPropagating, setIsPropagating: setIsPropagating
+                }),
+
+                // Pestaña Panorámica
+                activeTab === 'panoramica' && React.createElement(DiscourseGraphToolkit.PanoramicTab, {
+                    projects: projects
                 }),
 
                 activeTab === 'exportar' && React.createElement(DiscourseGraphToolkit.ExportTab, {

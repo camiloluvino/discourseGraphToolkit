@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-13
+**Última actualización:** 2026-01-14
 
 ## Versión Actual
 
-**v1.4.2**
+**v1.5.0**
 
 ## Estado de Funcionalidades
 
@@ -15,15 +15,24 @@
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico por namespaces |
+| **Vista Panorámica** | ✅ **Nuevo** | **Vista sintética de todas las ramas del grafo** |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
 | Exportación EPUB | ✅ Mejorado | Bloques estructurales con espaciado visual |
 | Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
-| **Selector de proyectos (Exportar)** | ✅ **Nuevo** | **Vista de árbol con selección en cascada** |
+| Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.0 (Enero 2026)
+- **Feature:** Nueva pestaña "Panorámica" — vista sintética de todas las ramas del grafo
+- **UI:** Visualización compacta horizontal: QUE → CLM → EVD
+- **UI:** Filtrado por proyecto
+- **UI:** Estadísticas de nodos (preguntas, afirmaciones, evidencias)
+- **UI:** Click en cualquier nodo navega a Roam
+- **Fix:** Corregida lógica de botones "Expandir Todo" / "Colapsar Todo"
 
 ### v1.4.2 (Enero 2026)
 - **Feature:** Vista de árbol jerárquico en pestaña Proyectos — organiza proyectos por namespace
