@@ -5,19 +5,26 @@
 
 DiscourseGraphToolkit.PanoramicTab = function (props) {
     const React = window.React;
-    const { projects } = props;
 
-    // --- Estados ---
+    // Desestructurar props del padre (estados que persisten entre cambios de pestaña)
+    const {
+        projects,
+        panoramicData, setPanoramicData,
+        expandedQuestions, setExpandedQuestions,
+        loadStatus, setLoadStatus,
+        selectedProject, setSelectedProject
+    } = props;
+
+    // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);
-    const [loadStatus, setLoadStatus] = React.useState('');
-    const [panoramicData, setPanoramicData] = React.useState(null); // { questions, allNodes }
-    const [expandedQuestions, setExpandedQuestions] = React.useState({});
-    const [selectedProject, setSelectedProject] = React.useState(''); // Filtro de proyecto
+
 
     // --- Helpers ---
     const handleNavigateToPage = (uid) => {
         try {
             window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            // Minimizar el modal para poder ver el nodo (mantiene estado)
+            DiscourseGraphToolkit.minimizeModal();
         } catch (e) {
             console.error("Error navigating to page:", e);
             window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');

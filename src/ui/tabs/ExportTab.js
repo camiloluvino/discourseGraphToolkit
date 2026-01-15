@@ -65,8 +65,19 @@ DiscourseGraphToolkit.ExportTab = function (props) {
     };
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
-        if (!ordered || ordered.length === 0) return questions;
-        const uidOrder = ordered.map(q => q.uid);
+        let uidOrder;
+        if (ordered && ordered.length > 0) {
+            uidOrder = ordered.map(q => q.uid);
+        } else {
+            // Fallback: intentar cargar desde localStorage
+            const projectKey = getProjectKey();
+            const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+            if (savedOrder && savedOrder.length > 0) {
+                uidOrder = savedOrder;
+            } else {
+                return questions;
+            }
+        }
         return [...questions].sort((a, b) => {
             const indexA = uidOrder.indexOf(a.uid);
             const indexB = uidOrder.indexOf(b.uid);
@@ -203,13 +214,29 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const sameQuestions = currentUIDs.length === newUIDs.length &&
             currentUIDs.every(uid => newUIDs.includes(uid));
 
+        // Calcular orden final para retornar (independiente del estado React)
+        const projectKey = pNames.sort().join('|');
+        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+        let orderedQuestionsToExport;
+        if (savedOrder && savedOrder.length > 0) {
+            const reordered = savedOrder
+                .map(uid => questions.find(q => q.uid === uid))
+                .filter(Boolean);
+            const newQues = questions.filter(q => !savedOrder.includes(q.uid));
+            orderedQuestionsToExport = [...reordered, ...newQues];
+        } else {
+            orderedQuestionsToExport = questions;
+        }
+
+        // Actualizar estado React solo si las preguntas cambiaron
         if (!sameQuestions) {
-            setOrderedQuestions(questions);
+            setOrderedQuestions(orderedQuestionsToExport);
         }
 
         const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}`;
 
-        return { questions, allNodes, filename };
+        // Retornar preguntas YA ordenadas para el export
+        return { questions: orderedQuestionsToExport, allNodes, filename };
     };
 
     const handleExport = async () => {
@@ -248,7 +275,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
@@ -278,7 +306,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
@@ -308,7 +337,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -338,7 +368,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(

@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.0
- * Bundled build: 2026-01-14 17:11:23
+ * Bundled build: 2026-01-15 12:31:59
  */
 
 (function () {
@@ -4527,6 +4527,8 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
     const handleNavigateToPage = (uid) => {
         try {
             window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            // Minimizar el modal para poder ver el nodo (mantiene estado)
+            DiscourseGraphToolkit.minimizeModal();
         } catch (e) {
             console.error("Error navigating to page:", e);
             window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
@@ -5174,19 +5176,26 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
 
 DiscourseGraphToolkit.PanoramicTab = function (props) {
     const React = window.React;
-    const { projects } = props;
 
-    // --- Estados ---
+    // Desestructurar props del padre (estados que persisten entre cambios de pestaña)
+    const {
+        projects,
+        panoramicData, setPanoramicData,
+        expandedQuestions, setExpandedQuestions,
+        loadStatus, setLoadStatus,
+        selectedProject, setSelectedProject
+    } = props;
+
+    // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);
-    const [loadStatus, setLoadStatus] = React.useState('');
-    const [panoramicData, setPanoramicData] = React.useState(null); // { questions, allNodes }
-    const [expandedQuestions, setExpandedQuestions] = React.useState({});
-    const [selectedProject, setSelectedProject] = React.useState(''); // Filtro de proyecto
+
 
     // --- Helpers ---
     const handleNavigateToPage = (uid) => {
         try {
             window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            // Minimizar el modal para poder ver el nodo (mantiene estado)
+            DiscourseGraphToolkit.minimizeModal();
         } catch (e) {
             console.error("Error navigating to page:", e);
             window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
@@ -5712,8 +5721,19 @@ DiscourseGraphToolkit.ExportTab = function (props) {
     };
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
-        if (!ordered || ordered.length === 0) return questions;
-        const uidOrder = ordered.map(q => q.uid);
+        let uidOrder;
+        if (ordered && ordered.length > 0) {
+            uidOrder = ordered.map(q => q.uid);
+        } else {
+            // Fallback: intentar cargar desde localStorage
+            const projectKey = getProjectKey();
+            const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+            if (savedOrder && savedOrder.length > 0) {
+                uidOrder = savedOrder;
+            } else {
+                return questions;
+            }
+        }
         return [...questions].sort((a, b) => {
             const indexA = uidOrder.indexOf(a.uid);
             const indexB = uidOrder.indexOf(b.uid);
@@ -5850,13 +5870,29 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const sameQuestions = currentUIDs.length === newUIDs.length &&
             currentUIDs.every(uid => newUIDs.includes(uid));
 
+        // Calcular orden final para retornar (independiente del estado React)
+        const projectKey = pNames.sort().join('|');
+        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
+        let orderedQuestionsToExport;
+        if (savedOrder && savedOrder.length > 0) {
+            const reordered = savedOrder
+                .map(uid => questions.find(q => q.uid === uid))
+                .filter(Boolean);
+            const newQues = questions.filter(q => !savedOrder.includes(q.uid));
+            orderedQuestionsToExport = [...reordered, ...newQues];
+        } else {
+            orderedQuestionsToExport = questions;
+        }
+
+        // Actualizar estado React solo si las preguntas cambiaron
         if (!sameQuestions) {
-            setOrderedQuestions(questions);
+            setOrderedQuestions(orderedQuestionsToExport);
         }
 
         const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}`;
 
-        return { questions, allNodes, filename };
+        // Retornar preguntas YA ordenadas para el export
+        return { questions: orderedQuestionsToExport, allNodes, filename };
     };
 
     const handleExport = async () => {
@@ -5895,7 +5931,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
@@ -5925,7 +5962,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
@@ -5955,7 +5993,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -5985,7 +6024,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         try {
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
             const { questions, allNodes, filename } = await prepareExportData(pagesToExport, pNames);
-            const questionsToExport = reorderQuestionsByUIDs(questions, orderedQuestions);
+            // questions ya viene ordenado desde prepareExportData
+            const questionsToExport = questions;
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -6312,7 +6352,7 @@ DiscourseGraphToolkit.ImportTab = function (props) {
 // 5. INTERFAZ DE USUARIO (REACT) - Modal Principal
 // ============================================================================
 
-DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
+DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
     const React = window.React;
 
     // --- Estados de Navegación ---
@@ -6348,6 +6388,12 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
     const [selectedBulkQuestion, setSelectedBulkQuestion] = React.useState(null);
     const [editableProject, setEditableProject] = React.useState('');
     const [isPropagating, setIsPropagating] = React.useState(false);
+
+    // --- Estados de Panorámica (persisten entre cambios de pestaña) ---
+    const [panoramicData, setPanoramicData] = React.useState(null);
+    const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState({});
+    const [panoramicLoadStatus, setPanoramicLoadStatus] = React.useState('');
+    const [panoramicSelectedProject, setPanoramicSelectedProject] = React.useState('');
 
     // --- Inicialización ---
     React.useEffect(() => {
@@ -6408,7 +6454,20 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
             // Header
             React.createElement('div', { style: { padding: '1.25rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
                 React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
-                React.createElement('button', { onClick: onClose, style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer' } }, '✕')
+                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+                    // Botón Minimizar
+                    React.createElement('button', {
+                        onClick: onMinimize,
+                        title: 'Minimizar (mantiene estado)',
+                        style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
+                    }, '➖'),
+                    // Botón Cerrar
+                    React.createElement('button', {
+                        onClick: onClose,
+                        title: 'Cerrar (resetea estado)',
+                        style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
+                    }, '✕')
+                )
             ),
             // Tabs
             React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
@@ -6497,7 +6556,15 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 
                 // Pestaña Panorámica
                 activeTab === 'panoramica' && React.createElement(DiscourseGraphToolkit.PanoramicTab, {
-                    projects: projects
+                    projects: projects,
+                    panoramicData: panoramicData,
+                    setPanoramicData: setPanoramicData,
+                    expandedQuestions: panoramicExpandedQuestions,
+                    setExpandedQuestions: setPanoramicExpandedQuestions,
+                    loadStatus: panoramicLoadStatus,
+                    setLoadStatus: setPanoramicLoadStatus,
+                    selectedProject: panoramicSelectedProject,
+                    setSelectedProject: setPanoramicSelectedProject
                 }),
 
                 activeTab === 'exportar' && React.createElement(DiscourseGraphToolkit.ExportTab, {
@@ -6522,22 +6589,92 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose }) {
 };
 
 DiscourseGraphToolkit.openModal = function () {
-    const previousActiveElement = document.activeElement;
-
     const existing = document.getElementById('discourse-graph-toolkit-modal');
-    if (existing) {
-        ReactDOM.unmountComponentAtNode(existing);
-        existing.remove();
+    const floatingBtn = document.getElementById('discourse-graph-toolkit-floating-btn');
+
+    // Si existe un modal minimizado, simplemente mostrarlo y ocultar el botón flotante
+    if (existing && existing.style.display === 'none') {
+        existing.style.display = 'block';
+        if (floatingBtn) floatingBtn.style.display = 'none';
+        return;
     }
+
+    // Si existe y está visible, no hacer nada
+    if (existing) {
+        return;
+    }
+
+    const previousActiveElement = document.activeElement;
 
     const div = document.createElement('div');
     div.id = 'discourse-graph-toolkit-modal';
     document.body.appendChild(div);
 
+    // Crear botón flotante (inicialmente oculto)
+    let floatingButton = document.getElementById('discourse-graph-toolkit-floating-btn');
+    if (!floatingButton) {
+        floatingButton = document.createElement('div');
+        floatingButton.id = 'discourse-graph-toolkit-floating-btn';
+        floatingButton.innerHTML = '📊';
+        floatingButton.title = 'Restaurar Discourse Graph Toolkit';
+        floatingButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+            z-index: 9998;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+        `;
+        floatingButton.onmouseenter = () => {
+            floatingButton.style.transform = 'scale(1.1)';
+            floatingButton.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.5)';
+        };
+        floatingButton.onmouseleave = () => {
+            floatingButton.style.transform = 'scale(1)';
+            floatingButton.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.4)';
+        };
+        floatingButton.onclick = () => {
+            DiscourseGraphToolkit.openModal();
+        };
+        document.body.appendChild(floatingButton);
+    }
+
+    // Función para minimizar (oculta pero mantiene estado + muestra botón flotante)
+    const minimize = () => {
+        div.style.display = 'none';
+        // Mostrar botón flotante
+        const btn = document.getElementById('discourse-graph-toolkit-floating-btn');
+        if (btn) btn.style.display = 'flex';
+        // Restaurar foco a Roam
+        setTimeout(() => {
+            const article = document.querySelector('.roam-article') ||
+                document.querySelector('.rm-article-wrapper') ||
+                document.querySelector('.roam-body-main');
+            if (article) {
+                article.focus();
+                article.click();
+            }
+        }, 50);
+    };
+
+    // Función para cerrar (destruye el componente + oculta botón flotante)
     const close = () => {
         try {
             ReactDOM.unmountComponentAtNode(div);
             if (div.parentNode) div.parentNode.removeChild(div);
+            // Ocultar botón flotante
+            const btn = document.getElementById('discourse-graph-toolkit-floating-btn');
+            if (btn) btn.style.display = 'none';
 
             setTimeout(() => {
                 if (previousActiveElement && document.body.contains(previousActiveElement)) {
@@ -6562,7 +6699,26 @@ DiscourseGraphToolkit.openModal = function () {
         }
     };
 
-    ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close }), div);
+    ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close, onMinimize: minimize }), div);
+};
+
+// Función auxiliar para minimizar desde cualquier parte del código
+DiscourseGraphToolkit.minimizeModal = function () {
+    const existing = document.getElementById('discourse-graph-toolkit-modal');
+    if (existing) {
+        existing.style.display = 'none';
+        // Mostrar botón flotante
+        const btn = document.getElementById('discourse-graph-toolkit-floating-btn');
+        if (btn) btn.style.display = 'flex';
+        // Restaurar foco a Roam
+        const article = document.querySelector('.roam-article') ||
+            document.querySelector('.rm-article-wrapper') ||
+            document.querySelector('.roam-body-main');
+        if (article) {
+            article.focus();
+            article.click();
+        }
+    }
 };
 
 

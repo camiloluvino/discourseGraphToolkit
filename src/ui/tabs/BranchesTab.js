@@ -36,6 +36,8 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
     const handleNavigateToPage = (uid) => {
         try {
             window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            // Minimizar el modal para poder ver el nodo (mantiene estado)
+            DiscourseGraphToolkit.minimizeModal();
         } catch (e) {
             console.error("Error navigating to page:", e);
             window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
