@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.0
- * Bundled build: 2026-01-15 12:31:59
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.1
+ * Bundled build: 2026-01-16 00:26:58
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.0";
+    DiscourseGraphToolkit.VERSION = "1.5.1";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -570,7 +570,8 @@ DiscourseGraphToolkit.STORAGE = {
     PROJECTS: "discourseGraphToolkit_projects",
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
     HISTORY_EXPORT: "discourseGraphToolkit_history_export",
-    QUESTION_ORDER: "discourseGraphToolkit_question_order"
+    QUESTION_ORDER: "discourseGraphToolkit_question_order",
+    PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache"
 };
 
 // Get current graph name from Roam API or URL
@@ -1197,6 +1198,53 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
     if (!projectKey) return null;
     const allOrders = this.loadAllQuestionOrders();
     return allOrders[projectKey] || null;
+};
+
+// --- Cache de Vista Panorámica ---
+DiscourseGraphToolkit.savePanoramicCache = function (panoramicData) {
+    // Crear copia limpia sin referencias circulares (node.data = node)
+    const cleanData = {
+        questions: panoramicData.questions.map(({ data, ...q }) => q),
+        allNodes: Object.fromEntries(
+            Object.entries(panoramicData.allNodes).map(([uid, node]) => {
+                const { data, ...clean } = node;
+                return [uid, clean];
+            })
+        )
+    };
+
+    const cachePayload = { panoramicData: cleanData, timestamp: Date.now() };
+    try {
+        localStorage.setItem(
+            this.getStorageKey(this.STORAGE.PANORAMIC_CACHE),
+            JSON.stringify(cachePayload)
+        );
+    } catch (e) {
+        console.warn("Panoramic cache save failed:", e);
+    }
+};
+
+DiscourseGraphToolkit.loadPanoramicCache = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
+    );
+    if (!stored) return null;
+    try {
+        const cached = JSON.parse(stored);
+        // Restaurar node.data = node para compatibilidad con exportación
+        if (cached.panoramicData?.allNodes) {
+            for (const node of Object.values(cached.panoramicData.allNodes)) {
+                node.data = node;
+            }
+        }
+        return cached;
+    } catch (e) { return null; }
+};
+
+DiscourseGraphToolkit.clearPanoramicCache = function () {
+    localStorage.removeItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
+    );
 };
 
 
@@ -5189,6 +5237,52 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
     // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);
 
+    // Estado local para el orden de preguntas
+    const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
+
+    // Estado para tracking del timestamp del cache
+    const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
+
+    // --- Helpers de Reordenamiento ---
+    const moveQuestionUp = (index) => {
+        if (index === 0 || !selectedProject) return;
+        const newOrder = [...orderedQuestionUIDs];
+        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+        setOrderedQuestionUIDs(newOrder);
+        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    };
+
+    const moveQuestionDown = (index) => {
+        if (index === orderedQuestionUIDs.length - 1 || !selectedProject) return;
+        const newOrder = [...orderedQuestionUIDs];
+        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+        setOrderedQuestionUIDs(newOrder);
+        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    };
+
+    // Efecto para cargar/sincronizar orden cuando cambia el proyecto o los datos
+    React.useEffect(() => {
+        if (!panoramicData || !selectedProject) {
+            setOrderedQuestionUIDs([]);
+            return;
+        }
+        // Obtener preguntas filtradas por proyecto
+        const projectQuestions = panoramicData.questions.filter(q => {
+            if (!q.project) return false;
+            return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
+        });
+        // Cargar orden guardado
+        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(selectedProject);
+        if (savedOrder && savedOrder.length > 0) {
+            // Ordenar según guardado, agregar nuevas al final
+            const orderedUIDs = savedOrder.filter(uid => projectQuestions.some(q => q.uid === uid));
+            const newUIDs = projectQuestions.filter(q => !savedOrder.includes(q.uid)).map(q => q.uid);
+            setOrderedQuestionUIDs([...orderedUIDs, ...newUIDs]);
+        } else {
+            setOrderedQuestionUIDs(projectQuestions.map(q => q.uid));
+        }
+    }, [panoramicData, selectedProject]);
+
 
     // --- Helpers ---
     const handleNavigateToPage = (uid) => {
@@ -5212,6 +5306,29 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
     const cleanTitle = (title, type) => {
         return (title || '').replace(new RegExp(`\\[\\[${type}\\]\\]\\s*-\\s*`), '').substring(0, 50);
     };
+
+    const formatTimeAgo = (timestamp) => {
+        const diff = Date.now() - timestamp;
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'menos de 1 minuto';
+        if (mins < 60) return `${mins} minuto${mins !== 1 ? 's' : ''}`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours} hora${hours !== 1 ? 's' : ''}`;
+        const days = Math.floor(hours / 24);
+        return `${days} día${days !== 1 ? 's' : ''}`;
+    };
+
+    // Efecto para restaurar cache al montar (solo si no hay datos)
+    React.useEffect(() => {
+        if (!panoramicData) {
+            const cached = DiscourseGraphToolkit.loadPanoramicCache();
+            if (cached && cached.panoramicData) {
+                setPanoramicData(cached.panoramicData);
+                setCacheTimestamp(cached.timestamp);
+                setLoadStatus(`📦 Datos restaurados del cache.`);
+            }
+        }
+    }, []); // Solo al montar
 
     // --- Cargar datos panorámicos ---
     const handleLoadPanoramic = async () => {
@@ -5278,6 +5395,9 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
             }));
 
             setPanoramicData({ questions: questionNodes, allNodes });
+            // Guardar en cache
+            DiscourseGraphToolkit.savePanoramicCache({ questions: questionNodes, allNodes });
+            setCacheTimestamp(Date.now());
             setLoadStatus(`✅ Cargadas ${questionNodes.length} preguntas con ${Object.keys(allNodes).length} nodos totales.`);
 
         } catch (e) {
@@ -5383,6 +5503,41 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
                     cursor: 'pointer'
                 }
             },
+                // Botones de reordenamiento (solo si hay proyecto seleccionado)
+                selectedProject && React.createElement('div', {
+                    style: { display: 'flex', flexDirection: 'column', marginRight: '0.25rem' },
+                    onClick: (e) => e.stopPropagation()
+                },
+                    React.createElement('button', {
+                        onClick: () => moveQuestionUp(orderedQuestionUIDs.indexOf(question.uid)),
+                        disabled: orderedQuestionUIDs.indexOf(question.uid) === 0,
+                        style: {
+                            padding: '0 0.25rem',
+                            fontSize: '0.5rem',
+                            lineHeight: '1',
+                            cursor: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 'not-allowed' : 'pointer',
+                            opacity: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 0.3 : 1,
+                            border: '1px solid #ccc',
+                            borderRadius: '2px',
+                            backgroundColor: '#fff',
+                            marginBottom: '1px'
+                        }
+                    }, '▲'),
+                    React.createElement('button', {
+                        onClick: () => moveQuestionDown(orderedQuestionUIDs.indexOf(question.uid)),
+                        disabled: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1,
+                        style: {
+                            padding: '0 0.25rem',
+                            fontSize: '0.5rem',
+                            lineHeight: '1',
+                            cursor: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 'not-allowed' : 'pointer',
+                            opacity: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 0.3 : 1,
+                            border: '1px solid #ccc',
+                            borderRadius: '2px',
+                            backgroundColor: '#fff'
+                        }
+                    }, '▼')
+                ),
                 React.createElement('span', { style: { color: '#666', fontSize: '0.6875rem' } },
                     isExpanded ? '▼' : '▶'),
                 React.createElement('span', {
@@ -5473,10 +5628,16 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
         );
     };
 
-    // --- Filtrar preguntas por proyecto ---
+    // --- Filtrar preguntas por proyecto (respetando orden) ---
     const getFilteredQuestions = () => {
         if (!panoramicData) return [];
         if (!selectedProject) return panoramicData.questions;
+        // Si hay orden guardado, usarlo
+        if (orderedQuestionUIDs.length > 0) {
+            return orderedQuestionUIDs
+                .map(uid => panoramicData.questions.find(q => q.uid === uid))
+                .filter(Boolean);
+        }
         return panoramicData.questions.filter(q => {
             if (!q.project) return false;
             return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
@@ -5565,6 +5726,37 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
                     }
                 }, '➖ Colapsar Todo')
             )
+        ),
+
+        // Banner de cache
+        cacheTimestamp && !isLoading && React.createElement('div', {
+            style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                backgroundColor: '#fff8e1',
+                border: '1px solid #ffecb3',
+                borderRadius: '0.25rem',
+                fontSize: '0.75rem',
+                color: '#f57c00'
+            }
+        },
+            React.createElement('span', null,
+                `📦 Datos de hace ${formatTimeAgo(cacheTimestamp)}. `),
+            React.createElement('button', {
+                onClick: handleLoadPanoramic,
+                style: {
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: '#ff9800',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    cursor: 'pointer',
+                    fontSize: '0.6875rem'
+                }
+            }, '🔄 Refrescar')
         ),
 
         // Status
@@ -5699,26 +5891,7 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         setSelectedProjects(newSelected);
     };
 
-    // --- Helpers de Reordenamiento ---
-    const moveQuestionUp = (index) => {
-        if (index === 0) return;
-        const newOrder = [...orderedQuestions];
-        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-        setOrderedQuestions(newOrder);
-        // Guardar orden persistente
-        const projectKey = getProjectKey();
-        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
-    };
-
-    const moveQuestionDown = (index) => {
-        if (index === orderedQuestions.length - 1) return;
-        const newOrder = [...orderedQuestions];
-        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-        setOrderedQuestions(newOrder);
-        // Guardar orden persistente
-        const projectKey = getProjectKey();
-        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
-    };
+    // Funciones de reordenamiento removidas - ahora se manejan en PanoramicTab
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
         let uidOrder;
@@ -6210,69 +6383,49 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         ),
         exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
 
-        // --- UI de Reordenamiento de Preguntas ---
+        // --- Indicador de orden (solo lectura) ---
         orderedQuestions.length > 0 && React.createElement('div', {
             style: {
                 marginTop: '1rem',
                 padding: '0.75rem',
-                border: '1px solid #ddd',
+                border: '1px solid #e3f2fd',
                 borderRadius: '0.25rem',
-                backgroundColor: '#fafafa'
+                backgroundColor: '#f5faff'
             }
         },
-            React.createElement('h4', { style: { margin: '0 0 0.5rem 0', fontSize: '0.875rem' } },
-                `Orden de Preguntas (${orderedQuestions.length})`
+            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
+                React.createElement('span', { style: { fontSize: '1rem' } }, '🗒️'),
+                React.createElement('span', { style: { fontWeight: 'bold', fontSize: '0.875rem' } },
+                    `Orden de Exportación (${orderedQuestions.length} preguntas)`
+                ),
+                React.createElement('span', {
+                    style: {
+                        fontSize: '0.6875rem',
+                        color: '#666',
+                        backgroundColor: '#e3f2fd',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '0.75rem'
+                    }
+                }, 'ℹ️ Para reordenar, usa la pestaña Panorámica')
             ),
-            React.createElement('div', {
+            React.createElement('ol', {
                 style: {
-                    maxHeight: '10rem',
-                    overflowY: 'auto'
+                    margin: 0,
+                    paddingLeft: '1.25rem',
+                    maxHeight: '8rem',
+                    overflowY: 'auto',
+                    fontSize: '0.8125rem',
+                    color: '#555'
                 }
             },
-                orderedQuestions.map((q, index) =>
-                    React.createElement('div', {
-                        key: q.uid,
-                        style: {
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '0.25rem 0',
-                            borderBottom: index < orderedQuestions.length - 1 ? '1px solid #eee' : 'none'
-                        }
-                    },
-                        React.createElement('button', {
-                            onClick: () => moveQuestionUp(index),
-                            disabled: index === 0,
-                            style: {
-                                padding: '0.125rem 0.375rem',
-                                marginRight: '0.25rem',
-                                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                                opacity: index === 0 ? 0.4 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '0.125rem',
-                                backgroundColor: '#fff'
-                            }
-                        }, '↑'),
-                        React.createElement('button', {
-                            onClick: () => moveQuestionDown(index),
-                            disabled: index === orderedQuestions.length - 1,
-                            style: {
-                                padding: '0.125rem 0.375rem',
-                                marginRight: '0.5rem',
-                                cursor: index === orderedQuestions.length - 1 ? 'not-allowed' : 'pointer',
-                                opacity: index === orderedQuestions.length - 1 ? 0.4 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '0.125rem',
-                                backgroundColor: '#fff'
-                            }
-                        }, '↓'),
-                        React.createElement('span', {
-                            style: {
-                                fontSize: '0.8125rem',
-                                color: '#333'
-                            }
-                        }, `${index + 1}. ${cleanTitleForDisplay(q.title)}`)
+                orderedQuestions.slice(0, 10).map(q =>
+                    React.createElement('li', { key: q.uid, style: { marginBottom: '0.125rem' } },
+                        cleanTitleForDisplay(q.title)
                     )
-                )
+                ),
+                orderedQuestions.length > 10 && React.createElement('li', {
+                    style: { color: '#999', fontStyle: 'italic' }
+                }, `... y ${orderedQuestions.length - 10} más`)
             )
         ),
 

@@ -43,26 +43,7 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         setSelectedProjects(newSelected);
     };
 
-    // --- Helpers de Reordenamiento ---
-    const moveQuestionUp = (index) => {
-        if (index === 0) return;
-        const newOrder = [...orderedQuestions];
-        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-        setOrderedQuestions(newOrder);
-        // Guardar orden persistente
-        const projectKey = getProjectKey();
-        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
-    };
-
-    const moveQuestionDown = (index) => {
-        if (index === orderedQuestions.length - 1) return;
-        const newOrder = [...orderedQuestions];
-        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-        setOrderedQuestions(newOrder);
-        // Guardar orden persistente
-        const projectKey = getProjectKey();
-        DiscourseGraphToolkit.saveQuestionOrder(projectKey, newOrder);
-    };
+    // Funciones de reordenamiento removidas - ahora se manejan en PanoramicTab
 
     const reorderQuestionsByUIDs = (questions, ordered) => {
         let uidOrder;
@@ -554,69 +535,49 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         ),
         exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
 
-        // --- UI de Reordenamiento de Preguntas ---
+        // --- Indicador de orden (solo lectura) ---
         orderedQuestions.length > 0 && React.createElement('div', {
             style: {
                 marginTop: '1rem',
                 padding: '0.75rem',
-                border: '1px solid #ddd',
+                border: '1px solid #e3f2fd',
                 borderRadius: '0.25rem',
-                backgroundColor: '#fafafa'
+                backgroundColor: '#f5faff'
             }
         },
-            React.createElement('h4', { style: { margin: '0 0 0.5rem 0', fontSize: '0.875rem' } },
-                `Orden de Preguntas (${orderedQuestions.length})`
+            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
+                React.createElement('span', { style: { fontSize: '1rem' } }, '🗒️'),
+                React.createElement('span', { style: { fontWeight: 'bold', fontSize: '0.875rem' } },
+                    `Orden de Exportación (${orderedQuestions.length} preguntas)`
+                ),
+                React.createElement('span', {
+                    style: {
+                        fontSize: '0.6875rem',
+                        color: '#666',
+                        backgroundColor: '#e3f2fd',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '0.75rem'
+                    }
+                }, 'ℹ️ Para reordenar, usa la pestaña Panorámica')
             ),
-            React.createElement('div', {
+            React.createElement('ol', {
                 style: {
-                    maxHeight: '10rem',
-                    overflowY: 'auto'
+                    margin: 0,
+                    paddingLeft: '1.25rem',
+                    maxHeight: '8rem',
+                    overflowY: 'auto',
+                    fontSize: '0.8125rem',
+                    color: '#555'
                 }
             },
-                orderedQuestions.map((q, index) =>
-                    React.createElement('div', {
-                        key: q.uid,
-                        style: {
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '0.25rem 0',
-                            borderBottom: index < orderedQuestions.length - 1 ? '1px solid #eee' : 'none'
-                        }
-                    },
-                        React.createElement('button', {
-                            onClick: () => moveQuestionUp(index),
-                            disabled: index === 0,
-                            style: {
-                                padding: '0.125rem 0.375rem',
-                                marginRight: '0.25rem',
-                                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                                opacity: index === 0 ? 0.4 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '0.125rem',
-                                backgroundColor: '#fff'
-                            }
-                        }, '↑'),
-                        React.createElement('button', {
-                            onClick: () => moveQuestionDown(index),
-                            disabled: index === orderedQuestions.length - 1,
-                            style: {
-                                padding: '0.125rem 0.375rem',
-                                marginRight: '0.5rem',
-                                cursor: index === orderedQuestions.length - 1 ? 'not-allowed' : 'pointer',
-                                opacity: index === orderedQuestions.length - 1 ? 0.4 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '0.125rem',
-                                backgroundColor: '#fff'
-                            }
-                        }, '↓'),
-                        React.createElement('span', {
-                            style: {
-                                fontSize: '0.8125rem',
-                                color: '#333'
-                            }
-                        }, `${index + 1}. ${cleanTitleForDisplay(q.title)}`)
+                orderedQuestions.slice(0, 10).map(q =>
+                    React.createElement('li', { key: q.uid, style: { marginBottom: '0.125rem' } },
+                        cleanTitleForDisplay(q.title)
                     )
-                )
+                ),
+                orderedQuestions.length > 10 && React.createElement('li', {
+                    style: { color: '#999', fontStyle: 'italic' }
+                }, `... y ${orderedQuestions.length - 10} más`)
             )
         ),
 

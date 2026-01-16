@@ -203,3 +203,50 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
     const allOrders = this.loadAllQuestionOrders();
     return allOrders[projectKey] || null;
 };
+
+// --- Cache de Vista Panorámica ---
+DiscourseGraphToolkit.savePanoramicCache = function (panoramicData) {
+    // Crear copia limpia sin referencias circulares (node.data = node)
+    const cleanData = {
+        questions: panoramicData.questions.map(({ data, ...q }) => q),
+        allNodes: Object.fromEntries(
+            Object.entries(panoramicData.allNodes).map(([uid, node]) => {
+                const { data, ...clean } = node;
+                return [uid, clean];
+            })
+        )
+    };
+
+    const cachePayload = { panoramicData: cleanData, timestamp: Date.now() };
+    try {
+        localStorage.setItem(
+            this.getStorageKey(this.STORAGE.PANORAMIC_CACHE),
+            JSON.stringify(cachePayload)
+        );
+    } catch (e) {
+        console.warn("Panoramic cache save failed:", e);
+    }
+};
+
+DiscourseGraphToolkit.loadPanoramicCache = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
+    );
+    if (!stored) return null;
+    try {
+        const cached = JSON.parse(stored);
+        // Restaurar node.data = node para compatibilidad con exportación
+        if (cached.panoramicData?.allNodes) {
+            for (const node of Object.values(cached.panoramicData.allNodes)) {
+                node.data = node;
+            }
+        }
+        return cached;
+    } catch (e) { return null; }
+};
+
+DiscourseGraphToolkit.clearPanoramicCache = function () {
+    localStorage.removeItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
+    );
+};

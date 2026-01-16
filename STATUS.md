@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-14
+**Última actualización:** 2026-01-16
 
 ## Versión Actual
 
-**v1.5.0**
+**v1.5.1**
 
 ## Estado de Funcionalidades
 
@@ -15,7 +15,7 @@
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico por namespaces |
-| **Vista Panorámica** | ✅ **Nuevo** | **Vista sintética de todas las ramas del grafo** |
+| **Vista Panorámica** | ✅ **Mejorado** | **Cache persistente + restauración automática** |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
@@ -25,6 +25,12 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.1 (Enero 2026)
+- **Feature:** Cache persistente para pestaña Panorámica — datos se restauran automáticamente al reabrir modal
+- **UI:** Banner con antigüedad del cache y botón "Refrescar"
+- **Fix:** Corregido bug de referencias circulares (`node.data = node`) que impedía serializar cache
+- **Tech:** Funciones `savePanoramicCache` y `loadPanoramicCache` con limpieza/restauración de refs circulares
 
 ### v1.5.0 (Enero 2026)
 - **Feature:** Nueva pestaña "Panorámica" — vista sintética de todas las ramas del grafo
