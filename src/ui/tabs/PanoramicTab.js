@@ -85,7 +85,7 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
     };
 
     const cleanTitle = (title, type) => {
-        return (title || '').replace(new RegExp(`\\[\\[${type}\\]\\]\\s*-\\s*`), '').substring(0, 50);
+        return (title || '').replace(new RegExp(`\\[\\[${type}\\]\\]\\s*-\\s*`), '');
     };
 
     const formatTimeAgo = (timestamp) => {
@@ -440,156 +440,166 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
 
     // --- Render ---
     return React.createElement('div', null,
-        React.createElement('h3', { style: { marginTop: 0 } }, '🗺️ Vista Panorámica'),
-        React.createElement('p', { style: { color: '#666', marginBottom: '0.9375rem', fontSize: '0.875rem' } },
-            'Vista sintética de todas las ramas del grafo de discurso. Click en cualquier nodo para navegar a Roam.'),
-
-        // Controles
-        React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' } },
-            React.createElement('button', {
-                onClick: handleLoadPanoramic,
-                disabled: isLoading,
+        // Header con layout de dos columnas: título a la izquierda, controles a la derecha
+        React.createElement('div', {
+            style: {
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '0.75rem',
+                gap: '1rem'
+            }
+        },
+            // Columna izquierda: título y descripción
+            React.createElement('div', { style: { flex: '1' } },
+                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, '🗺️ Vista Panorámica'),
+                React.createElement('p', { style: { color: '#666', margin: 0, fontSize: '0.875rem' } },
+                    'Vista sintética de todas las ramas del grafo de discurso. Click en cualquier nodo para navegar a Roam.')
+            ),
+            // Columna derecha: controles compactos
+            React.createElement('div', {
                 style: {
-                    padding: '0.75rem 1.5rem',
-                    backgroundColor: isLoading ? '#ccc' : '#2196F3',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.25rem',
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: 'bold'
-                }
-            }, isLoading ? '⏳ Cargando...' : '🔄 Cargar Panorámica'),
-
-            // Filtro de proyecto
-            panoramicData && uniqueProjects.length > 0 && React.createElement('select', {
-                value: selectedProject,
-                onChange: (e) => setSelectedProject(e.target.value),
-                style: {
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.8125rem'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '0.375rem',
+                    flexShrink: 0
                 }
             },
-                React.createElement('option', { value: '' }, `Todos los proyectos (${panoramicData.questions.length})`),
-                uniqueProjects.map(p =>
-                    React.createElement('option', { key: p, value: p }, p)
-                )
-            ),
-
-            // Botones expandir/colapsar
-            panoramicData && React.createElement(React.Fragment, null,
-                React.createElement('button', {
-                    onClick: () => {
-                        const allExpanded = {};
-                        filteredQuestions.forEach(q => allExpanded[q.uid] = true);
-                        setExpandedQuestions(allExpanded);
+                // Fila 1: Botón cargar + dropdown
+                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+                    React.createElement('button', {
+                        onClick: handleLoadPanoramic,
+                        disabled: isLoading,
+                        style: {
+                            padding: '0.375rem 0.75rem',
+                            backgroundColor: isLoading ? '#ccc' : '#2196F3',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: isLoading ? 'not-allowed' : 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold'
+                        }
+                    }, isLoading ? '⏳...' : '🔄 Cargar'),
+                    // Filtro de proyecto
+                    panoramicData && uniqueProjects.length > 0 && React.createElement('select', {
+                        value: selectedProject,
+                        onChange: (e) => setSelectedProject(e.target.value),
+                        style: {
+                            padding: '0.25rem 0.375rem',
+                            border: '1px solid #ccc',
+                            borderRadius: '0.25rem',
+                            fontSize: '0.6875rem',
+                            maxWidth: '150px'
+                        }
                     },
+                        React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
+                        uniqueProjects.map(p =>
+                            React.createElement('option', { key: p, value: p }, p)
+                        )
+                    )
+                ),
+                // Fila 2: Botones expandir/colapsar
+                panoramicData && React.createElement('div', { style: { display: 'flex', gap: '0.375rem' } },
+                    React.createElement('button', {
+                        onClick: () => {
+                            const allExpanded = {};
+                            filteredQuestions.forEach(q => allExpanded[q.uid] = true);
+                            setExpandedQuestions(allExpanded);
+                        },
+                        style: {
+                            padding: '0.25rem 0.5rem',
+                            border: '1px solid #ccc',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.6875rem',
+                            backgroundColor: '#f5f5f5'
+                        }
+                    }, '➕ Expandir'),
+                    React.createElement('button', {
+                        onClick: () => setExpandedQuestions({}),
+                        style: {
+                            padding: '0.25rem 0.5rem',
+                            border: '1px solid #ccc',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.6875rem',
+                            backgroundColor: '#f5f5f5'
+                        }
+                    }, '➖ Colapsar')
+                ),
+                // Fila 3: Cache info (si existe)
+                cacheTimestamp && !isLoading && React.createElement('div', {
                     style: {
-                        padding: '0.5rem 0.75rem',
-                        border: '1px solid #ccc',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        backgroundColor: '#f5f5f5'
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        fontSize: '0.625rem',
+                        color: '#f57c00'
                     }
-                }, '➕ Expandir Todo'),
-                React.createElement('button', {
-                    onClick: () => setExpandedQuestions({}),
-                    style: {
-                        padding: '0.5rem 0.75rem',
-                        border: '1px solid #ccc',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        backgroundColor: '#f5f5f5'
-                    }
-                }, '➖ Colapsar Todo')
+                },
+                    React.createElement('span', null, `📦 ${formatTimeAgo(cacheTimestamp)}`),
+                    React.createElement('button', {
+                        onClick: handleLoadPanoramic,
+                        style: {
+                            padding: '0.125rem 0.375rem',
+                            backgroundColor: '#ff9800',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.5625rem'
+                        }
+                    }, '🔄')
+                ),
+                // Fila 4: Estadísticas compactas
+                panoramicData && React.createElement('div', {
+                    style: { display: 'flex', gap: '0.375rem' }
+                },
+                    React.createElement('span', {
+                        style: {
+                            padding: '0.125rem 0.375rem',
+                            backgroundColor: '#e3f2fd',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.625rem',
+                            color: '#2196F3'
+                        }
+                    }, `📝 ${filteredQuestions.length}`),
+                    React.createElement('span', {
+                        style: {
+                            padding: '0.125rem 0.375rem',
+                            backgroundColor: '#e8f5e9',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.625rem',
+                            color: '#4CAF50'
+                        }
+                    }, `📌 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
+                    React.createElement('span', {
+                        style: {
+                            padding: '0.125rem 0.375rem',
+                            backgroundColor: '#fff3e0',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.625rem',
+                            color: '#ff9800'
+                        }
+                    }, `📎 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
+                )
             )
         ),
 
-        // Banner de cache
-        cacheTimestamp && !isLoading && React.createElement('div', {
+        // Status (compacto, solo si hay mensajes de carga activa)
+        loadStatus && !loadStatus.includes('📦') && React.createElement('div', {
             style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
                 marginBottom: '0.5rem',
-                padding: '0.5rem 0.75rem',
-                backgroundColor: '#fff8e1',
-                border: '1px solid #ffecb3',
-                borderRadius: '0.25rem',
-                fontSize: '0.75rem',
-                color: '#f57c00'
-            }
-        },
-            React.createElement('span', null,
-                `📦 Datos de hace ${formatTimeAgo(cacheTimestamp)}. `),
-            React.createElement('button', {
-                onClick: handleLoadPanoramic,
-                style: {
-                    padding: '0.25rem 0.5rem',
-                    backgroundColor: '#ff9800',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.25rem',
-                    cursor: 'pointer',
-                    fontSize: '0.6875rem'
-                }
-            }, '🔄 Refrescar')
-        ),
-
-        // Status
-        loadStatus && React.createElement('div', {
-            style: {
-                marginBottom: '0.75rem',
-                padding: '0.625rem',
+                padding: '0.375rem 0.625rem',
                 backgroundColor: loadStatus.includes('✅') ? '#e8f5e9' :
                     loadStatus.includes('❌') ? '#ffebee' : '#f5f5f5',
                 borderRadius: '0.25rem',
                 fontWeight: 'bold',
-                fontSize: '0.8125rem'
+                fontSize: '0.75rem'
             }
         }, loadStatus),
-
-        // Estadísticas
-        panoramicData && React.createElement('div', {
-            style: {
-                display: 'flex',
-                gap: '0.75rem',
-                marginBottom: '1rem',
-                flexWrap: 'wrap'
-            }
-        },
-            React.createElement('span', {
-                style: {
-                    padding: '0.375rem 0.75rem',
-                    backgroundColor: '#e3f2fd',
-                    borderRadius: '1rem',
-                    fontSize: '0.75rem',
-                    color: '#2196F3'
-                }
-            }, `📝 ${filteredQuestions.length} preguntas`),
-            React.createElement('span', {
-                style: {
-                    padding: '0.375rem 0.75rem',
-                    backgroundColor: '#e8f5e9',
-                    borderRadius: '1rem',
-                    fontSize: '0.75rem',
-                    color: '#4CAF50'
-                }
-            }, `📌 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length} afirmaciones`),
-            React.createElement('span', {
-                style: {
-                    padding: '0.375rem 0.75rem',
-                    backgroundColor: '#fff3e0',
-                    borderRadius: '1rem',
-                    fontSize: '0.75rem',
-                    color: '#ff9800'
-                }
-            }, `📎 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length} evidencias`)
-        ),
 
         // Lista de preguntas con sus ramas
         panoramicData && React.createElement('div', {
