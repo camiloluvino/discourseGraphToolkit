@@ -27,6 +27,7 @@
 ## Historial Reciente
 
 ### v1.5.1 (Enero 2026)
+- **Feature:** Selección jerárquica de ramas en Panorámica — el dropdown ahora incluye grupos de prefijos (📁) además de ramas individuales (📄)
 - **Feature:** Cache persistente para pestaña Panorámica — datos se restauran automáticamente al reabrir modal
 - **UI:** Banner con antigüedad del cache y botón "Refrescar"
 - **Fix:** Corregido bug de referencias circulares (`node.data = node`) que impedía serializar cache

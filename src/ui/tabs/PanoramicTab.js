@@ -425,18 +425,39 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
         });
     };
 
-    // --- Obtener lista única de proyectos ---
-    const getUniqueProjects = () => {
+    // --- Obtener lista jerárquica de proyectos (incluyendo prefijos intermedios) ---
+    const getHierarchicalProjects = () => {
         if (!panoramicData) return [];
-        const projectSet = new Set();
+        const allPrefixes = new Set();
+        const leafProjects = new Set();
+
         panoramicData.questions.forEach(q => {
-            if (q.project) projectSet.add(q.project);
+            if (q.project) {
+                // Agregar la rama completa (es una hoja)
+                leafProjects.add(q.project);
+                allPrefixes.add(q.project);
+                // Agregar todos los prefijos intermedios
+                const parts = q.project.split('/');
+                for (let i = 1; i < parts.length; i++) {
+                    allPrefixes.add(parts.slice(0, i).join('/'));
+                }
+            }
         });
-        return Array.from(projectSet).sort();
+
+        // Ordenar y agregar metadata (es grupo o hoja, contador)
+        const sorted = Array.from(allPrefixes).sort();
+        return sorted.map(prefix => {
+            const isLeaf = leafProjects.has(prefix);
+            const count = panoramicData.questions.filter(q =>
+                q.project && (q.project === prefix || q.project.startsWith(prefix + '/'))
+            ).length;
+            const depth = prefix.split('/').length - 1;
+            return { prefix, isLeaf, count, depth };
+        });
     };
 
     const filteredQuestions = getFilteredQuestions();
-    const uniqueProjects = getUniqueProjects();
+    const hierarchicalProjects = getHierarchicalProjects();
 
     // --- Render ---
     return React.createElement('div', null,
@@ -482,8 +503,8 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
                             fontWeight: 'bold'
                         }
                     }, isLoading ? '⏳...' : '🔄 Cargar'),
-                    // Filtro de proyecto
-                    panoramicData && uniqueProjects.length > 0 && React.createElement('select', {
+                    // Filtro de proyecto (jerárquico)
+                    panoramicData && hierarchicalProjects.length > 0 && React.createElement('select', {
                         value: selectedProject,
                         onChange: (e) => setSelectedProject(e.target.value),
                         style: {
@@ -491,13 +512,19 @@ DiscourseGraphToolkit.PanoramicTab = function (props) {
                             border: '1px solid #ccc',
                             borderRadius: '0.25rem',
                             fontSize: '0.6875rem',
-                            maxWidth: '150px'
+                            maxWidth: '250px'
                         }
                     },
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
-                        uniqueProjects.map(p =>
-                            React.createElement('option', { key: p, value: p }, p)
-                        )
+                        hierarchicalProjects.map(p => {
+                            const indent = '  '.repeat(p.depth);
+                            const icon = p.isLeaf ? '📄' : '📁';
+                            const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
+                            return React.createElement('option', {
+                                key: p.prefix,
+                                value: p.prefix
+                            }, `${indent}${icon} ${label} (${p.count})`);
+                        })
                     )
                 ),
                 // Fila 2: Botones expandir/colapsar
