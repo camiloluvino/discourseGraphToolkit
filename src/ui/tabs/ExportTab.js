@@ -72,9 +72,27 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
     };
 
-    // Helper para obtener clave de proyecto actual
-    const getProjectKey = () => {
-        return Object.keys(selectedProjects).filter(k => selectedProjects[k]).sort().join('|');
+    // Helper para obtener clave de proyecto actual (busca prefijo común para coincidir con Panorámica)
+    const getProjectKey = (projectList = null) => {
+        const projects = projectList || Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+        if (projects.length === 0) return '';
+        if (projects.length === 1) return projects[0];
+
+        // Ordenar para encontrar el más corto (posible raíz)
+        const sorted = [...projects].sort((a, b) => a.length - b.length);
+        const shortest = sorted[0];
+
+        // Verificar si el más corto es prefijo de todos los demás
+        const isCommonPrefix = projects.every(p =>
+            p === shortest || p.startsWith(shortest + '/')
+        );
+
+        if (isCommonPrefix) {
+            return shortest; // Usar el proyecto padre como clave
+        }
+
+        // Fallback: concatenar ordenados si no hay prefijo común
+        return sorted.join('|');
     };
 
     // --- Helpers para Seleccionar Todo ---
@@ -123,8 +141,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 currentUIDs.every(uid => newUIDs.includes(uid));
 
             if (!sameQuestions) {
-                // Intentar restaurar orden guardado
-                const projectKey = pNames.sort().join('|');
+                // Intentar restaurar orden guardado (usando prefijo común)
+                const projectKey = getProjectKey(pNames);
                 const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
                 if (savedOrder && savedOrder.length > 0) {
                     const reordered = savedOrder
@@ -195,8 +213,8 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         const sameQuestions = currentUIDs.length === newUIDs.length &&
             currentUIDs.every(uid => newUIDs.includes(uid));
 
-        // Calcular orden final para retornar (independiente del estado React)
-        const projectKey = pNames.sort().join('|');
+        // Calcular orden final para retornar (usando prefijo común para coincidir con Panorámica)
+        const projectKey = getProjectKey(pNames);
         const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
         let orderedQuestionsToExport;
         if (savedOrder && savedOrder.length > 0) {

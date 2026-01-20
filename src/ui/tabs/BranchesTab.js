@@ -217,14 +217,12 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                 React.createElement('span', {
                     style: {
                         fontSize: '0.6875rem',
-                        color: statusColor,
-                        backgroundColor: node.aggregatedStatus === 'coherent' ? '#e8f5e9' :
-                            node.aggregatedStatus === 'specialized' ? '#e3f2fd' :
-                                node.aggregatedStatus === 'different' ? '#fff3e0' : '#ffebee',
+                        color: '#666',
+                        backgroundColor: '#f5f5f5',
                         padding: '0.125rem 0.375rem',
                         borderRadius: '0.1875rem'
                     }
-                }, `${statusIcon} ${totalQuestions} preg${totalQuestions !== 1 ? 's' : ''}${node.issueCount > 0 ? `, ${node.issueCount} ⚠️` : ''}`)
+                }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
             ),
 
             // Contenido (preguntas + hijos)
@@ -643,9 +641,8 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                             React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
                             // Mostrar contexto del padre
                             React.createElement('div', { style: { fontSize: '0.6875rem', color: '#666', marginTop: '0.25rem' } },
-                                node.reason === 'generalization'
-                                    ? `⬆️ Generaliza: ${node.project} ← padre: ${node.parentProject}`
-                                    : `📁 ${node.project} ≠ padre: ${node.parentProject}`
+                                React.createElement('div', null, `Debería heredar: ${node.parentProject}`),
+                                React.createElement('div', null, `Tiene: ${node.project}`)
                             )
                         ),
                         React.createElement('button', {
@@ -662,7 +659,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
                             React.createElement('span', { style: { fontSize: '0.8125rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
                             // Mostrar proyecto esperado del padre
                             node.parentProject && React.createElement('div', { style: { fontSize: '0.6875rem', color: '#666', marginTop: '0.25rem' } },
-                                `📁 Padre espera: ${node.parentProject}`
+                                `Debería heredar: ${node.parentProject}`
                             )
                         ),
                         React.createElement('button', {

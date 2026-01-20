@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-17
+**Última actualización:** 2026-01-20
 
 ## Versión Actual
 
-**v1.5.1**
+**v1.5.2**
 
 ## Estado de Funcionalidades
 
@@ -25,6 +25,11 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.2 (Enero 2026)
+- **UI:** Pestaña Ramas — simplificados indicadores del árbol a solo conteo de preguntas
+- **UI:** Pestaña Ramas — textos de discordancia más claros: "Debería heredar:" / "Tiene:"
+- **Fix:** Corregido bug en Exportar donde el orden personalizado de Panorámica no se aplicaba al seleccionar todo el proyecto (ahora usa prefijo común como clave)
 
 ### v1.5.1 (Enero 2026)
 - **Feature:** Selección jerárquica de ramas en Panorámica — el dropdown ahora incluye grupos de prefijos (📁) además de ramas individuales (📄)
