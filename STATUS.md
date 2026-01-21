@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.6**
+**v1.5.7**
 
 ## Estado de Funcionalidades
 
@@ -14,8 +14,9 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico por namespaces |
-| **Vista Panorámica** | ✅ **Mejorado** | **Layout compacto + textos completos** |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico + detección de huérfanos |
+| Detección de nodos huérfanos | ✅ **Nuevo** | Identifica nodos sin proyecto ni relaciones |
+| **Vista Panorámica** | ✅ Estable | Layout compacto + textos completos |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
@@ -26,6 +27,11 @@
 
 ## Historial Reciente
 
+### v1.5.7 (Enero 2026)
+- **Feature:** Detección de nodos huérfanos — nuevo botón "👻 Huérfanos" en pestaña Ramas
+- **UI:** Rediseño de pestaña Ramas — header compacto con badges en esquina superior derecha
+- **UI:** Eliminada descripción redundante, más espacio vertical para árbol de nodos (28rem)
+- **Tech:** Nueva función `findOrphanNodes()` para detectar páginas QUE/CLM/EVD sin proyecto ni referencias
 
 ### v1.5.6 (Enero 2026)
 - **UI:** Mejoras en pestaña Exportar — botones "Seleccionar todos" reubicados junto a los títulos y estilizados como enlaces.

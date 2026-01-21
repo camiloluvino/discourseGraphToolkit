@@ -39,6 +39,10 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
     const [editableProject, setEditableProject] = React.useState('');
     const [isPropagating, setIsPropagating] = React.useState(false);
 
+    // --- Estados de Huérfanos ---
+    const [orphanResults, setOrphanResults] = React.useState([]);
+    const [isSearchingOrphans, setIsSearchingOrphans] = React.useState(false);
+
     // --- Estados de Panorámica (persisten entre cambios de pestaña) ---
     const [panoramicData, setPanoramicData] = React.useState(null);
     const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState({});
@@ -118,6 +122,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
         isPropagating, setIsPropagating,
+        // Huérfanos
+        orphanResults, setOrphanResults,
+        isSearchingOrphans, setIsSearchingOrphans,
         // Panorámica
         panoramicData, setPanoramicData,
         panoramicExpandedQuestions, setPanoramicExpandedQuestions,

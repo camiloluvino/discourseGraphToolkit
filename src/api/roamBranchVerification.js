@@ -479,3 +479,86 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
         return { withProject: [], withoutProject: nodeUids };
     }
 };
+
+/**
+ * Encuentra nodos discourse (QUE/CLM/EVD) que son páginas pero no están
+ * conectados a ningún proyecto ni tienen relaciones con otros nodos del discourse graph.
+ * @returns {Promise<Array<{uid: string, title: string, type: string, hasProject: boolean, refCount: number}>>}
+ */
+DiscourseGraphToolkit.findOrphanNodes = async function () {
+    const PM = this.ProjectManager;
+    const escapedPattern = PM.getEscapedFieldPattern();
+
+    try {
+        // 1. Obtener TODAS las páginas QUE/CLM/EVD
+        const allNodesQuery = `[:find ?uid ?title
+                               :where
+                               [?page :node/title ?title]
+                               [?page :block/uid ?uid]
+                               (or
+                                 [(clojure.string/starts-with? ?title "[[QUE]] - ")]
+                                 [(clojure.string/starts-with? ?title "[[CLM]] - ")]
+                                 [(clojure.string/starts-with? ?title "[[EVD]] - ")])]`;
+
+        const allNodes = await window.roamAlphaAPI.data.async.q(allNodesQuery);
+        if (!allNodes || allNodes.length === 0) return [];
+
+        // 2. Obtener cuáles tienen Proyecto Asociado
+        const allUids = allNodes.map(n => n[0]);
+        const projectQuery = `[:find ?page-uid
+                              :in $ [?page-uid ...]
+                              :where
+                              [?page :block/uid ?page-uid]
+                              [?block :block/page ?page]
+                              [?block :block/string ?string]
+                              [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+        const withProjectResults = await window.roamAlphaAPI.data.async.q(projectQuery, allUids);
+        const withProjectSet = new Set(withProjectResults.map(r => r[0]));
+
+        // 3. Contar cuántas referencias tiene cada página (desde otras páginas discourse)
+        const refCountQuery = `[:find ?target-uid (count ?source-page)
+                               :where
+                               [?target :block/uid ?target-uid]
+                               [?target :node/title ?target-title]
+                               (or
+                                 [(clojure.string/starts-with? ?target-title "[[QUE]] - ")]
+                                 [(clojure.string/starts-with? ?target-title "[[CLM]] - ")]
+                                 [(clojure.string/starts-with? ?target-title "[[EVD]] - ")])
+                               [?source-block :block/refs ?target]
+                               [?source-block :block/page ?source-page]
+                               [?source-page :node/title ?source-title]
+                               (or
+                                 [(clojure.string/starts-with? ?source-title "[[QUE]] - ")]
+                                 [(clojure.string/starts-with? ?source-title "[[CLM]] - ")]
+                                 [(clojure.string/starts-with? ?source-title "[[EVD]] - ")])]`;
+
+        const refCounts = await window.roamAlphaAPI.data.async.q(refCountQuery);
+        const refCountMap = new Map(refCounts.map(r => [r[0], r[1]]));
+
+        // 4. Filtrar huérfanos: sin proyecto Y sin referencias desde otros nodos discourse
+        const orphans = [];
+        for (const [uid, title] of allNodes) {
+            const hasProject = withProjectSet.has(uid);
+            const refCount = refCountMap.get(uid) || 0;
+
+            // Un huérfano es: sin proyecto Y sin referencias entrantes desde otros nodos discourse
+            if (!hasProject && refCount === 0) {
+                const type = title.startsWith('[[QUE]]') ? 'QUE' :
+                    title.startsWith('[[CLM]]') ? 'CLM' : 'EVD';
+                orphans.push({
+                    uid,
+                    title,
+                    type,
+                    hasProject,
+                    refCount
+                });
+            }
+        }
+
+        return orphans;
+    } catch (e) {
+        console.error("Error finding orphan nodes:", e);
+        return [];
+    }
+};
