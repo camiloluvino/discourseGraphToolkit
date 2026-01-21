@@ -1,6 +1,6 @@
-/**
+﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.7
- * Bundled build: 2026-01-21 13:30:44
+ * Bundled build: 2026-01-21 17:19:12
  */
 
 (function () {
@@ -4771,6 +4771,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
             const statusMsg = `✅ ${coherent} coherentes, ${specialized} esp., ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
+
+            // Refrescar huérfanos si ya se habían buscado previamente
+            if (orphanResults.length > 0) {
+                setBulkVerifyStatus(`${statusMsg} ⏳ Actualizando huérfanos...`);
+                const orphans = await DiscourseGraphToolkit.findOrphanNodes();
+                setOrphanResults(orphans);
+                setBulkVerifyStatus(`${statusMsg} 👻 ${orphans.length} huérfanos.`);
+            }
         } catch (e) {
             console.error('Bulk verification error:', e);
             setBulkVerifyStatus('❌ Error: ' + e.message);

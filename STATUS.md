@@ -15,7 +15,7 @@
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico + detección de huérfanos |
-| Detección de nodos huérfanos | ✅ **Nuevo** | Identifica nodos sin proyecto ni relaciones |
+| Detección de nodos huérfanos | ✅ Mejorado | Identifica nodos sin proyecto ni relaciones, se actualiza al verificar |
 | **Vista Panorámica** | ✅ Estable | Layout compacto + textos completos |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
@@ -29,6 +29,7 @@
 
 ### v1.5.7 (Enero 2026)
 - **Feature:** Detección de nodos huérfanos — nuevo botón "👻 Huérfanos" en pestaña Ramas
+- **Feature:** Actualización automática de huérfanos — al presionar "Verificar", la lista de huérfanos se refresca si ya se había buscado
 - **UI:** Rediseño de pestaña Ramas — header compacto con badges en esquina superior derecha
 - **UI:** Eliminada descripción redundante, más espacio vertical para árbol de nodos (28rem)
 - **Tech:** Nueva función `findOrphanNodes()` para detectar páginas QUE/CLM/EVD sin proyecto ni referencias
