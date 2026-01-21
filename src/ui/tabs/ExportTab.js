@@ -2,7 +2,7 @@
 // UI: Export Tab Component
 // ============================================================================
 
-DiscourseGraphToolkit.ExportTab = function (props) {
+DiscourseGraphToolkit.ExportTab = function () {
     const React = window.React;
     const {
         projects,
@@ -14,7 +14,7 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
-    } = props;
+    } = DiscourseGraphToolkit.useToolkit();
 
     // --- Árbol jerárquico de proyectos (calculado) ---
     const projectTree = React.useMemo(() => {

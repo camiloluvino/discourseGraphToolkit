@@ -2,9 +2,9 @@
 // UI: Import Tab Component
 // ============================================================================
 
-DiscourseGraphToolkit.ImportTab = function (props) {
+DiscourseGraphToolkit.ImportTab = function () {
     const React = window.React;
-    const { exportStatus, setExportStatus } = props;
+    const { exportStatus, setExportStatus } = DiscourseGraphToolkit.useToolkit();
 
     // --- Render ---
     return React.createElement('div', null,

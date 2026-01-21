@@ -3,17 +3,17 @@
 // Vista sintética de todas las ramas del grafo de discurso
 // ============================================================================
 
-DiscourseGraphToolkit.PanoramicTab = function (props) {
+DiscourseGraphToolkit.PanoramicTab = function () {
     const React = window.React;
 
-    // Desestructurar props del padre (estados que persisten entre cambios de pestaña)
+    // Desestructurar del contexto (algunos nombres difieren de los props originales)
     const {
         projects,
         panoramicData, setPanoramicData,
-        expandedQuestions, setExpandedQuestions,
-        loadStatus, setLoadStatus,
-        selectedProject, setSelectedProject
-    } = props;
+        panoramicExpandedQuestions: expandedQuestions, setPanoramicExpandedQuestions: setExpandedQuestions,
+        panoramicLoadStatus: loadStatus, setPanoramicLoadStatus: setLoadStatus,
+        panoramicSelectedProject: selectedProject, setPanoramicSelectedProject: setSelectedProject
+    } = DiscourseGraphToolkit.useToolkit();
 
     // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);

@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.3**
+**v1.5.4**
 
 ## Estado de Funcionalidades
 
@@ -25,6 +25,12 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.4 (Enero 2026)
+- **Refactor:** Implementado React Context (`ToolkitContext.js`) para compartir estado entre pestañas
+- **Tech:** Eliminado prop drilling — ~54 props removidos de `modal.js`
+- **Tech:** Todos los tabs ahora usan `useToolkit()` hook para acceder al estado
+- **Arquitectura:** modal.js ahora actúa solo como Provider, lógica de estado descentralizada
 
 ### v1.5.3 (Enero 2026)
 - **Refactor:** Nuevo componente `ProjectTreeView.js` — extrae lógica duplicada de árboles jerárquicos

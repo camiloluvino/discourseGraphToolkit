@@ -87,152 +87,154 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
         fontWeight: activeTab === id ? 'bold' : 'normal', color: activeTab === id ? '#2196F3' : '#666'
     });
 
+    // --- Context Value (estado compartido entre pestañas) ---
+    const contextValue = {
+        // Navegación
+        activeTab, setActiveTab,
+        // Configuración
+        config, setConfig,
+        templates, setTemplates,
+        // Proyectos
+        projects, setProjects,
+        newProject, setNewProject,
+        validation, setValidation,
+        suggestions, setSuggestions,
+        isScanning, setIsScanning,
+        selectedProjectsForDelete, setSelectedProjectsForDelete,
+        newProjectsAlert, setNewProjectsAlert,
+        // Exportación
+        selectedProjects, setSelectedProjects,
+        selectedTypes, setSelectedTypes,
+        contentConfig, setContentConfig,
+        excludeBitacora, setExcludeBitacora,
+        isExporting, setIsExporting,
+        exportStatus, setExportStatus,
+        previewPages, setPreviewPages,
+        orderedQuestions, setOrderedQuestions,
+        // Ramas
+        bulkVerificationResults, setBulkVerificationResults,
+        isBulkVerifying, setIsBulkVerifying,
+        bulkVerifyStatus, setBulkVerifyStatus,
+        selectedBulkQuestion, setSelectedBulkQuestion,
+        editableProject, setEditableProject,
+        isPropagating, setIsPropagating,
+        // Panorámica
+        panoramicData, setPanoramicData,
+        panoramicExpandedQuestions, setPanoramicExpandedQuestions,
+        panoramicLoadStatus, setPanoramicLoadStatus,
+        panoramicSelectedProject, setPanoramicSelectedProject
+    };
+
     // --- Render ---
-    return React.createElement('div', {
-        style: {
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center'
-        }
-    },
+    return React.createElement(DiscourseGraphToolkit.ToolkitContext.Provider, { value: contextValue },
         React.createElement('div', {
             style: {
-                backgroundColor: 'white', width: '90%', maxWidth: '90rem', height: '90vh', borderRadius: '0.5rem',
-                display: 'flex', flexDirection: 'column', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.2)',
-                fontSize: '0.875rem'
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center'
             }
         },
-            // Header
-            React.createElement('div', { style: { padding: '1.25rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
-                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
-                    // Botón Minimizar
-                    React.createElement('button', {
-                        onClick: onMinimize,
-                        title: 'Minimizar (mantiene estado)',
-                        style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                    }, '➖'),
-                    // Botón Cerrar
-                    React.createElement('button', {
-                        onClick: onClose,
-                        title: 'Cerrar (resetea estado)',
-                        style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                    }, '✕')
-                )
-            ),
-            // Tabs
-            React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
-                ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
-                    React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
-                        t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
-                )
-            ),
-
-            // Alerta de proyectos nuevos descubiertos
-            newProjectsAlert.length > 0 && React.createElement('div', {
+            React.createElement('div', {
                 style: {
-                    padding: '0.75rem 1.25rem',
-                    backgroundColor: '#fff3e0',
-                    borderBottom: '1px solid #ffcc80',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    flexWrap: 'wrap'
+                    backgroundColor: 'white', width: '90%', maxWidth: '90rem', height: '90vh', borderRadius: '0.5rem',
+                    display: 'flex', flexDirection: 'column', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.2)',
+                    fontSize: '0.875rem'
                 }
             },
-                React.createElement('span', { style: { fontWeight: 'bold', color: '#e65100' } },
-                    `⚠️ ${newProjectsAlert.length} proyecto${newProjectsAlert.length > 1 ? 's' : ''} no registrado${newProjectsAlert.length > 1 ? 's' : ''}:`
+                // Header
+                React.createElement('div', { style: { padding: '1.25rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                    React.createElement('h2', { style: { margin: 0 } }, `Discourse Graph Toolkit v${DiscourseGraphToolkit.VERSION}`),
+                    React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+                        // Botón Minimizar
+                        React.createElement('button', {
+                            onClick: onMinimize,
+                            title: 'Minimizar (mantiene estado)',
+                            style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
+                        }, '➖'),
+                        // Botón Cerrar
+                        React.createElement('button', {
+                            onClick: onClose,
+                            title: 'Cerrar (resetea estado)',
+                            style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
+                        }, '✕')
+                    )
                 ),
-                React.createElement('span', { style: { color: '#bf360c', fontSize: '0.8125rem' } },
-                    newProjectsAlert.slice(0, 3).join(', ') + (newProjectsAlert.length > 3 ? ` (+${newProjectsAlert.length - 3} más)` : '')
+                // Tabs
+                React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
+                    ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
+                        React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
+                            t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
+                    )
                 ),
-                React.createElement('button', {
-                    onClick: async () => {
-                        const merged = [...new Set([...projects, ...newProjectsAlert])].sort();
-                        DiscourseGraphToolkit.saveProjects(merged);
-                        await DiscourseGraphToolkit.syncProjectsToRoam(merged);
-                        setProjects(merged);
-                        setNewProjectsAlert([]);
-                    },
+
+                // Alerta de proyectos nuevos descubiertos
+                newProjectsAlert.length > 0 && React.createElement('div', {
                     style: {
-                        padding: '0.25rem 0.75rem',
-                        backgroundColor: '#4CAF50',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        marginLeft: 'auto'
+                        padding: '0.75rem 1.25rem',
+                        backgroundColor: '#fff3e0',
+                        borderBottom: '1px solid #ffcc80',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        flexWrap: 'wrap'
                     }
-                }, '➕ Agregar todos'),
-                React.createElement('button', {
-                    onClick: () => setNewProjectsAlert([]),
-                    style: {
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'transparent',
-                        color: '#666',
-                        border: '1px solid #ccc',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem'
-                    }
-                }, '✕')
-            ),
+                },
+                    React.createElement('span', { style: { fontWeight: 'bold', color: '#e65100' } },
+                        `⚠️ ${newProjectsAlert.length} proyecto${newProjectsAlert.length > 1 ? 's' : ''} no registrado${newProjectsAlert.length > 1 ? 's' : ''}:`
+                    ),
+                    React.createElement('span', { style: { color: '#bf360c', fontSize: '0.8125rem' } },
+                        newProjectsAlert.slice(0, 3).join(', ') + (newProjectsAlert.length > 3 ? ` (+${newProjectsAlert.length - 3} más)` : '')
+                    ),
+                    React.createElement('button', {
+                        onClick: async () => {
+                            const merged = [...new Set([...projects, ...newProjectsAlert])].sort();
+                            DiscourseGraphToolkit.saveProjects(merged);
+                            await DiscourseGraphToolkit.syncProjectsToRoam(merged);
+                            setProjects(merged);
+                            setNewProjectsAlert([]);
+                        },
+                        style: {
+                            padding: '0.25rem 0.75rem',
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            marginLeft: 'auto'
+                        }
+                    }, '➕ Agregar todos'),
+                    React.createElement('button', {
+                        onClick: () => setNewProjectsAlert([]),
+                        style: {
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: 'transparent',
+                            color: '#666',
+                            border: '1px solid #ccc',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem'
+                        }
+                    }, '✕')
+                ),
 
-            // Content
-            React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
+                // Content
+                React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
 
-                // Pestaña Proyectos
-                activeTab === 'proyectos' && React.createElement(DiscourseGraphToolkit.ProjectsTab, {
-                    projects: projects, setProjects: setProjects,
-                    validation: validation, setValidation: setValidation,
-                    suggestions: suggestions, setSuggestions: setSuggestions,
-                    isScanning: isScanning, setIsScanning: setIsScanning,
-                    selectedProjectsForDelete: selectedProjectsForDelete, setSelectedProjectsForDelete: setSelectedProjectsForDelete,
-                    exportStatus: exportStatus, setExportStatus: setExportStatus,
-                    config: config, setConfig: setConfig,
-                    templates: templates, setTemplates: setTemplates,
-                    newProject: newProject, setNewProject: setNewProject
-                }),
+                    // Pestaña Proyectos
+                    activeTab === 'proyectos' && React.createElement(DiscourseGraphToolkit.ProjectsTab),
 
-                // Pestaña Ramas
-                activeTab === 'ramas' && React.createElement(DiscourseGraphToolkit.BranchesTab, {
-                    bulkVerificationResults: bulkVerificationResults, setBulkVerificationResults: setBulkVerificationResults,
-                    isBulkVerifying: isBulkVerifying, setIsBulkVerifying: setIsBulkVerifying,
-                    bulkVerifyStatus: bulkVerifyStatus, setBulkVerifyStatus: setBulkVerifyStatus,
-                    selectedBulkQuestion: selectedBulkQuestion, setSelectedBulkQuestion: setSelectedBulkQuestion,
-                    editableProject: editableProject, setEditableProject: setEditableProject,
-                    isPropagating: isPropagating, setIsPropagating: setIsPropagating
-                }),
+                    // Pestaña Ramas
+                    activeTab === 'ramas' && React.createElement(DiscourseGraphToolkit.BranchesTab),
 
-                // Pestaña Panorámica
-                activeTab === 'panoramica' && React.createElement(DiscourseGraphToolkit.PanoramicTab, {
-                    projects: projects,
-                    panoramicData: panoramicData,
-                    setPanoramicData: setPanoramicData,
-                    expandedQuestions: panoramicExpandedQuestions,
-                    setExpandedQuestions: setPanoramicExpandedQuestions,
-                    loadStatus: panoramicLoadStatus,
-                    setLoadStatus: setPanoramicLoadStatus,
-                    selectedProject: panoramicSelectedProject,
-                    setSelectedProject: setPanoramicSelectedProject
-                }),
+                    // Pestaña Panorámica
+                    activeTab === 'panoramica' && React.createElement(DiscourseGraphToolkit.PanoramicTab),
 
-                activeTab === 'exportar' && React.createElement(DiscourseGraphToolkit.ExportTab, {
-                    projects: projects,
-                    selectedProjects: selectedProjects, setSelectedProjects: setSelectedProjects,
-                    selectedTypes: selectedTypes, setSelectedTypes: setSelectedTypes,
-                    contentConfig: contentConfig, setContentConfig: setContentConfig,
-                    excludeBitacora: excludeBitacora, setExcludeBitacora: setExcludeBitacora,
-                    isExporting: isExporting, setIsExporting: setIsExporting,
-                    exportStatus: exportStatus, setExportStatus: setExportStatus,
-                    previewPages: previewPages, setPreviewPages: setPreviewPages,
-                    orderedQuestions: orderedQuestions, setOrderedQuestions: setOrderedQuestions
-                }),
+                    // Pestaña Exportar
+                    activeTab === 'exportar' && React.createElement(DiscourseGraphToolkit.ExportTab),
 
-                // Pestaña Importar
-                activeTab === 'importar' && React.createElement(DiscourseGraphToolkit.ImportTab, {
-                    exportStatus: exportStatus, setExportStatus: setExportStatus
-                })
+                    // Pestaña Importar
+                    activeTab === 'importar' && React.createElement(DiscourseGraphToolkit.ImportTab)
+                )
             )
         )
     );

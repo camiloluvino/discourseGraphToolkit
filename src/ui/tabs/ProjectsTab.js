@@ -2,7 +2,7 @@
 // UI: Projects Tab Component
 // ============================================================================
 
-DiscourseGraphToolkit.ProjectsTab = function (props) {
+DiscourseGraphToolkit.ProjectsTab = function () {
     const React = window.React;
     const {
         projects, setProjects,
@@ -14,7 +14,7 @@ DiscourseGraphToolkit.ProjectsTab = function (props) {
         config, setConfig,
         templates, setTemplates,
         newProject, setNewProject
-    } = props;
+    } = DiscourseGraphToolkit.useToolkit();
 
     // --- Estado local para vista de árbol de proyectos ---
     const [expandedProjects, setExpandedProjects] = React.useState({});

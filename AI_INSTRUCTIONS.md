@@ -44,27 +44,25 @@ src/
 │   ├── htmlEmbeddedScript.js  # JavaScript inyectado en HTML exportado
 │   └── epubGenerator.js       # Generador EPUB
 ├── ui/                # Componentes React de interfaz
-│   ├── modal.js       # Modal principal (orquestador de estado)
+│   ├── modal.js       # Modal principal (Provider de contexto)
+│   ├── ToolkitContext.js  # React Context y hook useToolkit
 │   ├── components/    # Componentes reutilizables
 │   │   └── ProjectTreeView.js  # Árbol jerárquico con expand/collapse
 │   └── tabs/          # Componentes de pestañas individuales
-│       ├── ProjectsTab.js   # Gestión de proyectos (~14 KB)
-│       ├── BranchesTab.js   # Verificación de ramas (~35 KB)
-│       ├── PanoramicTab.js  # Vista panorámica (~31 KB)
-│       ├── ExportTab.js     # Exportación (~27 KB)
-│       └── ImportTab.js     # Importación (~3 KB)
+│       ├── ProjectsTab.js   # Gestión de proyectos
+│       ├── BranchesTab.js   # Verificación de ramas
+│       ├── PanoramicTab.js  # Vista panorámica
+│       ├── ExportTab.js     # Exportación
+│       └── ImportTab.js     # Importación
 └── utils/             # Helpers y toast notifications
 ```
 
 ### Arquitectura UI:
 
-El componente `modal.js` actúa como **orquestador central**:
+El componente `modal.js` actúa como **Provider de contexto**:
 - Define todo el estado compartido (~18 useState)
-- Pasa estado a cada Tab como props
-- Cada Tab es un componente funcional independiente
-
-> [!NOTE]
-> Aunque la UI está modularizada en tabs, hay **código duplicado** entre ellos (ej: `renderTreeNode`, `toggleProjectExpand`). Considerar extraer componentes reutilizables como `ProjectTreeView`.
+- Envuelve tabs con `ToolkitContext.Provider`
+- Cada Tab consume estado via `useToolkit()` hook
 
 ## Arquitectura Conceptual
 

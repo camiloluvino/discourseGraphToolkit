@@ -2,7 +2,7 @@
 // UI: Branches Tab Component
 // ============================================================================
 
-DiscourseGraphToolkit.BranchesTab = function (props) {
+DiscourseGraphToolkit.BranchesTab = function () {
     const React = window.React;
     const {
         bulkVerificationResults, setBulkVerificationResults,
@@ -11,7 +11,7 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
         isPropagating, setIsPropagating
-    } = props;
+    } = DiscourseGraphToolkit.useToolkit();
 
     // --- Estado para popover de nodos problemáticos ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
