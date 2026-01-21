@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.4  
+**Versión:** 1.5.5  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -53,7 +53,7 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **EPUB:** Libro electrónico listo para lectores de eBooks (Kindle, Apple Books, Calibre). Los encabezados incluyen prefijos de nivel y tipo: `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` para mejor legibilidad en pantallas e-ink.
 
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
-- **Reordenamiento de Preguntas:** Después de hacer "Vista Previa", puedes reordenar las preguntas (QUE) usando botones ↑↓ antes de exportar. El orden personalizado se aplica a todos los formatos de exportación.
+- **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.
 
 ### 5. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.

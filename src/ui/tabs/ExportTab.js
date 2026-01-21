@@ -510,7 +510,6 @@ DiscourseGraphToolkit.ExportTab = function () {
             )
         ),
         React.createElement('div', { style: { marginTop: '1.25rem' } },
-            React.createElement('button', { onClick: handlePreview, style: { marginRight: '0.625rem', padding: '0.625rem' } }, "Vista Previa"),
             React.createElement('button', {
                 onClick: handleExport,
                 disabled: isExporting,
@@ -582,13 +581,6 @@ DiscourseGraphToolkit.ExportTab = function () {
                 orderedQuestions.length > 10 && React.createElement('li', {
                     style: { color: '#999', fontStyle: 'italic' }
                 }, `... y ${orderedQuestions.length - 10} más`)
-            )
-        ),
-
-        previewPages.length > 0 && React.createElement('div', { style: { marginTop: '0.9375rem', maxHeight: '12.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem' } },
-            React.createElement('h4', null, `Vista Previa (${previewPages.length})`),
-            React.createElement('ul', { style: { paddingLeft: '1.25rem' } },
-                previewPages.map(p => React.createElement('li', { key: p.pageUid }, p.pageTitle))
             )
         )
     );

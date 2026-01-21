@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.4**
+**v1.5.5**
 
 ## Estado de Funcionalidades
 
@@ -25,6 +25,11 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.5 (Enero 2026)
+- **UI:** Eliminada opción "Vista Previa" en pestaña Exportar (redundante con Panorámica)
+- **Flow:** Flujo de exportación simplificado — selección directa de proyecto/tipo y descarga
+- **Docs:** Actualizada referencia de reordenamiento (se realiza exclusivamente en Panorámica)
 
 ### v1.5.4 (Enero 2026)
 - **Refactor:** Implementado React Context (`ToolkitContext.js`) para compartir estado entre pestañas
