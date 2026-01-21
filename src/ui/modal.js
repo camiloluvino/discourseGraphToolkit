@@ -23,7 +23,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
-    const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
+    const [selectedTypes, setSelectedTypes] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);

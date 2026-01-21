@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.5**
+**v1.5.6**
 
 ## Estado de Funcionalidades
 
@@ -25,6 +25,11 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+
+### v1.5.6 (Enero 2026)
+- **UI:** Mejoras en pestaña Exportar — botones "Seleccionar todos" reubicados junto a los títulos y estilizados como enlaces.
+- **UX:** Selección por defecto — al abrir la pestaña Exportar, todos los tipos (QUE, CLM, EVD) vienen seleccionados.
 
 ### v1.5.5 (Enero 2026)
 - **UI:** Eliminada opción "Vista Previa" en pestaña Exportar (redundante con Panorámica)

@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.5
- * Bundled build: 2026-01-21 03:35:43
+ * DISCOURSE GRAPH TOOLKIT v1.5.6
+ * Bundled build: 2026-01-21 03:51:00
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.5";
+    DiscourseGraphToolkit.VERSION = "1.5.6";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -6377,11 +6377,11 @@ DiscourseGraphToolkit.ExportTab = function () {
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' } },
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },
                     React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '1. Proyectos'),
-                    projects.length > 0 && React.createElement('button', {
+                    projects.length > 0 && React.createElement('span', {
                         onClick: selectAllProjects,
-                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                        style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
                 React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem', backgroundColor: '#fafafa' } },
@@ -6395,11 +6395,11 @@ DiscourseGraphToolkit.ExportTab = function () {
                 )
             ),
             React.createElement('div', { style: { flex: 1 } },
-                React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },
                     React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
-                    React.createElement('button', {
+                    React.createElement('span', {
                         onClick: selectAllTypes,
-                        style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '0.25rem', backgroundColor: '#f5f5f5' }
+                        style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
                 ['QUE', 'CLM', 'EVD'].map(t =>
@@ -6627,7 +6627,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
-    const [selectedTypes, setSelectedTypes] = React.useState({ QUE: false, CLM: false, EVD: false });
+    const [selectedTypes, setSelectedTypes] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
