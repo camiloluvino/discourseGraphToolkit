@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-20
+**Última actualización:** 2026-01-21
 
 ## Versión Actual
 
-**v1.5.2**
+**v1.5.3**
 
 ## Estado de Funcionalidades
 
@@ -25,6 +25,12 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.3 (Enero 2026)
+- **Refactor:** Nuevo componente `ProjectTreeView.js` — extrae lógica duplicada de árboles jerárquicos
+- **Tech:** Eliminadas ~90 líneas de código duplicado entre `BranchesTab.js` y `ExportTab.js`
+- **Tech:** Lógica de expand/collapse ahora centralizada en componente reutilizable
+- **Docs:** Actualizado `AI_INSTRUCTIONS.md` con nueva estructura de carpeta `ui/components/`
 
 ### v1.5.2 (Enero 2026)
 - **UI:** Pestaña Ramas — simplificados indicadores del árbol a solo conteo de preguntas

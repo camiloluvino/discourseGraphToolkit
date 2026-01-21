@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.2
- * Bundled build: 2026-01-20 18:25:45
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.3
+ * Bundled build: 2026-01-21 03:08:30
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.2";
+    DiscourseGraphToolkit.VERSION = "1.5.3";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -4245,6 +4245,72 @@ ${content}
 };
 
 
+// --- MODULE: src/ui/components/ProjectTreeView.js ---
+// ============================================================================
+// UI: ProjectTreeView Component
+// Componente reutilizable para renderizar árboles jerárquicos de proyectos
+// Usado por BranchesTab y ExportTab
+// ============================================================================
+
+DiscourseGraphToolkit.ProjectTreeView = function (props) {
+    const React = window.React;
+    const {
+        tree,                    // Objeto { [key]: { project, children, ... } }
+        renderNodeHeader,        // (node, key, depth, isExpanded, toggleFn) => React.Element
+        renderNodeContent,       // (node, depth) => React.Element | null
+        defaultExpanded = true   // Si los nodos inician expandidos
+    } = props;
+
+    // --- Estado de nodos expandidos ---
+    const [expandedNodes, setExpandedNodes] = React.useState({});
+
+    // --- Toggle expand/collapse ---
+    const toggleExpand = (nodePath) => {
+        setExpandedNodes(prev => ({
+            ...prev,
+            [nodePath]: prev[nodePath] === undefined ? !defaultExpanded : !prev[nodePath]
+        }));
+    };
+
+    // --- Determinar si un nodo está expandido ---
+    const isNodeExpanded = (nodePath) => {
+        return expandedNodes[nodePath] === undefined ? defaultExpanded : expandedNodes[nodePath];
+    };
+
+    // --- Render recursivo de nodo ---
+    const renderNode = (node, key, depth) => {
+        const isExpanded = isNodeExpanded(node.project);
+        const hasChildren = Object.keys(node.children || {}).length > 0;
+
+        return React.createElement('div', {
+            key: key,
+            style: { marginLeft: depth > 0 ? '1rem' : 0 }
+        },
+            // Header del nodo (personalizado por el tab)
+            renderNodeHeader(node, key, depth, isExpanded, () => toggleExpand(node.project)),
+
+            // Contenido cuando está expandido
+            isExpanded && React.createElement('div', null,
+                // Contenido específico del nodo (preguntas, etc.)
+                renderNodeContent && renderNodeContent(node, depth),
+                // Hijos recursivos
+                hasChildren && Object.keys(node.children).sort().map(childKey =>
+                    renderNode(node.children[childKey], childKey, depth + 1)
+                )
+            )
+        );
+    };
+
+    // --- Render principal ---
+    return React.createElement('div', null,
+        Object.keys(tree).sort().map(projectKey =>
+            renderNode(tree[projectKey], projectKey, 0)
+        )
+    );
+};
+
+
+
 // --- MODULE: src/ui/tabs/ProjectsTab.js ---
 // ============================================================================
 // UI: Projects Tab Component
@@ -4552,8 +4618,6 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         isPropagating, setIsPropagating
     } = props;
 
-    // --- Estado local para vista de árbol ---
-    const [expandedProjects, setExpandedProjects] = React.useState({});
     // --- Estado para popover de nodos problemáticos ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
 
@@ -4562,14 +4626,6 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         if (bulkVerificationResults.length === 0) return {};
         return DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
     }, [bulkVerificationResults]);
-
-    // --- Toggle expandir/colapsar proyecto ---
-    const toggleProjectExpand = (projectPath) => {
-        setExpandedProjects(prev => ({
-            ...prev,
-            [projectPath]: !prev[projectPath]
-        }));
-    };
 
     // --- Helpers ---
     const handleNavigateToPage = (uid) => {
@@ -4719,81 +4775,72 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
         DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
     };
 
-    // --- Render de nodo del árbol (recursivo) ---
-    const renderTreeNode = (node, key, depth) => {
-        const isExpanded = expandedProjects[node.project] !== false; // Expandido por defecto
+    // --- Callbacks para ProjectTreeView ---
+    const renderBranchesNodeHeader = (node, key, depth, isExpanded, toggleFn) => {
         const hasChildren = Object.keys(node.children).length > 0;
         const hasQuestions = node.questions.length > 0;
         const totalQuestions = DiscourseGraphToolkit.countTreeQuestions(node);
-        const statusIcon = node.aggregatedStatus === 'coherent' ? '✅' :
-            node.aggregatedStatus === 'specialized' ? '🔀' :
-                node.aggregatedStatus === 'different' ? '⚠️' : '❌';
-        const statusColor = node.aggregatedStatus === 'coherent' ? '#4CAF50' :
-            node.aggregatedStatus === 'specialized' ? '#2196F3' :
-                node.aggregatedStatus === 'different' ? '#ff9800' : '#f44336';
 
-        return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
-            // Encabezado del proyecto (si tiene más de una pregunta o tiene hijos)
-            (hasChildren || totalQuestions > 1 || depth === 0) && React.createElement('div', {
-                onClick: () => toggleProjectExpand(node.project),
+        // Solo mostrar header si tiene hijos, más de una pregunta, o es root
+        if (!hasChildren && totalQuestions <= 1 && depth > 0) return null;
+
+        return React.createElement('div', {
+            onClick: toggleFn,
+            style: {
+                padding: '0.5rem 0.75rem',
+                backgroundColor: depth === 0 ? '#f0f0f0' : '#f8f8f8',
+                borderBottom: '1px solid #e0e0e0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.8125rem',
+                fontWeight: depth === 0 ? 'bold' : '500'
+            }
+        },
+            React.createElement('span', { style: { color: '#666', fontSize: '0.75rem' } },
+                isExpanded ? '▼' : '▶'),
+            React.createElement('span', null, '📁'),
+            React.createElement('span', { style: { flex: 1 } },
+                node.project || '(sin proyecto)'),
+            React.createElement('span', {
                 style: {
-                    padding: '0.5rem 0.75rem',
-                    backgroundColor: depth === 0 ? '#f0f0f0' : '#f8f8f8',
-                    borderBottom: '1px solid #e0e0e0',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: depth === 0 ? 'bold' : '500'
+                    fontSize: '0.6875rem',
+                    color: '#666',
+                    backgroundColor: '#f5f5f5',
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: '0.1875rem'
                 }
-            },
-                React.createElement('span', { style: { color: '#666', fontSize: '0.75rem' } },
-                    isExpanded ? '▼' : '▶'),
-                React.createElement('span', null, '📁'),
-                React.createElement('span', { style: { flex: 1 } },
-                    node.project || '(sin proyecto)'),
-                React.createElement('span', {
-                    style: {
-                        fontSize: '0.6875rem',
-                        color: '#666',
-                        backgroundColor: '#f5f5f5',
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.1875rem'
-                    }
-                }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
-            ),
+            }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
+        );
+    };
 
-            // Contenido (preguntas + hijos)
-            isExpanded && React.createElement('div', null,
-                // Preguntas directas de este nodo
-                node.questions.map(result =>
-                    React.createElement('div', {
-                        key: result.question.pageUid,
-                        onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
-                        style: {
-                            padding: '0.5rem 0.75rem',
-                            paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
-                            borderBottom: '1px solid #eee',
-                            cursor: 'pointer',
-                            backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.8125rem'
-                        }
-                    },
-                        React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0 } },
-                            result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
-                        React.createElement('span', { style: { flex: 1, lineHeight: '1.3' } },
-                            result.question.pageTitle.replace('[[QUE]] - ', '')),
-                        React.createElement('span', { style: { fontSize: '0.6875rem', color: '#999', whiteSpace: 'nowrap' } },
-                            `${result.branchNodes.length} nodos`)
-                    )
-                ),
-                // Hijos recursivos
-                Object.keys(node.children).sort().map(childKey =>
-                    renderTreeNode(node.children[childKey], childKey, depth + 1)
+    const renderBranchesNodeContent = (node, depth) => {
+        if (!node.questions || node.questions.length === 0) return null;
+
+        return React.createElement('div', null,
+            node.questions.map(result =>
+                React.createElement('div', {
+                    key: result.question.pageUid,
+                    onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
+                    style: {
+                        padding: '0.5rem 0.75rem',
+                        paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
+                        borderBottom: '1px solid #eee',
+                        cursor: 'pointer',
+                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.8125rem'
+                    }
+                },
+                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0 } },
+                        result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
+                    React.createElement('span', { style: { flex: 1, lineHeight: '1.3' } },
+                        result.question.pageTitle.replace('[[QUE]] - ', '')),
+                    React.createElement('span', { style: { fontSize: '0.6875rem', color: '#999', whiteSpace: 'nowrap' } },
+                        `${result.branchNodes.length} nodos`)
                 )
             )
         );
@@ -5092,10 +5139,13 @@ DiscourseGraphToolkit.BranchesTab = function (props) {
             React.createElement('div', {
                 style: { maxHeight: '18.75rem', overflowY: 'auto', border: '1px solid #eee', borderRadius: '0.25rem', backgroundColor: '#fafafa' }
             },
-                // Renderizar árbol recursivamente
-                Object.keys(projectTree).sort().map(projectKey =>
-                    renderTreeNode(projectTree[projectKey], projectKey, 0)
-                )
+                // Usar componente ProjectTreeView reutilizable
+                React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
+                    tree: projectTree,
+                    renderNodeHeader: renderBranchesNodeHeader,
+                    renderNodeContent: renderBranchesNodeContent,
+                    defaultExpanded: true
+                })
             )
         ),
 
@@ -5898,22 +5948,11 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         orderedQuestions, setOrderedQuestions
     } = props;
 
-    // --- Estado local para vista de árbol de proyectos ---
-    const [expandedExportProjects, setExpandedExportProjects] = React.useState({});
-
     // --- Árbol jerárquico de proyectos (calculado) ---
     const projectTree = React.useMemo(() => {
         if (projects.length === 0) return {};
         return DiscourseGraphToolkit.buildSimpleProjectTree(projects);
     }, [projects]);
-
-    // --- Toggle expandir/colapsar proyecto ---
-    const toggleExportProjectExpand = (projectPath) => {
-        setExpandedExportProjects(prev => ({
-            ...prev,
-            [projectPath]: !prev[projectPath]
-        }));
-    };
 
     // --- Selección en cascada ---
     const handleProjectToggle = (node, checked) => {
@@ -6285,59 +6324,53 @@ DiscourseGraphToolkit.ExportTab = function (props) {
         }
     };
 
-    // --- Render de nodo del árbol de proyectos (recursivo) ---
-    const renderProjectTreeNode = (node, key, depth) => {
-        const isExpanded = expandedExportProjects[node.project] !== false;
+    // --- Callbacks para ProjectTreeView ---
+    const renderExportNodeHeader = (node, key, depth, isExpanded, toggleFn) => {
         const hasChildren = Object.keys(node.children).length > 0;
         const descendants = DiscourseGraphToolkit.getAllDescendantProjects(node);
         const selectedCount = descendants.filter(p => selectedProjects[p]).length;
         const allSelected = selectedCount === descendants.length && descendants.length > 0;
         const someSelected = selectedCount > 0 && selectedCount < descendants.length;
 
-        return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
-            React.createElement('div', {
-                style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.25rem 0',
-                    fontSize: '0.8125rem'
-                }
+        return React.createElement('div', {
+            style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.25rem 0',
+                fontSize: '0.8125rem'
+            }
+        },
+            // Expand/collapse toggle (solo si tiene hijos)
+            hasChildren && React.createElement('span', {
+                onClick: (e) => { e.stopPropagation(); toggleFn(); },
+                style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
+            }, isExpanded ? '▼' : '▶'),
+            !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
+            // Checkbox
+            React.createElement('input', {
+                type: 'checkbox',
+                checked: allSelected,
+                ref: (el) => { if (el) el.indeterminate = someSelected; },
+                onChange: (e) => handleProjectToggle(node, e.target.checked),
+                style: { margin: 0 }
+            }),
+            // Label
+            React.createElement('span', {
+                style: { cursor: 'pointer' },
+                onClick: () => handleProjectToggle(node, !allSelected)
             },
-                // Expand/collapse toggle (solo si tiene hijos)
-                hasChildren && React.createElement('span', {
-                    onClick: () => toggleExportProjectExpand(node.project),
-                    style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
-                }, isExpanded ? '▼' : '▶'),
-                !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
-                // Checkbox
-                React.createElement('input', {
-                    type: 'checkbox',
-                    checked: allSelected,
-                    ref: (el) => { if (el) el.indeterminate = someSelected; },
-                    onChange: (e) => handleProjectToggle(node, e.target.checked),
-                    style: { margin: 0 }
-                }),
-                // Label
-                React.createElement('span', {
-                    style: { cursor: 'pointer' },
-                    onClick: () => handleProjectToggle(node, !allSelected)
-                },
-                    hasChildren ? `📁 ${key}` : key
-                ),
-                // Badge con conteo si tiene hijos
-                hasChildren && React.createElement('span', {
-                    style: { fontSize: '0.625rem', color: '#999', marginLeft: '0.25rem' }
-                }, `(${selectedCount}/${descendants.length})`)
+                hasChildren ? `📁 ${key}` : key
             ),
-            // Hijos
-            hasChildren && isExpanded && React.createElement('div', null,
-                Object.keys(node.children).sort().map(childKey =>
-                    renderProjectTreeNode(node.children[childKey], childKey, depth + 1)
-                )
-            )
+            // Badge con conteo si tiene hijos
+            hasChildren && React.createElement('span', {
+                style: { fontSize: '0.625rem', color: '#999', marginLeft: '0.25rem' }
+            }, `(${selectedCount}/${descendants.length})`)
         );
     };
+
+    // ExportTab no necesita renderNodeContent porque solo muestra proyectos, no items dentro
+    const renderExportNodeContent = (node, depth) => null;
 
     // --- Render ---
     return React.createElement('div', null,
@@ -6353,9 +6386,12 @@ DiscourseGraphToolkit.ExportTab = function (props) {
                 ),
                 React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem', backgroundColor: '#fafafa' } },
                     projects.length === 0 ? 'No hay proyectos.' :
-                        Object.keys(projectTree).sort().map(projectKey =>
-                            renderProjectTreeNode(projectTree[projectKey], projectKey, 0)
-                        )
+                        React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
+                            tree: projectTree,
+                            renderNodeHeader: renderExportNodeHeader,
+                            renderNodeContent: renderExportNodeContent,
+                            defaultExpanded: true
+                        })
                 )
             ),
             React.createElement('div', { style: { flex: 1 } },

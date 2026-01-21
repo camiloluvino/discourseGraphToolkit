@@ -43,9 +43,28 @@ src/
 │   ├── htmlGenerator.js       # Generador HTML (usa htmlEmbeddedScript.js)
 │   ├── htmlEmbeddedScript.js  # JavaScript inyectado en HTML exportado
 │   └── epubGenerator.js       # Generador EPUB
-├── ui/modal.js        # Componente React (monolítico)
+├── ui/                # Componentes React de interfaz
+│   ├── modal.js       # Modal principal (orquestador de estado)
+│   ├── components/    # Componentes reutilizables
+│   │   └── ProjectTreeView.js  # Árbol jerárquico con expand/collapse
+│   └── tabs/          # Componentes de pestañas individuales
+│       ├── ProjectsTab.js   # Gestión de proyectos (~14 KB)
+│       ├── BranchesTab.js   # Verificación de ramas (~35 KB)
+│       ├── PanoramicTab.js  # Vista panorámica (~31 KB)
+│       ├── ExportTab.js     # Exportación (~27 KB)
+│       └── ImportTab.js     # Importación (~3 KB)
 └── utils/             # Helpers y toast notifications
 ```
+
+### Arquitectura UI:
+
+El componente `modal.js` actúa como **orquestador central**:
+- Define todo el estado compartido (~18 useState)
+- Pasa estado a cada Tab como props
+- Cada Tab es un componente funcional independiente
+
+> [!NOTE]
+> Aunque la UI está modularizada en tabs, hay **código duplicado** entre ellos (ej: `renderTreeNode`, `toggleProjectExpand`). Considerar extraer componentes reutilizables como `ProjectTreeView`.
 
 ## Arquitectura Conceptual
 
