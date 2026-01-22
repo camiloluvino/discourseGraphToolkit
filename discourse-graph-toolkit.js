@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.7
- * Bundled build: 2026-01-21 17:19:12
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.8
+ * Bundled build: 2026-01-22 12:58:48
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.7";
+    DiscourseGraphToolkit.VERSION = "1.5.8";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -5996,27 +5996,28 @@ DiscourseGraphToolkit.ExportTab = function () {
         return (title || '').replace(/\[\[QUE\]\]\s*-\s*/, '').substring(0, 60);
     };
 
-    // Helper para obtener clave de proyecto actual (busca prefijo común para coincidir con Panorámica)
+    // Helper para obtener clave de proyecto actual (calcula ancestro común para coincidir con Panorámica)
     const getProjectKey = (projectList = null) => {
         const projects = projectList || Object.keys(selectedProjects).filter(k => selectedProjects[k]);
         if (projects.length === 0) return '';
         if (projects.length === 1) return projects[0];
 
-        // Ordenar para encontrar el más corto (posible raíz)
-        const sorted = [...projects].sort((a, b) => a.length - b.length);
-        const shortest = sorted[0];
+        // Calcular el prefijo de ruta común más largo (ancestro común)
+        const splitPaths = projects.map(p => p.split('/'));
+        const minLength = Math.min(...splitPaths.map(p => p.length));
 
-        // Verificar si el más corto es prefijo de todos los demás
-        const isCommonPrefix = projects.every(p =>
-            p === shortest || p.startsWith(shortest + '/')
-        );
-
-        if (isCommonPrefix) {
-            return shortest; // Usar el proyecto padre como clave
+        let commonParts = [];
+        for (let i = 0; i < minLength; i++) {
+            const segment = splitPaths[0][i];
+            if (splitPaths.every(path => path[i] === segment)) {
+                commonParts.push(segment);
+            } else {
+                break;
+            }
         }
 
-        // Fallback: concatenar ordenados si no hay prefijo común
-        return sorted.join('|');
+        // Si hay ancestro común, usarlo; de lo contrario, fallback a concatenación
+        return commonParts.length > 0 ? commonParts.join('/') : projects.sort().join('|');
     };
 
     // --- Helpers para Seleccionar Todo ---
