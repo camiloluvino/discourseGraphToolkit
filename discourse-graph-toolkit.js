@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.8
- * Bundled build: 2026-01-22 12:58:48
+ * Bundled build: 2026-01-22 13:25:34
  */
 
 (function () {
@@ -1178,6 +1178,7 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
 
 // --- Persistencia del Orden de Preguntas ---
 DiscourseGraphToolkit.saveQuestionOrder = function (projectKey, order) {
+    console.log('[DEBUG saveQuestionOrder] projectKey:', projectKey, 'order length:', order?.length);
     if (!projectKey) return; // No guardar si no hay proyecto
     const allOrders = this.loadAllQuestionOrders();
     allOrders[projectKey] = order.map(q => q.uid); // Solo guardamos UIDs
@@ -1195,9 +1196,13 @@ DiscourseGraphToolkit.loadAllQuestionOrders = function () {
 };
 
 DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
+    console.log('[DEBUG loadQuestionOrder] projectKey:', projectKey);
     if (!projectKey) return null;
     const allOrders = this.loadAllQuestionOrders();
-    return allOrders[projectKey] || null;
+    console.log('[DEBUG loadQuestionOrder] available keys:', Object.keys(allOrders));
+    const result = allOrders[projectKey] || null;
+    console.log('[DEBUG loadQuestionOrder] result:', result ? `found ${result.length} UIDs` : 'null');
+    return result;
 };
 
 // --- Cache de Vista Panorámica ---
@@ -5999,6 +6004,7 @@ DiscourseGraphToolkit.ExportTab = function () {
     // Helper para obtener clave de proyecto actual (calcula ancestro común para coincidir con Panorámica)
     const getProjectKey = (projectList = null) => {
         const projects = projectList || Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+        console.log('[DEBUG ExportTab] getProjectKey input projects:', projects);
         if (projects.length === 0) return '';
         if (projects.length === 1) return projects[0];
 
@@ -6017,7 +6023,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         }
 
         // Si hay ancestro común, usarlo; de lo contrario, fallback a concatenación
-        return commonParts.length > 0 ? commonParts.join('/') : projects.sort().join('|');
+        const result = commonParts.length > 0 ? commonParts.join('/') : projects.sort().join('|');
+        console.log('[DEBUG ExportTab] getProjectKey result:', result);
+        return result;
     };
 
     // --- Helpers para Seleccionar Todo ---
