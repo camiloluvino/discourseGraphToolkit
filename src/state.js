@@ -182,7 +182,6 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
 
 // --- Persistencia del Orden de Preguntas ---
 DiscourseGraphToolkit.saveQuestionOrder = function (projectKey, order) {
-    console.log('[DEBUG saveQuestionOrder] projectKey:', projectKey, 'order length:', order?.length);
     if (!projectKey) return; // No guardar si no hay proyecto
     const allOrders = this.loadAllQuestionOrders();
     allOrders[projectKey] = order.map(q => q.uid); // Solo guardamos UIDs
@@ -200,13 +199,9 @@ DiscourseGraphToolkit.loadAllQuestionOrders = function () {
 };
 
 DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
-    console.log('[DEBUG loadQuestionOrder] projectKey:', projectKey);
     if (!projectKey) return null;
     const allOrders = this.loadAllQuestionOrders();
-    console.log('[DEBUG loadQuestionOrder] available keys:', Object.keys(allOrders));
-    const result = allOrders[projectKey] || null;
-    console.log('[DEBUG loadQuestionOrder] result:', result ? `found ${result.length} UIDs` : 'null');
-    return result;
+    return allOrders[projectKey] || null;
 };
 
 // --- Cache de Vista Panorámica ---

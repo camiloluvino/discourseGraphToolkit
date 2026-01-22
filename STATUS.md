@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-21
+**Última actualización:** 2026-01-22
 
 ## Versión Actual
 
-**v1.5.7**
+**v1.5.8**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,10 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.8 (Enero 2026)
+- **Fix:** Corregido bug donde el orden de preguntas de Panorámica no se aplicaba en Export al seleccionar proyectos hijos
+- **Tech:** `getProjectKey()` ahora calcula el ancestro común real de proyectos hermanos (no solo verifica si uno es prefijo de otro)
 
 ### v1.5.7 (Enero 2026)
 - **Feature:** Detección de nodos huérfanos — nuevo botón "👻 Huérfanos" en pestaña Ramas

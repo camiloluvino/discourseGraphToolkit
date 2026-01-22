@@ -64,7 +64,6 @@ DiscourseGraphToolkit.ExportTab = function () {
     // Helper para obtener clave de proyecto actual (calcula ancestro común para coincidir con Panorámica)
     const getProjectKey = (projectList = null) => {
         const projects = projectList || Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-        console.log('[DEBUG ExportTab] getProjectKey input projects:', projects);
         if (projects.length === 0) return '';
         if (projects.length === 1) return projects[0];
 
@@ -83,9 +82,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         }
 
         // Si hay ancestro común, usarlo; de lo contrario, fallback a concatenación
-        const result = commonParts.length > 0 ? commonParts.join('/') : projects.sort().join('|');
-        console.log('[DEBUG ExportTab] getProjectKey result:', result);
-        return result;
+        return commonParts.length > 0 ? commonParts.join('/') : projects.sort().join('|');
     };
 
     // --- Helpers para Seleccionar Todo ---
