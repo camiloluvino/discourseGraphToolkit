@@ -3,7 +3,7 @@
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
-// DiscourseGraphToolkit.VERSION = "1.1.1"; // Managed by build script
+// DiscourseGraphToolkit.VERSION = "1.5.9"; // Managed by build script
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {

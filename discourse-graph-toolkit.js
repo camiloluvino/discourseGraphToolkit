@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.8
- * Bundled build: 2026-01-22 13:44:34
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.9
+ * Bundled build: 2026-01-29 22:50:49
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.8";
+    DiscourseGraphToolkit.VERSION = "1.5.9";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -561,7 +561,7 @@ function moveQuestionDown(id) {
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
-// DiscourseGraphToolkit.VERSION = "1.1.1"; // Managed by build script
+// DiscourseGraphToolkit.VERSION = "1.5.9"; // Managed by build script
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
@@ -5950,6 +5950,12 @@ DiscourseGraphToolkit.ExportTab = function () {
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
     } = DiscourseGraphToolkit.useToolkit();
+
+    // --- Limpiar preview cuando cambian los proyectos seleccionados ---
+    React.useEffect(() => {
+        setPreviewPages([]);
+        setOrderedQuestions([]);
+    }, [selectedProjects]);
 
     // --- Árbol jerárquico de proyectos (calculado) ---
     const projectTree = React.useMemo(() => {

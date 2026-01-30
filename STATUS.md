@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.8**
+**v1.5.9**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,9 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.9 (Enero 2026)
+- **Fix:** Exportación EPUB ya no retiene datos "stale" (rama anterior) al cambiar de proyecto sin actualizar la vista previa.
 
 ### v1.5.8 (Enero 2026)
 - **Fix:** Corregido bug donde el orden de preguntas de Panorámica no se aplicaba en Export al seleccionar proyectos hijos

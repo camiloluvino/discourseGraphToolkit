@@ -16,6 +16,12 @@ DiscourseGraphToolkit.ExportTab = function () {
         orderedQuestions, setOrderedQuestions
     } = DiscourseGraphToolkit.useToolkit();
 
+    // --- Limpiar preview cuando cambian los proyectos seleccionados ---
+    React.useEffect(() => {
+        setPreviewPages([]);
+        setOrderedQuestions([]);
+    }, [selectedProjects]);
+
     // --- Árbol jerárquico de proyectos (calculado) ---
     const projectTree = React.useMemo(() => {
         if (projects.length === 0) return {};
