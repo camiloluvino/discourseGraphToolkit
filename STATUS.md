@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-01-22
+**Última actualización:** 2026-02-16
 
 ## Versión Actual
 
-**v1.5.9**
+**v1.5.10**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,9 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.10 (Febrero 2026)
+- **Fix:** Corregido bug visual en la pestaña Ramas donde los sub-proyectos con una sola pregunta no mostraban su encabezado de carpeta, causando que sus preguntas parecieran pertenecer a la rama anterior.
 
 ### v1.5.9 (Enero 2026)
 - **Fix:** Exportación EPUB ya no retiene datos "stale" (rama anterior) al cambiar de proyecto sin actualizar la vista previa.

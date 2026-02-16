@@ -205,8 +205,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const hasChildren = Object.keys(node.children).length > 0;
         const totalQuestions = DiscourseGraphToolkit.countTreeQuestions(node);
 
-        if (!hasChildren && totalQuestions <= 1 && depth > 0) return null;
-
         return React.createElement('div', {
             onClick: toggleFn,
             style: {

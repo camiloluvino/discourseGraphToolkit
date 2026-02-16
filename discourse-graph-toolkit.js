@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.9
- * Bundled build: 2026-01-29 22:50:49
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.10
+ * Bundled build: 2026-02-16 19:16:01
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.9";
+    DiscourseGraphToolkit.VERSION = "1.5.10";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -4892,8 +4892,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
     const renderBranchesNodeHeader = (node, key, depth, isExpanded, toggleFn) => {
         const hasChildren = Object.keys(node.children).length > 0;
         const totalQuestions = DiscourseGraphToolkit.countTreeQuestions(node);
-
-        if (!hasChildren && totalQuestions <= 1 && depth > 0) return null;
 
         return React.createElement('div', {
             onClick: toggleFn,
