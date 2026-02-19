@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.10**
+**v1.5.11**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,9 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.11 (Febrero 2026)
+- **Fix:** Corregida la indentación visual en el dropdown de proyectos de la Vista Panorámica (ahora usa espacios de no-quiebre para respetar la jerarquía).
 
 ### v1.5.10 (Febrero 2026)
 - **Fix:** Corregido bug visual en la pestaña Ramas donde los sub-proyectos con una sola pregunta no mostraban su encabezado de carpeta, causando que sus preguntas parecieran pertenecer a la rama anterior.

@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.10
- * Bundled build: 2026-02-16 19:16:01
+ * DISCOURSE GRAPH TOOLKIT v1.5.11
+ * Bundled build: 2026-02-19 16:38:13
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.10";
+    DiscourseGraphToolkit.VERSION = "1.5.11";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1078,7 +1078,10 @@ DiscourseGraphToolkit.loadConfigFromRoam = async function () {
 // --- Proyectos (Gestión Robusta con Sincronización) ---
 DiscourseGraphToolkit.getProjects = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.PROJECTS));
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing projects", e); }
+    }
+    return [];
 };
 
 DiscourseGraphToolkit.saveProjects = function (projects) {
@@ -1088,7 +1091,10 @@ DiscourseGraphToolkit.saveProjects = function (projects) {
 // --- Historial de Nodos ---
 DiscourseGraphToolkit.getNodeHistory = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.HISTORY_NODES));
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing node history", e); }
+    }
+    return [];
 };
 
 DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
@@ -1191,7 +1197,10 @@ DiscourseGraphToolkit.loadAllQuestionOrders = function () {
     const stored = localStorage.getItem(
         this.getStorageKey(this.STORAGE.QUESTION_ORDER)
     );
-    return stored ? JSON.parse(stored) : {};
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing question orders", e); }
+    }
+    return {};
 };
 
 DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
@@ -5784,7 +5793,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     },
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
                         hierarchicalProjects.map(p => {
-                            const indent = '  '.repeat(p.depth);
+                            const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(p.depth);
                             const icon = p.isLeaf ? '📄' : '📁';
                             const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
                             return React.createElement('option', {

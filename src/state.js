@@ -82,7 +82,10 @@ DiscourseGraphToolkit.loadConfigFromRoam = async function () {
 // --- Proyectos (Gestión Robusta con Sincronización) ---
 DiscourseGraphToolkit.getProjects = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.PROJECTS));
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing projects", e); }
+    }
+    return [];
 };
 
 DiscourseGraphToolkit.saveProjects = function (projects) {
@@ -92,7 +95,10 @@ DiscourseGraphToolkit.saveProjects = function (projects) {
 // --- Historial de Nodos ---
 DiscourseGraphToolkit.getNodeHistory = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.HISTORY_NODES));
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing node history", e); }
+    }
+    return [];
 };
 
 DiscourseGraphToolkit.addToNodeHistory = function (type, title, project) {
@@ -195,7 +201,10 @@ DiscourseGraphToolkit.loadAllQuestionOrders = function () {
     const stored = localStorage.getItem(
         this.getStorageKey(this.STORAGE.QUESTION_ORDER)
     );
-    return stored ? JSON.parse(stored) : {};
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing question orders", e); }
+    }
+    return {};
 };
 
 DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {

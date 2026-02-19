@@ -517,7 +517,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     },
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
                         hierarchicalProjects.map(p => {
-                            const indent = '  '.repeat(p.depth);
+                            const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(p.depth);
                             const icon = p.isLeaf ? '📄' : '📁';
                             const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
                             return React.createElement('option', {
