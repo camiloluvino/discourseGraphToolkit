@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.11
- * Bundled build: 2026-02-19 16:38:13
+ * DISCOURSE GRAPH TOOLKIT v1.5.13
+ * Bundled build: 2026-02-20 20:08:24
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.11";
+    DiscourseGraphToolkit.VERSION = "1.5.13";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -561,7 +561,7 @@ function moveQuestionDown(id) {
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
-// DiscourseGraphToolkit.VERSION = "1.5.9"; // Managed by build script
+// DiscourseGraphToolkit.VERSION = "1.5.12"; // Managed by build script
 
 // Claves de LocalStorage
 DiscourseGraphToolkit.STORAGE = {
@@ -4036,6 +4036,18 @@ DiscourseGraphToolkit.EpubGenerator = {
         const lines = markdown.split('\n');
         let currentChapter = null;
 
+        // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
+        let counters = [0, 0, 0, 0, 0, 0];
+
+        const getHierarchyPrefix = (level) => {
+            const index = level - 1;
+            counters[index]++;
+            for (let i = index + 1; i < counters.length; i++) {
+                counters[i] = 0;
+            }
+            return counters.slice(1, index + 1).join('.') + ' ';
+        };
+
         for (const line of lines) {
             // H1 is the main title, skip it
             if (line.startsWith('# ') && !line.startsWith('## ')) {
@@ -4048,14 +4060,49 @@ DiscourseGraphToolkit.EpubGenerator = {
                     chapters.push(currentChapter);
                 }
                 const rawTitle = line.replace(/^##\s*/, '');
+                counters[0] = 0; // NOT USED
+                counters[1]++; // chapterNum
+                for (let i = 2; i < 6; i++) counters[i] = 0; // reset lower
+
                 currentChapter = {
                     title: this.cleanTitle(rawTitle),
                     nodeType: this.extractNodeType(rawTitle),
                     level: 2,
-                    content: []
+                    content: [],
+                    id: `node-${counters[1]}`, // H2 anchor
+                    numberPrefix: `${counters[1]}. `,
+                    subItems: []
                 };
             } else if (currentChapter) {
                 currentChapter.content.push(line);
+
+                // Track subheadings for ToC
+                const trimmed = line.trim();
+                if (trimmed.startsWith('### ')) {
+                    const prefix = getHierarchyPrefix(3);
+                    currentChapter.subItems.push({
+                        level: 3,
+                        title: this.cleanTitle(trimmed.replace(/^###\s*/, '')),
+                        id: `node-${counters.slice(1, 3).join('-')}`,
+                        numberPrefix: prefix
+                    });
+                } else if (trimmed.startsWith('#### ')) {
+                    const prefix = getHierarchyPrefix(4);
+                    currentChapter.subItems.push({
+                        level: 4,
+                        title: this.cleanTitle(trimmed.replace(/^####\s*/, '')),
+                        id: `node-${counters.slice(1, 4).join('-')}`,
+                        numberPrefix: prefix
+                    });
+                } else if (trimmed.startsWith('##### ')) {
+                    const prefix = getHierarchyPrefix(5);
+                    currentChapter.subItems.push({
+                        level: 5,
+                        title: this.cleanTitle(trimmed.replace(/^#####\s*/, '')),
+                        id: `node-${counters.slice(1, 5).join('-')}`,
+                        numberPrefix: prefix
+                    });
+                }
             }
         }
 
@@ -4085,9 +4132,26 @@ DiscourseGraphToolkit.EpubGenerator = {
     },
 
     // Convert markdown content to XHTML
-    markdownToXhtml: function (lines) {
+    markdownToXhtml: function (lines, chapterNum) {
         let html = '';
         let inParagraph = false;
+
+        // Counters for H2, H3, H4, H5, H6 (index 0 is unused, index 1 is H2, index 2 is H3, etc.)
+        // We use an offset since chapter H2 is tracked by chapterNum
+        let counters = [0, chapterNum, 0, 0, 0, 0];
+
+        // Helper to increment counters and get the hierarchy string
+        const getHierarchyPrefix = (level) => {
+            // Level 2 is H2, Level 3 is H3, etc.
+            const index = level - 1;
+            counters[index]++;
+            // Reset lower levels
+            for (let i = index + 1; i < counters.length; i++) {
+                counters[i] = 0;
+            }
+            // Build the string
+            return counters.slice(1, index + 1).join('.') + ' ';
+        };
 
         for (const line of lines) {
             const trimmed = line.trim();
@@ -4103,19 +4167,24 @@ DiscourseGraphToolkit.EpubGenerator = {
             // Headers - with explicit level and node type prefixes for e-ink readability
             if (trimmed.startsWith('##### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const nodeType = this.extractNodeType(trimmed);
-                const typePrefix = nodeType ? `[${nodeType}]` : '';
-                html += `<h5>[H5]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')))}</h5>\n`;
+                const prefix = getHierarchyPrefix(5);
+                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')));
+                const id = `node-${counters.slice(1, 5).join('-')}`;
+                html += `<h5 id="${id}">${prefix}[EVD] ${cleanText}</h5>\n`;
             } else if (trimmed.startsWith('#### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const nodeType = this.extractNodeType(trimmed);
-                const typePrefix = nodeType ? `[${nodeType}]` : '';
-                html += `<h4>[H4]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')))}</h4>\n`;
+                const prefix = getHierarchyPrefix(4);
+                const nodeType = this.extractNodeType(trimmed) || 'EVD';
+                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')));
+                const id = `node-${counters.slice(1, 4).join('-')}`;
+                html += `<h4 id="${id}">${prefix}[${nodeType}] ${cleanText}</h4>\n`;
             } else if (trimmed.startsWith('### ')) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const nodeType = this.extractNodeType(trimmed);
-                const typePrefix = nodeType ? `[${nodeType}]` : '';
-                html += `<h3>[H3]${typePrefix} ${this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')))}</h3>\n`;
+                const prefix = getHierarchyPrefix(3);
+                const nodeType = this.extractNodeType(trimmed) || 'CLM';
+                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')));
+                const id = `node-${counters.slice(1, 3).join('-')}`;
+                html += `<h3 id="${id}">${prefix}[${nodeType}] ${cleanText}</h3>\n`;
             } else {
                 // Detectar bloque estructural: *— texto —*
                 const isStructuralBlock = /^\*—\s.+\s—\*$/.test(trimmed);
@@ -4225,38 +4294,72 @@ ${spineItems}
     },
 
     createTocNcx: function (title, uuid, chapters) {
-        const navPoints = chapters.map((chapter, i) => `
-    <navPoint id="navpoint${i + 2}" playOrder="${i + 2}">
-      <navLabel><text>${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</text></navLabel>
-      <content src="chapter${i + 1}.xhtml"/>
-    </navPoint>`
-        ).join('');
+        let playOrder = 1;
 
         const tocNavPoint = `
-    <navPoint id="navpoint1" playOrder="1">
+    <navPoint id="navpoint${playOrder}" playOrder="${playOrder}">
       <navLabel><text>Tabla de Contenidos</text></navLabel>
       <content src="nav.xhtml"/>
     </navPoint>`;
+        playOrder++;
+
+        let navPointsMarkup = '';
+        chapters.forEach((chapter, i) => {
+            const chapId = `navpoint${playOrder}`;
+            const chapOrder = playOrder++;
+            const chapTitle = this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)));
+            const chapSrc = `chapter${i + 1}.xhtml`;
+
+            navPointsMarkup += `
+    <navPoint id="${chapId}" playOrder="${chapOrder}">
+      <navLabel><text>${chapTitle}</text></navLabel>
+      <content src="${chapSrc}"/>`;
+
+            if (chapter.subItems && chapter.subItems.length > 0) {
+                chapter.subItems.forEach((subItem) => {
+                    const subId = `navpoint${playOrder}`;
+                    const subOrder = playOrder++;
+                    const subTitle = this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)));
+                    navPointsMarkup += `
+      <navPoint id="${subId}" playOrder="${subOrder}">
+        <navLabel><text>${subItem.numberPrefix}${subTitle}</text></navLabel>
+        <content src="${chapSrc}#${subItem.id}"/>
+      </navPoint>`;
+                });
+            }
+
+            navPointsMarkup += `
+    </navPoint>`;
+        });
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uuid}"/>
-    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:depth" content="2"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
   <docTitle><text>${this.escapeHtml(title)}</text></docTitle>
   <navMap>
-${tocNavPoint}${navPoints}
+${tocNavPoint}${navPointsMarkup}
   </navMap>
 </ncx>`;
     },
 
     createNavXhtml: function (title, chapters) {
-        const navItems = chapters.map((chapter, i) =>
-            `        <li><a href="chapter${i + 1}.xhtml">${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a></li>`
-        ).join('\n');
+        const navItems = chapters.map((chapter, i) => {
+            let itemHtml = `        <li><a href="chapter${i + 1}.xhtml">${chapter.numberPrefix}${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a>`;
+            if (chapter.subItems && chapter.subItems.length > 0) {
+                itemHtml += `\n          <ol>\n`;
+                chapter.subItems.forEach((subItem) => {
+                    itemHtml += `            <li><a href="chapter${i + 1}.xhtml#${subItem.id}">${subItem.numberPrefix}${this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)))}</a></li>\n`;
+                });
+                itemHtml += `          </ol>\n        `;
+            }
+            itemHtml += `</li>`;
+            return itemHtml;
+        }).join('\n');
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -4319,7 +4422,7 @@ nav li {
     },
 
     createChapterXhtml: function (chapter, chapterNum) {
-        const content = this.markdownToXhtml(chapter.content);
+        const content = this.markdownToXhtml(chapter.content, chapterNum);
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -4329,7 +4432,7 @@ nav li {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <h2>[H2]${chapter.nodeType ? `[${chapter.nodeType}]` : ''} ${this.processInlineMarkdown(chapter.title)}</h2>
+  <h2 id="node-${chapterNum}">${chapterNum}. [QUE] ${this.processInlineMarkdown(chapter.title)}</h2>
 ${content}
 </body>
 </html>`;
@@ -6170,7 +6273,14 @@ DiscourseGraphToolkit.ExportTab = function () {
             setOrderedQuestions(orderedQuestionsToExport);
         }
 
-        const filename = `roam_map_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}`;
+        // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
+        const commonProject = getProjectKey(pNames);
+        // Formatear el nombre del archivo para que mantenga la estructura DG_proyecto_namespace
+        const formatProjectName = (pName) => {
+            return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
+        };
+        const sanitizedNames = formatProjectName(commonProject);
+        const filename = `DG_${sanitizedNames}`;
 
         // Retornar preguntas YA ordenadas para el export
         return { questions: orderedQuestionsToExport, allNodes, filename };
@@ -6187,7 +6297,15 @@ DiscourseGraphToolkit.ExportTab = function () {
         try {
             const uids = pagesToExport.map(p => p.pageUid);
             const pNames = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
-            const filename = `roam_export_${DiscourseGraphToolkit.sanitizeFilename(pNames.join('_'))}.json`;
+
+            // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
+            const commonProject = getProjectKey(pNames);
+            const formatProjectName = (pName) => {
+                return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
+            };
+            const sanitizedNames = formatProjectName(commonProject);
+            const filename = `DG_${sanitizedNames}.json`;
+
             const anyContent = Object.values(contentConfig).some(x => x);
 
             await DiscourseGraphToolkit.exportPagesNative(uids, filename, (msg) => setExportStatus(msg), anyContent);

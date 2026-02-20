@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.12**
+**v1.5.13**
 
 ## Estado de Funcionalidades
 
@@ -20,12 +20,17 @@
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo |
 | Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
-| Exportación EPUB | ✅ Mejorado | Bloques estructurales con espaciado visual |
+| Exportación EPUB | ✅ Mejorado | ToC interactivo profundo y numeración jerárquica |
 | Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.13 (Febrero 2026)
+- **Feature:** Implementación de generación nativa de EPUB (eliminada dependencia externa `jEpub`).
+- **Feature:** Índice Jerárquico Profundo (ToC Interactivo) en EPUB. Soporta navegación a Afirmaciones (CLM) y Evidencias (EVD) anidadas.
+- **Feature:** Numeración jerárquica automática en EPUB (ej. `1.1.2.`) para retener el contexto del flujo del discurso en e-readers (Kindle, Apple Books).
 
 ### v1.5.12 (Febrero 2026)
 - **Feature:** Cambio en la nomenclatura de los archivos exportados. Ahora usan el formato `DG_[nombre_proyecto]` utilizando el ancestro común más largo, en lugar de concatenar todas las ramas seleccionadas.

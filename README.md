@@ -50,7 +50,7 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **HTML:** Documento interactivo con estilos, navegación y reordenamiento.
 - **Markdown:** Formato estructurado con bullets e indentación.
 - **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
-- **EPUB:** Libro electrónico listo para lectores de eBooks (Kindle, Apple Books, Calibre). Los encabezados incluyen prefijos de nivel y tipo: `[H2][QUE]`, `[H3][CLM]`, `[H4][EVD]` para mejor legibilidad en pantallas e-ink.
+- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)** y **numeración jerárquica automática** (ej. `1.2.1. `) inyectada en los encabezados, preservando el contexto del discurso al leer linealmente en dispositivos como Kindle o Apple Books.
 
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
 - **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.
