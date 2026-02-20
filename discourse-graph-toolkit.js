@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.13
- * Bundled build: 2026-02-20 20:08:24
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.14
+ * Bundled build: 2026-02-20 20:33:49
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.13";
+    DiscourseGraphToolkit.VERSION = "1.5.14";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -142,6 +142,82 @@ var MarkdownCore = {
         return detailedContent;
     },
 
+    // --- Límite de profundidad para recursión de nodos (seguridad) ---
+    MAX_NODE_DEPTH: 10,
+
+    // --- Helper: renderizar metadata de un nodo ---
+    renderMetadata: function (metadata, flatMode) {
+        var result = '';
+        if (!metadata) return result;
+        if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+            if (flatMode) {
+                if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n\\n';
+                if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\\n\\n';
+            } else {
+                result += '**Información del proyecto:**\\n';
+                if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n';
+                if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\\n';
+                result += '\\n';
+            }
+        }
+        return result;
+    },
+
+    // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+        if (!nodeUid || !allNodes[nodeUid]) return '';
+        if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
+        if (visited[nodeUid]) return ''; // Evitar ciclos
+        visited[nodeUid] = true;
+
+        var node = allNodes[nodeUid];
+        var type = node.type; // 'CLM' o 'EVD'
+        var result = '';
+
+        // Generar heading dinámico (###, ####, #####, etc.)
+        var hashes = '';
+        for (var h = 0; h < headingLevel; h++) hashes += '#';
+        var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
+        result += hashes + ' [[' + type + ']] - ' + title + '\\n\\n';
+
+        // Metadata
+        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+
+        // Contenido del nodo
+        if (config[type]) {
+            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
+            if (content) {
+                result += content + '\\n';
+            } else if (type === 'EVD') {
+                result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
+            }
+        }
+
+        // Hijos: CLMs de soporte (recursión)
+        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+        if (hasSupportingClms) {
+            for (var s = 0; s < node.supporting_clms.length; s++) {
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+        if (hasRelatedEvds) {
+            for (var e = 0; e < node.related_evds.length; e++) {
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
+        }
+
+        visited[nodeUid] = false; // Liberar para ramas paralelas
+        return result;
+    },
+
     // --- Generación de Markdown completo ---
     generateMarkdown: function (questions, allNodes, config, excludeBitacora, flatMode) {
         var self = this;
@@ -160,19 +236,8 @@ var MarkdownCore = {
                 var qTitle = self.cleanText((question.title || '').replace('[[QUE]] - ', ''));
                 result += '## [[QUE]] - ' + qTitle + '\\n\\n';
 
-                // Metadata
-                var metadata = question.project_metadata || {};
-                if (metadata.proyecto_asociado || metadata.seccion_tesis) {
-                    if (flatMode) {
-                        if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n\\n';
-                        if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\\n\\n';
-                    } else {
-                        result += '**Información del proyecto:**\\n';
-                        if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\\n';
-                        if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\\n';
-                        result += '\\n';
-                    }
-                }
+                // Metadata de la pregunta
+                result += self.renderMetadata(question.project_metadata || {}, flatMode);
 
                 // Contenido QUE
                 if (config.QUE) {
@@ -188,158 +253,17 @@ var MarkdownCore = {
                     continue;
                 }
 
-                // CLMs
+                // CLMs respondidos (recursión desde nivel 3)
                 if (question.related_clms) {
                     for (var c = 0; c < question.related_clms.length; c++) {
-                        var clmUid = question.related_clms[c];
-                        if (allNodes[clmUid]) {
-                            var clm = allNodes[clmUid];
-                            var clmTitle = self.cleanText((clm.title || '').replace('[[CLM]] - ', ''));
-                            result += '### [[CLM]] - ' + clmTitle + '\\n\\n';
-
-                            var clmMetadata = clm.project_metadata || {};
-                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (clmMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\\n\\n';
-                                    if (clmMetadata.seccion_tesis) result += 'Sección Narrativa: ' + clmMetadata.seccion_tesis + '\\n\\n';
-                                } else {
-                                    result += '**Información del proyecto:**\\n';
-                                    if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\\n';
-                                    if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\\n';
-                                    result += '\\n\\n';
-                                }
-                            }
-
-                            // Contenido CLM
-                            if (config.CLM) {
-                                var clmContent = self.extractNodeContent(clm.data, true, 'CLM', excludeBitacora, flatMode);
-                                if (clmContent) result += clmContent + '\\n';
-                            }
-
-                            // Supporting CLMs
-                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                for (var s = 0; s < clm.supporting_clms.length; s++) {
-                                    var suppUid = clm.supporting_clms[s];
-                                    if (allNodes[suppUid]) {
-                                        var suppClm = allNodes[suppUid];
-                                        var suppTitle = self.cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
-                                        result += '#### [[CLM]] - ' + suppTitle + '\\n';
-
-                                        if (config.CLM) {
-                                            var suppContent = self.extractNodeContent(suppClm.data, true, 'CLM', excludeBitacora, flatMode);
-                                            if (suppContent) result += '\\n' + suppContent + '\\n';
-                                        }
-
-                                        // EVDs del CLM de Soporte
-                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            for (var se = 0; se < suppClm.related_evds.length; se++) {
-                                                var suppEvdUid = suppClm.related_evds[se];
-                                                if (allNodes[suppEvdUid]) {
-                                                    var suppEvd = allNodes[suppEvdUid];
-                                                    var suppEvdTitle = self.cleanText((suppEvd.title || '').replace('[[EVD]] - ', ''));
-                                                    result += '##### [[EVD]] - ' + suppEvdTitle + '\\n\\n';
-
-                                                    var suppEvdMetadata = suppEvd.project_metadata || {};
-                                                    if (suppEvdMetadata.proyecto_asociado || suppEvdMetadata.seccion_tesis) {
-                                                        if (flatMode) {
-                                                            if (suppEvdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\\n\\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\\n\\n';
-                                                        } else {
-                                                            result += '**Información del proyecto:**\\n';
-                                                            if (suppEvdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\\n';
-                                                            result += '\\n';
-                                                        }
-                                                    }
-
-                                                    if (config.EVD) {
-                                                        var suppEvdContent = self.extractNodeContent(suppEvd.data, true, 'EVD', excludeBitacora, flatMode);
-                                                        if (suppEvdContent) {
-                                                            result += suppEvdContent + '\\n';
-                                                        } else {
-                                                            result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                result += '\\n';
-                            }
-
-                            // EVDs directos del CLM
-                            if (!clm.related_evds || clm.related_evds.length === 0) {
-                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
-                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
-                                }
-                            } else {
-                                for (var e = 0; e < clm.related_evds.length; e++) {
-                                    var evdUid = clm.related_evds[e];
-                                    if (allNodes[evdUid]) {
-                                        var evd = allNodes[evdUid];
-                                        var evdTitle = self.cleanText((evd.title || '').replace('[[EVD]] - ', ''));
-                                        result += '#### [[EVD]] - ' + evdTitle + '\\n\\n';
-
-                                        var evdMetadata = evd.project_metadata || {};
-                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                            if (flatMode) {
-                                                if (evdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\\n\\n';
-                                                if (evdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + evdMetadata.seccion_tesis + '\\n\\n';
-                                            } else {
-                                                result += '**Información del proyecto:**\\n';
-                                                if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\\n';
-                                                if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\\n';
-                                                result += '\\n';
-                                            }
-                                        }
-
-                                        if (config.EVD) {
-                                            var evdContent = self.extractNodeContent(evd.data, true, 'EVD', excludeBitacora, flatMode);
-                                            if (evdContent) {
-                                                result += evdContent + '\\n';
-                                            } else {
-                                                result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 
-                // Direct EVDs
+                // EVDs directos de la pregunta (nivel 3)
                 if (question.direct_evds) {
                     for (var d = 0; d < question.direct_evds.length; d++) {
-                        var devdUid = question.direct_evds[d];
-                        if (allNodes[devdUid]) {
-                            var devd = allNodes[devdUid];
-                            var devdTitle = self.cleanText((devd.title || '').replace('[[EVD]] - ', ''));
-                            result += '### [[EVD]] - ' + devdTitle + '\\n\\n';
-
-                            var devdMetadata = devd.project_metadata || {};
-                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (devdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\\n\\n';
-                                    if (devdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + devdMetadata.seccion_tesis + '\\n\\n';
-                                } else {
-                                    result += '**Información del proyecto:**\\n';
-                                    if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\\n';
-                                    if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\\n';
-                                    result += '\\n';
-                                }
-                            }
-
-                            if (config.EVD) {
-                                var devdContent = self.extractNodeContent(devd.data, true, 'EVD', excludeBitacora, flatMode);
-                                if (devdContent) {
-                                    result += devdContent + '\\n';
-                                } else {
-                                    result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 
@@ -3293,6 +3217,82 @@ var MarkdownCore = {
         return detailedContent;
     },
 
+    // --- Límite de profundidad para recursión de nodos (seguridad) ---
+    MAX_NODE_DEPTH: 10,
+
+    // --- Helper: renderizar metadata de un nodo ---
+    renderMetadata: function (metadata, flatMode) {
+        var result = '';
+        if (!metadata) return result;
+        if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+            if (flatMode) {
+                if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\n\n';
+                if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\n\n';
+            } else {
+                result += '**Información del proyecto:**\n';
+                if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\n';
+                if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\n';
+                result += '\n';
+            }
+        }
+        return result;
+    },
+
+    // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+        if (!nodeUid || !allNodes[nodeUid]) return '';
+        if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
+        if (visited[nodeUid]) return ''; // Evitar ciclos
+        visited[nodeUid] = true;
+
+        var node = allNodes[nodeUid];
+        var type = node.type; // 'CLM' o 'EVD'
+        var result = '';
+
+        // Generar heading dinámico (###, ####, #####, etc.)
+        var hashes = '';
+        for (var h = 0; h < headingLevel; h++) hashes += '#';
+        var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
+        result += hashes + ' [[' + type + ']] - ' + title + '\n\n';
+
+        // Metadata
+        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+
+        // Contenido del nodo
+        if (config[type]) {
+            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
+            if (content) {
+                result += content + '\n';
+            } else if (type === 'EVD') {
+                result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
+            }
+        }
+
+        // Hijos: CLMs de soporte (recursión)
+        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+        if (hasSupportingClms) {
+            for (var s = 0; s < node.supporting_clms.length; s++) {
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+        if (hasRelatedEvds) {
+            for (var e = 0; e < node.related_evds.length; e++) {
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
+        }
+
+        visited[nodeUid] = false; // Liberar para ramas paralelas
+        return result;
+    },
+
     // --- Generación de Markdown completo ---
     generateMarkdown: function (questions, allNodes, config, excludeBitacora, flatMode) {
         var self = this;
@@ -3311,19 +3311,8 @@ var MarkdownCore = {
                 var qTitle = self.cleanText((question.title || '').replace('[[QUE]] - ', ''));
                 result += '## [[QUE]] - ' + qTitle + '\n\n';
 
-                // Metadata
-                var metadata = question.project_metadata || {};
-                if (metadata.proyecto_asociado || metadata.seccion_tesis) {
-                    if (flatMode) {
-                        if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\n\n';
-                        if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\n\n';
-                    } else {
-                        result += '**Información del proyecto:**\n';
-                        if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\n';
-                        if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\n';
-                        result += '\n';
-                    }
-                }
+                // Metadata de la pregunta
+                result += self.renderMetadata(question.project_metadata || {}, flatMode);
 
                 // Contenido QUE
                 if (config.QUE) {
@@ -3339,158 +3328,17 @@ var MarkdownCore = {
                     continue;
                 }
 
-                // CLMs
+                // CLMs respondidos (recursión desde nivel 3)
                 if (question.related_clms) {
                     for (var c = 0; c < question.related_clms.length; c++) {
-                        var clmUid = question.related_clms[c];
-                        if (allNodes[clmUid]) {
-                            var clm = allNodes[clmUid];
-                            var clmTitle = self.cleanText((clm.title || '').replace('[[CLM]] - ', ''));
-                            result += '### [[CLM]] - ' + clmTitle + '\n\n';
-
-                            var clmMetadata = clm.project_metadata || {};
-                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (clmMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\n\n';
-                                    if (clmMetadata.seccion_tesis) result += 'Sección Narrativa: ' + clmMetadata.seccion_tesis + '\n\n';
-                                } else {
-                                    result += '**Información del proyecto:**\n';
-                                    if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\n';
-                                    if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\n';
-                                    result += '\n\n';
-                                }
-                            }
-
-                            // Contenido CLM
-                            if (config.CLM) {
-                                var clmContent = self.extractNodeContent(clm.data, true, 'CLM', excludeBitacora, flatMode);
-                                if (clmContent) result += clmContent + '\n';
-                            }
-
-                            // Supporting CLMs
-                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                for (var s = 0; s < clm.supporting_clms.length; s++) {
-                                    var suppUid = clm.supporting_clms[s];
-                                    if (allNodes[suppUid]) {
-                                        var suppClm = allNodes[suppUid];
-                                        var suppTitle = self.cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
-                                        result += '#### [[CLM]] - ' + suppTitle + '\n';
-
-                                        if (config.CLM) {
-                                            var suppContent = self.extractNodeContent(suppClm.data, true, 'CLM', excludeBitacora, flatMode);
-                                            if (suppContent) result += '\n' + suppContent + '\n';
-                                        }
-
-                                        // EVDs del CLM de Soporte
-                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            for (var se = 0; se < suppClm.related_evds.length; se++) {
-                                                var suppEvdUid = suppClm.related_evds[se];
-                                                if (allNodes[suppEvdUid]) {
-                                                    var suppEvd = allNodes[suppEvdUid];
-                                                    var suppEvdTitle = self.cleanText((suppEvd.title || '').replace('[[EVD]] - ', ''));
-                                                    result += '##### [[EVD]] - ' + suppEvdTitle + '\n\n';
-
-                                                    var suppEvdMetadata = suppEvd.project_metadata || {};
-                                                    if (suppEvdMetadata.proyecto_asociado || suppEvdMetadata.seccion_tesis) {
-                                                        if (flatMode) {
-                                                            if (suppEvdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\n\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\n\n';
-                                                        } else {
-                                                            result += '**Información del proyecto:**\n';
-                                                            if (suppEvdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\n';
-                                                            result += '\n';
-                                                        }
-                                                    }
-
-                                                    if (config.EVD) {
-                                                        var suppEvdContent = self.extractNodeContent(suppEvd.data, true, 'EVD', excludeBitacora, flatMode);
-                                                        if (suppEvdContent) {
-                                                            result += suppEvdContent + '\n';
-                                                        } else {
-                                                            result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                result += '\n';
-                            }
-
-                            // EVDs directos del CLM
-                            if (!clm.related_evds || clm.related_evds.length === 0) {
-                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
-                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
-                                }
-                            } else {
-                                for (var e = 0; e < clm.related_evds.length; e++) {
-                                    var evdUid = clm.related_evds[e];
-                                    if (allNodes[evdUid]) {
-                                        var evd = allNodes[evdUid];
-                                        var evdTitle = self.cleanText((evd.title || '').replace('[[EVD]] - ', ''));
-                                        result += '#### [[EVD]] - ' + evdTitle + '\n\n';
-
-                                        var evdMetadata = evd.project_metadata || {};
-                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                            if (flatMode) {
-                                                if (evdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\n\n';
-                                                if (evdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + evdMetadata.seccion_tesis + '\n\n';
-                                            } else {
-                                                result += '**Información del proyecto:**\n';
-                                                if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\n';
-                                                if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\n';
-                                                result += '\n';
-                                            }
-                                        }
-
-                                        if (config.EVD) {
-                                            var evdContent = self.extractNodeContent(evd.data, true, 'EVD', excludeBitacora, flatMode);
-                                            if (evdContent) {
-                                                result += evdContent + '\n';
-                                            } else {
-                                                result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 
-                // Direct EVDs
+                // EVDs directos de la pregunta (nivel 3)
                 if (question.direct_evds) {
                     for (var d = 0; d < question.direct_evds.length; d++) {
-                        var devdUid = question.direct_evds[d];
-                        if (allNodes[devdUid]) {
-                            var devd = allNodes[devdUid];
-                            var devdTitle = self.cleanText((devd.title || '').replace('[[EVD]] - ', ''));
-                            result += '### [[EVD]] - ' + devdTitle + '\n\n';
-
-                            var devdMetadata = devd.project_metadata || {};
-                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (devdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\n\n';
-                                    if (devdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + devdMetadata.seccion_tesis + '\n\n';
-                                } else {
-                                    result += '**Información del proyecto:**\n';
-                                    if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\n';
-                                    if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\n';
-                                    result += '\n';
-                                }
-                            }
-
-                            if (config.EVD) {
-                                var devdContent = self.extractNodeContent(devd.data, true, 'EVD', excludeBitacora, flatMode);
-                                if (devdContent) {
-                                    result += devdContent + '\n';
-                                } else {
-                                    result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 
@@ -3630,147 +3478,90 @@ DiscourseGraphToolkit.HtmlHelpers = {
 // ============================================================================
 // HTML: Node Renderers
 // Funciones de renderizado para cada tipo de nodo (QUE, CLM, EVD)
+// Recursión dinámica para profundidad ilimitada
 // ============================================================================
 
 DiscourseGraphToolkit.HtmlNodeRenderers = {
 
-    // Renderiza un EVD (usado tanto para EVDs de CLM como para EVDs de soporte)
-    renderEVD: function (evd, evdId, config, excludeBitacora, isNested = false) {
-        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
+    // Límite de seguridad para recursión
+    MAX_RENDER_DEPTH: 10,
+
+    // Renderiza un nodo CLM o EVD recursivamente a cualquier profundidad
+    renderNode: function (nodeUid, allNodes, config, excludeBitacora, depth, visited, parentId) {
+        if (!nodeUid || !allNodes[nodeUid]) return '';
+        if (depth > this.MAX_RENDER_DEPTH) return '';
+        if (visited[nodeUid]) return ''; // Evitar ciclos
+        visited[nodeUid] = true;
+
+        const node = allNodes[nodeUid];
+        const type = node.type; // 'CLM' o 'EVD'
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
+        const title = DiscourseGraphToolkit.cleanText((node.title || '').replace(`[[${type}]] - `, ''));
 
-        let html = '';
+        // Determinar nivel de heading HTML (h3-h6, máximo h6)
+        const hLevel = Math.min(depth, 6);
+        // Indentación extra para niveles > 6
+        const extraIndent = depth > 6 ? (depth - 6) * 15 : 0;
+        const extraStyle = extraIndent > 0 ? ` style="margin-left: ${extraIndent}px;"` : '';
 
-        if (isNested) {
-            // EVD dentro de un supporting CLM - estilo más compacto
-            html += `<div class="node" style="margin-left: 20px; border-left: 1px solid #e0e0e0;">`;
-            html += `<h6 class="collapsible" style="font-size: 11px; margin: 8px 0 4px 0;"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h6>`;
-        } else {
-            // EVD normal
-            html += `<div id="${evdId}" class="node evd-node">`;
-            html += `<h4 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h4>`;
+        // CSS class basada en tipo
+        const cssClass = type === 'CLM' ? 'clm-node' : (type === 'EVD' ? 'evd-node' : 'node');
+
+        let html = `<div id="${parentId || ''}" class="node ${cssClass}"${extraStyle}>`;
+        html += `<h${hLevel} class="collapsible">`;
+        html += `<span class="node-tag">[[${type}]]</span> - ${title}`;
+        // Botón copiar solo para CLMs de primer nivel (depth 3)
+        if (type === 'CLM' && depth === 3 && parentId) {
+            html += `<button class="btn-copy-individual" onclick="copyIndividualCLM('${parentId}')">Copiar</button>`;
         }
-
+        html += `</h${hLevel}>`;
         html += `<div class="content">`;
-        html += helpers.generateMetadataHtml(evd.project_metadata || {});
 
-        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
-        if (detailedContent) {
-            const style = isNested ? 'margin-left: 15px; font-size: 11px; color: #555;' : '';
-            html += `<div class="node content-node"${style ? ` style="${style}"` : ''}>`;
-            html += `<p>${helpers.formatContentForHtml(detailedContent)}</p>`;
-            html += '</div>';
-        }
+        // Metadata
+        html += helpers.generateMetadataHtml(node.project_metadata || {}, depth > 3);
 
-        html += `</div></div>`;
-        return html;
-    },
-
-    // Renderiza un CLM de soporte (bajo #SupportedBy de otro CLM)
-    renderSupportingCLM: function (suppClm, allNodes, config, excludeBitacora) {
-        const suppTitle = DiscourseGraphToolkit.cleanText(suppClm.title.replace("[[CLM]] - ", ""));
-        const helpers = DiscourseGraphToolkit.HtmlHelpers;
-
-        let html = `<div class="supporting-clm-item">`;
-        html += `<h5 class="collapsible"><span class="node-tag">[[CLM]]</span> - ${suppTitle}</h5>`;
-        html += `<div class="content">`;
-        html += helpers.generateMetadataHtml(suppClm.project_metadata || {}, true);
-
-        // Contenido del CLM de soporte
-        const suppContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(suppClm.data, config.CLM, "CLM", excludeBitacora);
-        if (suppContent) {
-            html += `<div style="margin-left: 10px; font-size: 11px; margin-bottom: 8px; color: #333;">`;
-            html += `<p>${helpers.formatContentForHtml(suppContent)}</p>`;
-            html += `</div>`;
-        }
-
-        // EVDs del CLM de soporte
-        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-            for (const evdUid of suppClm.related_evds) {
-                if (allNodes[evdUid]) {
-                    html += this.renderEVD(allNodes[evdUid], '', config, excludeBitacora, true);
-                }
+        // Contenido del nodo
+        if (config[type]) {
+            const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(node.data, config[type], type, excludeBitacora);
+            if (content) {
+                const contentStyle = depth > 4 ? ` style="margin-left: ${Math.min((depth - 3) * 5, 20)}px; font-size: ${Math.max(13 - depth, 10)}px; color: #333;"` : '';
+                html += `<div class="node content-node"${contentStyle}>`;
+                html += `<p>${helpers.formatContentForHtml(content)}</p>`;
+                html += '</div>';
             }
         }
 
-        html += `</div></div>`;
-        return html;
-    },
-
-    // Renderiza un CLM completo con sus EVDs y CLMs de soporte
-    renderCLM: function (clm, qIndex, cIndex, allNodes, config, excludeBitacora) {
-        const clmId = `q${qIndex}_c${cIndex}`;
-        const clmTitle = DiscourseGraphToolkit.cleanText(clm.title.replace("[[CLM]] - ", ""));
-        const helpers = DiscourseGraphToolkit.HtmlHelpers;
-
-        let html = `<div id="${clmId}" class="node clm-node">`;
-        html += `<h3 class="collapsible">`;
-        html += `<span class="node-tag">[[CLM]]</span> - ${clmTitle}`;
-        html += `<button class="btn-copy-individual" onclick="copyIndividualCLM('${clmId}')">Copiar</button>`;
-        html += `</h3>`;
-        html += `<div class="content">`;
-
-        html += helpers.generateMetadataHtml(clm.project_metadata || {});
-
-        // Contenido del CLM
-        const clmContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(clm.data, config.CLM, "CLM", excludeBitacora);
-        if (clmContent) {
-            html += `<div class="node content-node" style="margin-bottom: 10px;">`;
-            html += `<p>${helpers.formatContentForHtml(clmContent)}</p>`;
-            html += `</div>`;
-        }
-
-        // Supporting CLMs
-        if (clm.supporting_clms && clm.supporting_clms.length > 0) {
+        // Hijos: CLMs de soporte (recursión)
+        const hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+        if (hasSupportingClms) {
             html += '<div class="supporting-clms">';
-            for (const suppUid of clm.supporting_clms) {
-                if (allNodes[suppUid]) {
-                    html += this.renderSupportingCLM(allNodes[suppUid], allNodes, config, excludeBitacora);
-                }
+            for (const suppUid of node.supporting_clms) {
+                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '');
             }
             html += '</div>';
         }
 
-        // EVDs directos del CLM
-        if (clm.related_evds && clm.related_evds.length > 0) {
-            for (let k = 0; k < clm.related_evds.length; k++) {
-                const evdUid = clm.related_evds[k];
-                if (allNodes[evdUid]) {
-                    const evdId = `q${qIndex}_c${cIndex}_e${k}`;
-                    html += this.renderEVD(allNodes[evdUid], evdId, config, excludeBitacora, false);
-                }
+        // Hijos: EVDs relacionados
+        const hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+        if (hasRelatedEvds) {
+            for (let k = 0; k < node.related_evds.length; k++) {
+                const evdId = parentId ? `${parentId}_e${k}` : '';
+                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId);
             }
-        } else if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
+        }
+
+        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
             html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
         }
 
         html += `</div></div>`;
+
+        visited[nodeUid] = false; // Liberar para ramas paralelas
         return html;
     },
 
-    // Renderiza un EVD directo de una pregunta (no bajo un CLM)
-    renderDirectEVD: function (evd, qIndex, dIndex, config, excludeBitacora) {
-        const evdId = `q${qIndex}_de${dIndex}`;
-        const evdTitle = DiscourseGraphToolkit.cleanText(evd.title.replace("[[EVD]] - ", ""));
-        const helpers = DiscourseGraphToolkit.HtmlHelpers;
-
-        let html = `<div id="${evdId}" class="node direct-evd-node">`;
-        html += `<h3 class="collapsible"><span class="node-tag">[[EVD]]</span> - ${evdTitle}</h3>`;
-        html += `<div class="content">`;
-        html += helpers.generateMetadataHtml(evd.project_metadata || {});
-
-        const detailedContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(evd.data, config.EVD, "EVD", excludeBitacora);
-        if (detailedContent) {
-            html += '<div class="node direct-content-node">';
-            html += `<p>${helpers.formatContentForHtml(detailedContent)}</p>`;
-            html += '</div>';
-        }
-
-        html += `</div></div>`;
-        return html;
-    },
-
-    // Renderiza una pregunta completa con todos sus hijos
+    // Renderiza una pregunta completa con todos sus hijos (entry point)
     renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora) {
         const qId = `q${qIndex}`;
         const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
@@ -3806,23 +3597,19 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             return html;
         }
 
-        // CLMs
+        // CLMs (recursión desde profundidad 3)
         if (question.related_clms) {
             for (let j = 0; j < question.related_clms.length; j++) {
-                const clmUid = question.related_clms[j];
-                if (allNodes[clmUid]) {
-                    html += this.renderCLM(allNodes[clmUid], qIndex, j, allNodes, config, excludeBitacora);
-                }
+                const clmId = `q${qIndex}_c${j}`;
+                html += this.renderNode(question.related_clms[j], allNodes, config, excludeBitacora, 3, {}, clmId);
             }
         }
 
-        // Direct EVDs
+        // Direct EVDs (profundidad 3)
         if (question.direct_evds) {
             for (let j = 0; j < question.direct_evds.length; j++) {
-                const evdUid = question.direct_evds[j];
-                if (allNodes[evdUid]) {
-                    html += this.renderDirectEVD(allNodes[evdUid], qIndex, j, config, excludeBitacora);
-                }
+                const evdId = `q${qIndex}_de${j}`;
+                html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId);
             }
         }
 
@@ -3830,6 +3617,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         return html;
     }
 };
+
 
 
 // --- MODULE: src/core/htmlGenerator.js ---
@@ -4037,7 +3825,7 @@ DiscourseGraphToolkit.EpubGenerator = {
         let currentChapter = null;
 
         // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
-        let counters = [0, 0, 0, 0, 0, 0];
+        let counters = new Array(12).fill(0);
 
         const getHierarchyPrefix = (level) => {
             const index = level - 1;
@@ -4046,6 +3834,12 @@ DiscourseGraphToolkit.EpubGenerator = {
                 counters[i] = 0;
             }
             return counters.slice(1, index + 1).join('.') + ' ';
+        };
+
+        // Helper to detect heading level from a line
+        const getHeadingLevel = (line) => {
+            const match = line.match(/^(#{2,})\s/);
+            return match ? match[1].length : 0;
         };
 
         for (const line of lines) {
@@ -4062,7 +3856,7 @@ DiscourseGraphToolkit.EpubGenerator = {
                 const rawTitle = line.replace(/^##\s*/, '');
                 counters[0] = 0; // NOT USED
                 counters[1]++; // chapterNum
-                for (let i = 2; i < 6; i++) counters[i] = 0; // reset lower
+                for (let i = 2; i < counters.length; i++) counters[i] = 0; // reset lower
 
                 currentChapter = {
                     title: this.cleanTitle(rawTitle),
@@ -4076,30 +3870,16 @@ DiscourseGraphToolkit.EpubGenerator = {
             } else if (currentChapter) {
                 currentChapter.content.push(line);
 
-                // Track subheadings for ToC
+                // Track subheadings for ToC (any level >= 3)
                 const trimmed = line.trim();
-                if (trimmed.startsWith('### ')) {
-                    const prefix = getHierarchyPrefix(3);
+                const headingLevel = getHeadingLevel(trimmed);
+                if (headingLevel >= 3) {
+                    const prefix = getHierarchyPrefix(headingLevel);
+                    const hashPattern = new RegExp('^#{' + headingLevel + '}\\s*');
                     currentChapter.subItems.push({
-                        level: 3,
-                        title: this.cleanTitle(trimmed.replace(/^###\s*/, '')),
-                        id: `node-${counters.slice(1, 3).join('-')}`,
-                        numberPrefix: prefix
-                    });
-                } else if (trimmed.startsWith('#### ')) {
-                    const prefix = getHierarchyPrefix(4);
-                    currentChapter.subItems.push({
-                        level: 4,
-                        title: this.cleanTitle(trimmed.replace(/^####\s*/, '')),
-                        id: `node-${counters.slice(1, 4).join('-')}`,
-                        numberPrefix: prefix
-                    });
-                } else if (trimmed.startsWith('##### ')) {
-                    const prefix = getHierarchyPrefix(5);
-                    currentChapter.subItems.push({
-                        level: 5,
-                        title: this.cleanTitle(trimmed.replace(/^#####\s*/, '')),
-                        id: `node-${counters.slice(1, 5).join('-')}`,
+                        level: headingLevel,
+                        title: this.cleanTitle(trimmed.replace(hashPattern, '')),
+                        id: `node-${counters.slice(1, headingLevel).join('-')}`,
                         numberPrefix: prefix
                     });
                 }
@@ -4136,21 +3916,25 @@ DiscourseGraphToolkit.EpubGenerator = {
         let html = '';
         let inParagraph = false;
 
-        // Counters for H2, H3, H4, H5, H6 (index 0 is unused, index 1 is H2, index 2 is H3, etc.)
-        // We use an offset since chapter H2 is tracked by chapterNum
-        let counters = [0, chapterNum, 0, 0, 0, 0];
+        // Counters array extended to support deep heading levels
+        // Index 0 is unused, index 1 is H2, index 2 is H3, etc.
+        let counters = new Array(12).fill(0);
+        counters[1] = chapterNum;
 
         // Helper to increment counters and get the hierarchy string
         const getHierarchyPrefix = (level) => {
-            // Level 2 is H2, Level 3 is H3, etc.
             const index = level - 1;
             counters[index]++;
-            // Reset lower levels
             for (let i = index + 1; i < counters.length; i++) {
                 counters[i] = 0;
             }
-            // Build the string
             return counters.slice(1, index + 1).join('.') + ' ';
+        };
+
+        // Helper to detect heading level from a line
+        const getHeadingLevel = (line) => {
+            const match = line.match(/^(#{2,})\s/);
+            return match ? match[1].length : 0;
         };
 
         for (const line of lines) {
@@ -4164,27 +3948,19 @@ DiscourseGraphToolkit.EpubGenerator = {
                 continue;
             }
 
-            // Headers - with explicit level and node type prefixes for e-ink readability
-            if (trimmed.startsWith('##### ')) {
+            // Headers - detect any heading level >= 3 dynamically
+            const headingLevel = getHeadingLevel(trimmed);
+            if (headingLevel >= 3) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(5);
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')));
-                const id = `node-${counters.slice(1, 5).join('-')}`;
-                html += `<h5 id="${id}">${prefix}[EVD] ${cleanText}</h5>\n`;
-            } else if (trimmed.startsWith('#### ')) {
-                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(4);
-                const nodeType = this.extractNodeType(trimmed) || 'EVD';
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')));
-                const id = `node-${counters.slice(1, 4).join('-')}`;
-                html += `<h4 id="${id}">${prefix}[${nodeType}] ${cleanText}</h4>\n`;
-            } else if (trimmed.startsWith('### ')) {
-                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(3);
-                const nodeType = this.extractNodeType(trimmed) || 'CLM';
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')));
-                const id = `node-${counters.slice(1, 3).join('-')}`;
-                html += `<h3 id="${id}">${prefix}[${nodeType}] ${cleanText}</h3>\n`;
+                const prefix = getHierarchyPrefix(headingLevel);
+                const nodeType = this.extractNodeType(trimmed) || (headingLevel <= 4 ? 'CLM' : 'EVD');
+                const hashPattern = new RegExp('^#{' + headingLevel + '}\\s*');
+                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(hashPattern, '')));
+                const id = `node-${counters.slice(1, headingLevel).join('-')}`;
+                // Use h3-h5 for valid XHTML, cap at h5 for deeper levels
+                const hTag = `h${Math.min(headingLevel, 5)}`;
+                const depthClass = headingLevel > 5 ? ` class="depth-${headingLevel}"` : '';
+                html += `<${hTag} id="${id}"${depthClass}>${prefix}[${nodeType}] ${cleanText}</${hTag}>\n`;
             } else {
                 // Detectar bloque estructural: *— texto —*
                 const isStructuralBlock = /^\*—\s.+\s—\*$/.test(trimmed);

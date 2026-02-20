@@ -35,7 +35,7 @@ El sistema usa tres tipos de nodos con prefijos obligatorios:
     - Proyecto Asociado:: [[nombre-proyecto]]
     - #SupportedBy
         - [[EVD]] - Evidencia que soporta
-        - [[CLM]] - Otra afirmación de soporte
+        - [[CLM]] - Otra afirmación de soporte (Recursivo: puede contener más CLMs/EVDs)
     - #RelatedTo (opcional)
         - [[CLM]] - Afirmación relacionada
 ```

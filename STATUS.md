@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.13**
+**v1.5.14**
 
 ## Estado de Funcionalidades
 
@@ -18,14 +18,21 @@
 | Detección de nodos huérfanos | ✅ Mejorado | Identifica nodos sin proyecto ni relaciones, se actualiza al verificar |
 | **Vista Panorámica** | ✅ Estable | Layout compacto + textos completos |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
-| Exportación HTML | ✅ Estable | Documento interactivo |
-| Exportación Markdown | ✅ Estable | Incluye EVDs de CLMs de soporte |
-| Exportación EPUB | ✅ Mejorado | ToC interactivo profundo y numeración jerárquica |
+| Exportación HTML | ✅ Estable | Documento interactivo con **profundidad recursiva ilimitada** |
+| Exportación Markdown | ✅ Estable | Indentación recursiva ilimitada para CLMs y EVDs |
+| Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 | Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
 | Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.14 (Febrero 2026)
+- **Feature: Profundidad Recursiva Ilimitada.** Se eliminó el límite fijo de 4-5 niveles en Markdown, HTML y EPUB.
+- **Refactor:** `markdownCore.js` ahora usa recursión pura para procesar la cadena CLM→CLM→CLM→...→EVD.
+- **Refactor:** `htmlNodeRenderers.js` unificado en una sola función recursiva `renderNode`.
+- **Feature:** EPUB soporta dinámicamente cualquier nivel de encabezado (H3+) y lo refleja en el ToC con numeración jerárquica profunda.
+- **Tech:** Implementada detección de ciclos circulares y límites de seguridad (10 niveles) en los exportadores.
 
 ### v1.5.13 (Febrero 2026)
 - **Feature:** Implementación de generación nativa de EPUB (eliminada dependencia externa `jEpub`).

@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.11  
+**Versión:** 1.5.14  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -50,7 +50,10 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **HTML:** Documento interactivo con estilos, navegación y reordenamiento.
 - **Markdown:** Formato estructurado con bullets e indentación.
 - **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
-- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)** y **numeración jerárquica automática** (ej. `1.2.1. `) inyectada en los encabezados, preservando el contexto del discurso al leer linealmente en dispositivos como Kindle o Apple Books.
+- **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidación infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un límite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
+- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)** y **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), preservando el contexto del discurso en lecturas lineales.
+- **HTML:** Documento interactivo con profundidad dinámica. Los niveles superiores a 6 mantienen la jerarquía visual mediante indentación CSS progresiva.
+- **Markdown:** Indentación bulleted infinita en exportación estándar y headings jerárquicos `#` dinámicos.
 
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
 - **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.

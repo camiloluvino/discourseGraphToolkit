@@ -130,6 +130,82 @@ var MarkdownCore = {
         return detailedContent;
     },
 
+    // --- Límite de profundidad para recursión de nodos (seguridad) ---
+    MAX_NODE_DEPTH: 10,
+
+    // --- Helper: renderizar metadata de un nodo ---
+    renderMetadata: function (metadata, flatMode) {
+        var result = '';
+        if (!metadata) return result;
+        if (metadata.proyecto_asociado || metadata.seccion_tesis) {
+            if (flatMode) {
+                if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\n\n';
+                if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\n\n';
+            } else {
+                result += '**Información del proyecto:**\n';
+                if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\n';
+                if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\n';
+                result += '\n';
+            }
+        }
+        return result;
+    },
+
+    // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+        if (!nodeUid || !allNodes[nodeUid]) return '';
+        if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
+        if (visited[nodeUid]) return ''; // Evitar ciclos
+        visited[nodeUid] = true;
+
+        var node = allNodes[nodeUid];
+        var type = node.type; // 'CLM' o 'EVD'
+        var result = '';
+
+        // Generar heading dinámico (###, ####, #####, etc.)
+        var hashes = '';
+        for (var h = 0; h < headingLevel; h++) hashes += '#';
+        var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
+        result += hashes + ' [[' + type + ']] - ' + title + '\n\n';
+
+        // Metadata
+        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+
+        // Contenido del nodo
+        if (config[type]) {
+            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
+            if (content) {
+                result += content + '\n';
+            } else if (type === 'EVD') {
+                result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
+            }
+        }
+
+        // Hijos: CLMs de soporte (recursión)
+        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+        if (hasSupportingClms) {
+            for (var s = 0; s < node.supporting_clms.length; s++) {
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+        if (hasRelatedEvds) {
+            for (var e = 0; e < node.related_evds.length; e++) {
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
+        }
+
+        visited[nodeUid] = false; // Liberar para ramas paralelas
+        return result;
+    },
+
     // --- Generación de Markdown completo ---
     generateMarkdown: function (questions, allNodes, config, excludeBitacora, flatMode) {
         var self = this;
@@ -148,19 +224,8 @@ var MarkdownCore = {
                 var qTitle = self.cleanText((question.title || '').replace('[[QUE]] - ', ''));
                 result += '## [[QUE]] - ' + qTitle + '\n\n';
 
-                // Metadata
-                var metadata = question.project_metadata || {};
-                if (metadata.proyecto_asociado || metadata.seccion_tesis) {
-                    if (flatMode) {
-                        if (metadata.proyecto_asociado) result += 'Proyecto Asociado: ' + metadata.proyecto_asociado + '\n\n';
-                        if (metadata.seccion_tesis) result += 'Sección Narrativa: ' + metadata.seccion_tesis + '\n\n';
-                    } else {
-                        result += '**Información del proyecto:**\n';
-                        if (metadata.proyecto_asociado) result += '- Proyecto Asociado: ' + metadata.proyecto_asociado + '\n';
-                        if (metadata.seccion_tesis) result += '- Sección Narrativa: ' + metadata.seccion_tesis + '\n';
-                        result += '\n';
-                    }
-                }
+                // Metadata de la pregunta
+                result += self.renderMetadata(question.project_metadata || {}, flatMode);
 
                 // Contenido QUE
                 if (config.QUE) {
@@ -176,158 +241,17 @@ var MarkdownCore = {
                     continue;
                 }
 
-                // CLMs
+                // CLMs respondidos (recursión desde nivel 3)
                 if (question.related_clms) {
                     for (var c = 0; c < question.related_clms.length; c++) {
-                        var clmUid = question.related_clms[c];
-                        if (allNodes[clmUid]) {
-                            var clm = allNodes[clmUid];
-                            var clmTitle = self.cleanText((clm.title || '').replace('[[CLM]] - ', ''));
-                            result += '### [[CLM]] - ' + clmTitle + '\n\n';
-
-                            var clmMetadata = clm.project_metadata || {};
-                            if (clmMetadata.proyecto_asociado || clmMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (clmMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\n\n';
-                                    if (clmMetadata.seccion_tesis) result += 'Sección Narrativa: ' + clmMetadata.seccion_tesis + '\n\n';
-                                } else {
-                                    result += '**Información del proyecto:**\n';
-                                    if (clmMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + clmMetadata.proyecto_asociado + '\n';
-                                    if (clmMetadata.seccion_tesis) result += '- Sección Narrativa: ' + clmMetadata.seccion_tesis + '\n';
-                                    result += '\n\n';
-                                }
-                            }
-
-                            // Contenido CLM
-                            if (config.CLM) {
-                                var clmContent = self.extractNodeContent(clm.data, true, 'CLM', excludeBitacora, flatMode);
-                                if (clmContent) result += clmContent + '\n';
-                            }
-
-                            // Supporting CLMs
-                            if (clm.supporting_clms && clm.supporting_clms.length > 0) {
-                                for (var s = 0; s < clm.supporting_clms.length; s++) {
-                                    var suppUid = clm.supporting_clms[s];
-                                    if (allNodes[suppUid]) {
-                                        var suppClm = allNodes[suppUid];
-                                        var suppTitle = self.cleanText((suppClm.title || '').replace('[[CLM]] - ', ''));
-                                        result += '#### [[CLM]] - ' + suppTitle + '\n';
-
-                                        if (config.CLM) {
-                                            var suppContent = self.extractNodeContent(suppClm.data, true, 'CLM', excludeBitacora, flatMode);
-                                            if (suppContent) result += '\n' + suppContent + '\n';
-                                        }
-
-                                        // EVDs del CLM de Soporte
-                                        if (suppClm.related_evds && suppClm.related_evds.length > 0) {
-                                            for (var se = 0; se < suppClm.related_evds.length; se++) {
-                                                var suppEvdUid = suppClm.related_evds[se];
-                                                if (allNodes[suppEvdUid]) {
-                                                    var suppEvd = allNodes[suppEvdUid];
-                                                    var suppEvdTitle = self.cleanText((suppEvd.title || '').replace('[[EVD]] - ', ''));
-                                                    result += '##### [[EVD]] - ' + suppEvdTitle + '\n\n';
-
-                                                    var suppEvdMetadata = suppEvd.project_metadata || {};
-                                                    if (suppEvdMetadata.proyecto_asociado || suppEvdMetadata.seccion_tesis) {
-                                                        if (flatMode) {
-                                                            if (suppEvdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\n\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\n\n';
-                                                        } else {
-                                                            result += '**Información del proyecto:**\n';
-                                                            if (suppEvdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + suppEvdMetadata.proyecto_asociado + '\n';
-                                                            if (suppEvdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + suppEvdMetadata.seccion_tesis + '\n';
-                                                            result += '\n';
-                                                        }
-                                                    }
-
-                                                    if (config.EVD) {
-                                                        var suppEvdContent = self.extractNodeContent(suppEvd.data, true, 'EVD', excludeBitacora, flatMode);
-                                                        if (suppEvdContent) {
-                                                            result += suppEvdContent + '\n';
-                                                        } else {
-                                                            result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                result += '\n';
-                            }
-
-                            // EVDs directos del CLM
-                            if (!clm.related_evds || clm.related_evds.length === 0) {
-                                if (!clm.supporting_clms || clm.supporting_clms.length === 0) {
-                                    result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
-                                }
-                            } else {
-                                for (var e = 0; e < clm.related_evds.length; e++) {
-                                    var evdUid = clm.related_evds[e];
-                                    if (allNodes[evdUid]) {
-                                        var evd = allNodes[evdUid];
-                                        var evdTitle = self.cleanText((evd.title || '').replace('[[EVD]] - ', ''));
-                                        result += '#### [[EVD]] - ' + evdTitle + '\n\n';
-
-                                        var evdMetadata = evd.project_metadata || {};
-                                        if (evdMetadata.proyecto_asociado || evdMetadata.seccion_tesis) {
-                                            if (flatMode) {
-                                                if (evdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\n\n';
-                                                if (evdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + evdMetadata.seccion_tesis + '\n\n';
-                                            } else {
-                                                result += '**Información del proyecto:**\n';
-                                                if (evdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + evdMetadata.proyecto_asociado + '\n';
-                                                if (evdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + evdMetadata.seccion_tesis + '\n';
-                                                result += '\n';
-                                            }
-                                        }
-
-                                        if (config.EVD) {
-                                            var evdContent = self.extractNodeContent(evd.data, true, 'EVD', excludeBitacora, flatMode);
-                                            if (evdContent) {
-                                                result += evdContent + '\n';
-                                            } else {
-                                                result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 
-                // Direct EVDs
+                // EVDs directos de la pregunta (nivel 3)
                 if (question.direct_evds) {
                     for (var d = 0; d < question.direct_evds.length; d++) {
-                        var devdUid = question.direct_evds[d];
-                        if (allNodes[devdUid]) {
-                            var devd = allNodes[devdUid];
-                            var devdTitle = self.cleanText((devd.title || '').replace('[[EVD]] - ', ''));
-                            result += '### [[EVD]] - ' + devdTitle + '\n\n';
-
-                            var devdMetadata = devd.project_metadata || {};
-                            if (devdMetadata.proyecto_asociado || devdMetadata.seccion_tesis) {
-                                if (flatMode) {
-                                    if (devdMetadata.proyecto_asociado) result += 'Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\n\n';
-                                    if (devdMetadata.seccion_tesis) result += 'Sección Narrativa: ' + devdMetadata.seccion_tesis + '\n\n';
-                                } else {
-                                    result += '**Información del proyecto:**\n';
-                                    if (devdMetadata.proyecto_asociado) result += '- Proyecto Asociado: ' + devdMetadata.proyecto_asociado + '\n';
-                                    if (devdMetadata.seccion_tesis) result += '- Sección Narrativa: ' + devdMetadata.seccion_tesis + '\n';
-                                    result += '\n';
-                                }
-                            }
-
-                            if (config.EVD) {
-                                var devdContent = self.extractNodeContent(devd.data, true, 'EVD', excludeBitacora, flatMode);
-                                if (devdContent) {
-                                    result += devdContent + '\n';
-                                } else {
-                                    result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
-                                }
-                            }
-                        }
+                        result += self.renderNodeTree(question.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
                     }
                 }
 

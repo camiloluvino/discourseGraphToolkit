@@ -82,7 +82,7 @@ DiscourseGraphToolkit.EpubGenerator = {
         let currentChapter = null;
 
         // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
-        let counters = [0, 0, 0, 0, 0, 0];
+        let counters = new Array(12).fill(0);
 
         const getHierarchyPrefix = (level) => {
             const index = level - 1;
@@ -91,6 +91,12 @@ DiscourseGraphToolkit.EpubGenerator = {
                 counters[i] = 0;
             }
             return counters.slice(1, index + 1).join('.') + ' ';
+        };
+
+        // Helper to detect heading level from a line
+        const getHeadingLevel = (line) => {
+            const match = line.match(/^(#{2,})\s/);
+            return match ? match[1].length : 0;
         };
 
         for (const line of lines) {
@@ -107,7 +113,7 @@ DiscourseGraphToolkit.EpubGenerator = {
                 const rawTitle = line.replace(/^##\s*/, '');
                 counters[0] = 0; // NOT USED
                 counters[1]++; // chapterNum
-                for (let i = 2; i < 6; i++) counters[i] = 0; // reset lower
+                for (let i = 2; i < counters.length; i++) counters[i] = 0; // reset lower
 
                 currentChapter = {
                     title: this.cleanTitle(rawTitle),
@@ -121,30 +127,16 @@ DiscourseGraphToolkit.EpubGenerator = {
             } else if (currentChapter) {
                 currentChapter.content.push(line);
 
-                // Track subheadings for ToC
+                // Track subheadings for ToC (any level >= 3)
                 const trimmed = line.trim();
-                if (trimmed.startsWith('### ')) {
-                    const prefix = getHierarchyPrefix(3);
+                const headingLevel = getHeadingLevel(trimmed);
+                if (headingLevel >= 3) {
+                    const prefix = getHierarchyPrefix(headingLevel);
+                    const hashPattern = new RegExp('^#{' + headingLevel + '}\\s*');
                     currentChapter.subItems.push({
-                        level: 3,
-                        title: this.cleanTitle(trimmed.replace(/^###\s*/, '')),
-                        id: `node-${counters.slice(1, 3).join('-')}`,
-                        numberPrefix: prefix
-                    });
-                } else if (trimmed.startsWith('#### ')) {
-                    const prefix = getHierarchyPrefix(4);
-                    currentChapter.subItems.push({
-                        level: 4,
-                        title: this.cleanTitle(trimmed.replace(/^####\s*/, '')),
-                        id: `node-${counters.slice(1, 4).join('-')}`,
-                        numberPrefix: prefix
-                    });
-                } else if (trimmed.startsWith('##### ')) {
-                    const prefix = getHierarchyPrefix(5);
-                    currentChapter.subItems.push({
-                        level: 5,
-                        title: this.cleanTitle(trimmed.replace(/^#####\s*/, '')),
-                        id: `node-${counters.slice(1, 5).join('-')}`,
+                        level: headingLevel,
+                        title: this.cleanTitle(trimmed.replace(hashPattern, '')),
+                        id: `node-${counters.slice(1, headingLevel).join('-')}`,
                         numberPrefix: prefix
                     });
                 }
@@ -181,21 +173,25 @@ DiscourseGraphToolkit.EpubGenerator = {
         let html = '';
         let inParagraph = false;
 
-        // Counters for H2, H3, H4, H5, H6 (index 0 is unused, index 1 is H2, index 2 is H3, etc.)
-        // We use an offset since chapter H2 is tracked by chapterNum
-        let counters = [0, chapterNum, 0, 0, 0, 0];
+        // Counters array extended to support deep heading levels
+        // Index 0 is unused, index 1 is H2, index 2 is H3, etc.
+        let counters = new Array(12).fill(0);
+        counters[1] = chapterNum;
 
         // Helper to increment counters and get the hierarchy string
         const getHierarchyPrefix = (level) => {
-            // Level 2 is H2, Level 3 is H3, etc.
             const index = level - 1;
             counters[index]++;
-            // Reset lower levels
             for (let i = index + 1; i < counters.length; i++) {
                 counters[i] = 0;
             }
-            // Build the string
             return counters.slice(1, index + 1).join('.') + ' ';
+        };
+
+        // Helper to detect heading level from a line
+        const getHeadingLevel = (line) => {
+            const match = line.match(/^(#{2,})\s/);
+            return match ? match[1].length : 0;
         };
 
         for (const line of lines) {
@@ -209,27 +205,19 @@ DiscourseGraphToolkit.EpubGenerator = {
                 continue;
             }
 
-            // Headers - with explicit level and node type prefixes for e-ink readability
-            if (trimmed.startsWith('##### ')) {
+            // Headers - detect any heading level >= 3 dynamically
+            const headingLevel = getHeadingLevel(trimmed);
+            if (headingLevel >= 3) {
                 if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(5);
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^#####\s*/, '')));
-                const id = `node-${counters.slice(1, 5).join('-')}`;
-                html += `<h5 id="${id}">${prefix}[EVD] ${cleanText}</h5>\n`;
-            } else if (trimmed.startsWith('#### ')) {
-                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(4);
-                const nodeType = this.extractNodeType(trimmed) || 'EVD';
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^####\s*/, '')));
-                const id = `node-${counters.slice(1, 4).join('-')}`;
-                html += `<h4 id="${id}">${prefix}[${nodeType}] ${cleanText}</h4>\n`;
-            } else if (trimmed.startsWith('### ')) {
-                if (inParagraph) { html += '</p>\n'; inParagraph = false; }
-                const prefix = getHierarchyPrefix(3);
-                const nodeType = this.extractNodeType(trimmed) || 'CLM';
-                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(/^###\s*/, '')));
-                const id = `node-${counters.slice(1, 3).join('-')}`;
-                html += `<h3 id="${id}">${prefix}[${nodeType}] ${cleanText}</h3>\n`;
+                const prefix = getHierarchyPrefix(headingLevel);
+                const nodeType = this.extractNodeType(trimmed) || (headingLevel <= 4 ? 'CLM' : 'EVD');
+                const hashPattern = new RegExp('^#{' + headingLevel + '}\\s*');
+                const cleanText = this.processInlineMarkdown(this.cleanTitle(trimmed.replace(hashPattern, '')));
+                const id = `node-${counters.slice(1, headingLevel).join('-')}`;
+                // Use h3-h5 for valid XHTML, cap at h5 for deeper levels
+                const hTag = `h${Math.min(headingLevel, 5)}`;
+                const depthClass = headingLevel > 5 ? ` class="depth-${headingLevel}"` : '';
+                html += `<${hTag} id="${id}"${depthClass}>${prefix}[${nodeType}] ${cleanText}</${hTag}>\n`;
             } else {
                 // Detectar bloque estructural: *— texto —*
                 const isStructuralBlock = /^\*—\s.+\s—\*$/.test(trimmed);
