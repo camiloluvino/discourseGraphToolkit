@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.11**
+**v1.5.12**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,9 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.12 (Febrero 2026)
+- **Feature:** Cambio en la nomenclatura de los archivos exportados. Ahora usan el formato `DG_[nombre_proyecto]` utilizando el ancestro común más largo, en lugar de concatenar todas las ramas seleccionadas.
 
 ### v1.5.11 (Febrero 2026)
 - **Fix:** Corregida la indentación visual en el dropdown de proyectos de la Vista Panorámica (ahora usa espacios de no-quiebre para respetar la jerarquía).
