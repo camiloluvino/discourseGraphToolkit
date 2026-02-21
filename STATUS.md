@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.15**
+**v1.5.16**
 
 ## Estado de Funcionalidades
 
@@ -16,7 +16,7 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico + detección de huérfanos |
 | Detección de nodos huérfanos | ✅ Mejorado | Identifica nodos sin proyecto ni relaciones, se actualiza al verificar |
-| **Vista Panorámica** | ✅ Estable | Layout compacto + textos completos |
+| **Vista Panorámica** | ✅ Mejorado | Rediseñada con layout de tarjetas, estructura jerárquica indentada y cabecera simplificada |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con **profundidad recursiva ilimitada** |
 | Exportación Markdown | ✅ Estable | Indentación recursiva ilimitada para CLMs y EVDs |
@@ -26,6 +26,12 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.16 (Febrero 2026)
+- **UI:** Rediseño completo de la Vista Panorámica. Implementado diseño tipo "tarjetas" (cards) para encapsular cada pregunta y sus ramas, separándolas visualmente del resto.
+- **UI:** Reemplazada la antigua visualización de ramas (líneas basadas en texto `├─`, `└─`) por un sistema de indentación limpio y jerárquico que utiliza márgenes y bloques con bordes de color (verde para CLM, naranja para EVD).
+- **UI:** Mejorado el Header de la pestaña Panorámica para evitar abarrotamiento (cluttering) de los controles, reubicando los indicadores de nodo y agrupando acciones.
+- **UI:** Añadidas viñetas indicativas (`•`) a las opciones indentadas en los selectores jerárquicos de proyectos (Panorámica).
 
 ### v1.5.15 (Febrero 2026)
 - **UI: Sistema de Temas (THEME).** Implementado `config.THEME.colors` para centralizar la paleta de colores (Primary, Success, Warning, Danger, Neutral) en todas las pestañas.
