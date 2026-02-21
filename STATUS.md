@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-16
+**Última actualización:** 2026-02-20
 
 ## Versión Actual
 
-**v1.5.14**
+**v1.5.15**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,11 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.15 (Febrero 2026)
+- **UI: Sistema de Temas (THEME).** Implementado `config.THEME.colors` para centralizar la paleta de colores (Primary, Success, Warning, Danger, Neutral) en todas las pestañas.
+- **UI: Limpieza Visual.** Eliminados iconos decorativos de pestañas y modales para reducir ruido visual y profesionalizar la interfaz.
+- **Fix:** Corregida referencia a variable global del tema que causaba crash en la pestaña Ramas.
 
 ### v1.5.14 (Febrero 2026)
 - **Feature: Profundidad Recursiva Ilimitada.** Se eliminó el límite fijo de 4-5 niveles en Markdown, HTML y EPUB.

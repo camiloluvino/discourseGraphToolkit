@@ -540,23 +540,23 @@ DiscourseGraphToolkit.ExportTab = function () {
             React.createElement('button', {
                 onClick: handleExportHtml,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'Exportar HTML'),
             React.createElement('button', {
                 onClick: handleExportMarkdown,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#059669', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'Exportar Markdown'),
             React.createElement('button', {
                 onClick: handleExportFlatMarkdown,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#9C27B0', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.neutral || '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'MD Plano'),
             React.createElement('button', {
                 onClick: handleExportEpub,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#E91E63', color: 'white', border: 'none', borderRadius: '0.25rem' }
-            }, '📚 EPUB')
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#ef4444', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
+            }, 'EPUB')
         ),
         exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
 
@@ -565,21 +565,20 @@ DiscourseGraphToolkit.ExportTab = function () {
             style: {
                 marginTop: '1rem',
                 padding: '0.75rem',
-                border: '1px solid #e3f2fd',
+                border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#e5e7eb'}`,
                 borderRadius: '0.25rem',
-                backgroundColor: '#f5faff'
+                backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f3f4f6'
             }
         },
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
-                React.createElement('span', { style: { fontSize: '1rem' } }, '🗒️'),
                 React.createElement('span', { style: { fontWeight: 'bold', fontSize: '0.875rem' } },
                     `Orden de Exportación (${orderedQuestions.length} preguntas)`
                 ),
                 React.createElement('span', {
                     style: {
                         fontSize: '0.6875rem',
-                        color: '#666',
-                        backgroundColor: '#e3f2fd',
+                        color: DiscourseGraphToolkit.THEME?.colors?.text || '#1f2937',
+                        backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e5e7eb',
                         padding: '0.125rem 0.5rem',
                         borderRadius: '0.75rem'
                     }

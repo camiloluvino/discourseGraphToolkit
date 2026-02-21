@@ -156,17 +156,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                             onClick: onMinimize,
                             title: 'Minimizar (mantiene estado)',
                             style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                        }, '➖'),
+                        }, '-'),
                         // Botón Cerrar
                         React.createElement('button', {
                             onClick: onClose,
                             title: 'Cerrar (resetea estado)',
                             style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                        }, '✕')
+                        }, 'X')
                     )
                 ),
-                // Tabs
-                React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
+                React.createElement('div', { style: { display: 'flex', borderBottom: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#eee'}` } },
                     ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
                         React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
                             t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
@@ -177,7 +176,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                 newProjectsAlert.length > 0 && React.createElement('div', {
                     style: {
                         padding: '0.75rem 1.25rem',
-                        backgroundColor: '#fff3e0',
+                        backgroundColor: '#fff3e0', // Soft warning
                         borderBottom: '1px solid #ffcc80',
                         display: 'flex',
                         alignItems: 'center',
@@ -185,7 +184,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                         flexWrap: 'wrap'
                     }
                 },
-                    React.createElement('span', { style: { fontWeight: 'bold', color: '#e65100' } },
+                    React.createElement('span', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f59e0b' } },
                         `⚠️ ${newProjectsAlert.length} proyecto${newProjectsAlert.length > 1 ? 's' : ''} no registrado${newProjectsAlert.length > 1 ? 's' : ''}:`
                     ),
                     React.createElement('span', { style: { color: '#bf360c', fontSize: '0.8125rem' } },
@@ -201,7 +200,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                         },
                         style: {
                             padding: '0.25rem 0.75rem',
-                            backgroundColor: '#4CAF50',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.success || '#10b981',
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -209,19 +208,19 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                             fontSize: '0.75rem',
                             marginLeft: 'auto'
                         }
-                    }, '➕ Agregar todos'),
+                    }, 'Agregar todos'),
                     React.createElement('button', {
                         onClick: () => setNewProjectsAlert([]),
                         style: {
                             padding: '0.25rem 0.5rem',
                             backgroundColor: 'transparent',
-                            color: '#666',
-                            border: '1px solid #ccc',
+                            color: DiscourseGraphToolkit.THEME?.colors?.neutral || '#6b7280',
+                            border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#ccc'}`,
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.75rem'
                         }
-                    }, '✕')
+                    }, 'X')
                 ),
 
                 // Content
@@ -274,7 +273,7 @@ DiscourseGraphToolkit.openModal = function () {
     if (!floatingButton) {
         floatingButton = document.createElement('div');
         floatingButton.id = 'discourse-graph-toolkit-floating-btn';
-        floatingButton.innerHTML = '📊';
+        floatingButton.innerHTML = 'Discourse Graph';
         floatingButton.title = 'Restaurar Discourse Graph Toolkit';
         floatingButton.style.cssText = `
             position: fixed;

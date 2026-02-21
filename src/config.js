@@ -54,6 +54,27 @@ DiscourseGraphToolkit.TYPES = {
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
 };
 
+// Paleta de Colores Global del Sistema de Diseño
+DiscourseGraphToolkit.THEME = {
+    colors: {
+        primary: '#3b82f6',     // Azul moderno (Primary actions)
+        primaryHover: '#2563eb',
+        secondary: '#f3f4f6',   // Gris claro (Secondary actions / Backgrounds)
+        secondaryHover: '#e5e7eb',
+        success: '#10b981',     // Verde esmeralda (Completado / Coherente / Validación Ok)
+        successHover: '#059669',
+        warning: '#f59e0b',     // Ámbar (Huérfanos / Faltantes)
+        warningHover: '#d97706',
+        danger: '#ef4444',      // Rojo (Errores / Eliminar)
+        dangerHover: '#dc2626',
+        neutral: '#6b7280',     // Gris texto secundario
+        text: '#1f2937',        // Gris muy oscuro (Casi negro) para legibilidad
+        border: '#e5e7eb',      // Gris para bordes sutiles
+        background: '#ffffff',  // Blanco para cards/modales
+        backgroundApp: '#f9fafb'// Fondo general off-white
+    }
+};
+
 // Configuración por defecto
 DiscourseGraphToolkit.DEFAULT_CONFIG = {
     defaultProject: "",

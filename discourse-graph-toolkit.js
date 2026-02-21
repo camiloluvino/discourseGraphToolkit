@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.14
- * Bundled build: 2026-02-20 20:33:49
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.15
+ * Bundled build: 2026-02-20 21:27:51
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.14";
+    DiscourseGraphToolkit.VERSION = "1.5.15";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -534,6 +534,27 @@ DiscourseGraphToolkit.TYPES = {
     QUE: { prefix: "QUE", label: "Pregunta", color: "#2196F3" },
     CLM: { prefix: "CLM", label: "Afirmación", color: "#4CAF50" },
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
+};
+
+// Paleta de Colores Global del Sistema de Diseño
+DiscourseGraphToolkit.THEME = {
+    colors: {
+        primary: '#3b82f6',     // Azul moderno (Primary actions)
+        primaryHover: '#2563eb',
+        secondary: '#f3f4f6',   // Gris claro (Secondary actions / Backgrounds)
+        secondaryHover: '#e5e7eb',
+        success: '#10b981',     // Verde esmeralda (Completado / Coherente / Validación Ok)
+        successHover: '#059669',
+        warning: '#f59e0b',     // Ámbar (Huérfanos / Faltantes)
+        warningHover: '#d97706',
+        danger: '#ef4444',      // Rojo (Errores / Eliminar)
+        dangerHover: '#dc2626',
+        neutral: '#6b7280',     // Gris texto secundario
+        text: '#1f2937',        // Gris muy oscuro (Casi negro) para legibilidad
+        border: '#e5e7eb',      // Gris para bordes sutiles
+        background: '#ffffff',  // Blanco para cards/modales
+        backgroundApp: '#f9fafb'// Fondo general off-white
+    }
 };
 
 // Configuración por defecto
@@ -4502,7 +4523,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 }),
                 // Nombre del proyecto
                 React.createElement('span', { style: { flex: 1 } },
-                    hasChildren ? `📁 ${key}` : key,
+                    hasChildren ? `${key}` : key,
                     validationStatus && React.createElement('span', { style: { marginLeft: '0.375rem' } }, validationStatus)
                 ),
                 // Botón eliminar solo para hojas
@@ -4523,10 +4544,10 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     // --- Render ---
     return React.createElement('div', null,
         // === SECCIÓN 1: LISTA DE PROYECTOS ===
-        React.createElement('h3', { style: { marginTop: 0 } }, '📋 Lista de Proyectos'),
+        React.createElement('h3', { style: { marginTop: 0 } }, 'Lista de Proyectos'),
         React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.625rem' } },
-            React.createElement('button', { onClick: handleValidate, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer' } }, "Validar Existencia"),
-            React.createElement('button', { onClick: handleScanProjects, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+            React.createElement('button', { onClick: handleValidate, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f3f4f6', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#ccc'}`, borderRadius: '0.25rem' } }, "Validar Existencia"),
+            React.createElement('button', { onClick: handleScanProjects, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f59e0b', borderRadius: '0.25rem' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
             React.createElement('button', { onClick: handleForceSync, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
         ),
 
@@ -4536,7 +4557,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 suggestions.map(s =>
                     React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderBottom: '1px solid #eee' } },
                         React.createElement('span', null, s),
-                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.1875rem', cursor: 'pointer' } }, '+ Añadir')
+                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.success || '#10b981', color: 'white', border: 'none', borderRadius: '0.1875rem', cursor: 'pointer' } }, '+ Añadir')
                     )
                 )
             )
@@ -4557,7 +4578,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 disabled: !Object.values(selectedProjectsForDelete).some(v => v),
                 style: {
                     padding: '0.3125rem 0.625rem',
-                    backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? '#f44336' : '#ccc',
+                    backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? (DiscourseGraphToolkit.THEME?.colors?.danger || '#ef4444') : (DiscourseGraphToolkit.THEME?.colors?.neutral || '#9ca3af'),
                     color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer'
                 }
             }, 'Eliminar Seleccionados')
@@ -4797,7 +4818,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         },
             React.createElement('span', { style: { color: '#666', fontSize: '0.75rem' } },
                 isExpanded ? '▼' : '▶'),
-            React.createElement('span', null, '📁'),
+            React.createElement('span', null, ''),
             React.createElement('span', { style: { flex: 1 } },
                 node.project || '(sin proyecto)'),
             React.createElement('span', {
@@ -4879,14 +4900,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
         },
             // Lado izquierdo: título y botones
             React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' } },
-                React.createElement('h3', { style: { margin: 0, fontSize: '1.125rem' } }, '🌿 Coherencia de Ramas'),
+                React.createElement('h3', { style: { margin: 0, fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
                 React.createElement('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
                     React.createElement('button', {
                         onClick: handleBulkVerifyAll,
                         disabled: isBulkVerifying,
                         style: {
                             padding: '0.5rem 1rem',
-                            backgroundColor: isBulkVerifying ? '#ccc' : '#2196F3',
+                            backgroundColor: isBulkVerifying ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -4900,7 +4921,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         disabled: isSearchingOrphans,
                         style: {
                             padding: '0.5rem 1rem',
-                            backgroundColor: isSearchingOrphans ? '#ccc' : '#9C27B0',
+                            backgroundColor: isSearchingOrphans ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#9C27B0'), // Using secondaryHover or custom color for orphans
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -4917,12 +4938,12 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 bulkVerificationResults.length > 0 && React.createElement('div', {
                     style: { display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'flex-end', position: 'relative' }
                 },
-                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, bgColor: '#e8f5e9', textColor: '#4CAF50' }),
-                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, bgColor: '#e3f2fd', textColor: '#2196F3' }),
+                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, bgColor: '#e8f5e9', textColor: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50' }),
+                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, bgColor: '#e3f2fd', textColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3' }),
                     // Badge Diferente (clickeable)
                     React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '⚠️', count: counts.different, bgColor: '#fff3e0', textColor: '#ff9800',
+                            emoji: '⚠️', count: counts.different, bgColor: '#fff3e0', textColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800',
                             onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
                             isActive: openPopover === 'different'
                         }),
@@ -4930,7 +4951,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         openPopover === 'different' && React.createElement('div', {
                             style: {
                                 position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: '1px solid #ff9800', borderRadius: '0.5rem',
+                                backgroundColor: 'white', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800'}`, borderRadius: '0.5rem',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
                                 minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
                             }
@@ -4953,7 +4974,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     // Badge Sin proyecto (clickeable)
                     React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '❌', count: counts.missing, bgColor: '#ffebee', textColor: '#f44336',
+                            emoji: '❌', count: counts.missing, bgColor: '#ffebee', textColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336',
                             onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
                             isActive: openPopover === 'missing'
                         }),
@@ -4961,7 +4982,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         openPopover === 'missing' && React.createElement('div', {
                             style: {
                                 position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: '1px solid #f44336', borderRadius: '0.5rem',
+                                backgroundColor: 'white', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336'}`, borderRadius: '0.5rem',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
                                 minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
                             }
@@ -5017,9 +5038,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 bulkVerifyStatus && React.createElement('span', {
                     style: {
                         fontSize: '0.75rem',
-                        color: bulkVerifyStatus.includes('✅') ? '#4CAF50' :
-                            bulkVerifyStatus.includes('⚠️') ? '#ff9800' :
-                                bulkVerifyStatus.includes('❌') ? '#f44336' : '#666',
+                        color: bulkVerifyStatus.includes('✅') ? (DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50') :
+                            bulkVerifyStatus.includes('⚠️') ? (DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800') :
+                                bulkVerifyStatus.includes('❌') ? (DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336') : (DiscourseGraphToolkit.THEME?.colors?.neutral || '#666'),
                         fontWeight: '500'
                     }
                 }, bulkVerifyStatus)
@@ -5041,13 +5062,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
         ),
 
         // Panel de detalle (más compacto)
-        selectedBulkQuestion && React.createElement('div', { style: { border: '1px solid #2196F3', borderRadius: '0.25rem', padding: '0.75rem', backgroundColor: '#f8f9fa' } },
+        selectedBulkQuestion && React.createElement('div', { style: { border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'}`, borderRadius: '0.25rem', padding: '0.75rem', backgroundColor: '#f8f9fa' } },
             React.createElement('h4', { style: { margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.4' } },
                 selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', '')),
 
             // Proyecto editable y botones de propagación
             React.createElement('div', { style: { marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
-                React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.8125rem' } }, '📁 Proyecto:'),
+                React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.8125rem' } }, 'Proyecto:'),
                 React.createElement('input', {
                     type: 'text',
                     value: editableProject,
@@ -5067,7 +5088,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         disabled: isPropagating || !editableProject.trim(),
                         style: {
                             padding: '0.375rem 0.75rem',
-                            backgroundColor: (isPropagating || !editableProject.trim()) ? '#ccc' : '#4CAF50',
+                            backgroundColor: (isPropagating || !editableProject.trim()) ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -5086,7 +5107,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         disabled: isPropagating,
                         style: {
                             padding: '0.375rem 0.75rem',
-                            backgroundColor: isPropagating ? '#ccc' : '#2196F3',
+                            backgroundColor: isPropagating ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -5503,7 +5524,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         padding: '0.125rem 0.375rem',
                         borderRadius: '0.125rem'
                     }
-                }, `📁 ${question.project}`)
+                }, `${question.project}`)
             ),
 
             // Ramas (CLMs y EVDs directas)
@@ -5628,7 +5649,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         },
             // Columna izquierda: título y descripción
             React.createElement('div', { style: { flex: '1' } },
-                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, '🗺️ Vista Panorámica'),
+                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, 'Vista Panorámica'),
                 React.createElement('p', { style: { color: '#666', margin: 0, fontSize: '0.875rem' } },
                     'Vista sintética de todas las ramas del grafo de discurso. Click en cualquier nodo para navegar a Roam.')
             ),
@@ -5649,7 +5670,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         disabled: isLoading,
                         style: {
                             padding: '0.375rem 0.75rem',
-                            backgroundColor: isLoading ? '#ccc' : '#2196F3',
+                            backgroundColor: isLoading ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -5673,7 +5694,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
                         hierarchicalProjects.map(p => {
                             const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(p.depth);
-                            const icon = p.isLeaf ? '📄' : '📁';
+                            const icon = '';
                             const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
                             return React.createElement('option', {
                                 key: p.prefix,
@@ -5696,7 +5717,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.6875rem',
-                            backgroundColor: '#f5f5f5'
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
                         }
                     }, '➕ Expandir'),
                     React.createElement('button', {
@@ -5707,7 +5728,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.6875rem',
-                            backgroundColor: '#f5f5f5'
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
                         }
                     }, '➖ Colapsar')
                 ),
@@ -5718,7 +5739,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         alignItems: 'center',
                         gap: '0.375rem',
                         fontSize: '0.625rem',
-                        color: '#f57c00'
+                        color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f57c00'
                     }
                 },
                     React.createElement('span', null, `📦 ${formatTimeAgo(cacheTimestamp)}`),
@@ -5726,7 +5747,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         onClick: handleLoadPanoramic,
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#ff9800',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800',
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -5742,19 +5763,19 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#e3f2fd',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e3f2fd',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
-                            color: '#2196F3'
+                            color: DiscourseGraphToolkit.THEME?.colors?.primaryHover || '#2196F3'
                         }
                     }, `📝 ${filteredQuestions.length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#e8f5e9',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#e8f5e9',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
-                            color: '#4CAF50'
+                            color: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'
                         }
                     }, `📌 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
                     React.createElement('span', {
@@ -5811,7 +5832,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 border: '1px dashed #ddd'
             }
         },
-            React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, '🗺️'),
+            React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, ''),
             React.createElement('p', null, 'Haz clic en "Cargar Panorámica" para visualizar todas las ramas del grafo.')
         )
     );
@@ -6361,23 +6382,23 @@ DiscourseGraphToolkit.ExportTab = function () {
             React.createElement('button', {
                 onClick: handleExportHtml,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'Exportar HTML'),
             React.createElement('button', {
                 onClick: handleExportMarkdown,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#059669', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'Exportar Markdown'),
             React.createElement('button', {
                 onClick: handleExportFlatMarkdown,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#9C27B0', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem' }
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.neutral || '#6b7280', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
             }, 'MD Plano'),
             React.createElement('button', {
                 onClick: handleExportEpub,
                 disabled: isExporting,
-                style: { padding: '0.625rem 1.25rem', backgroundColor: '#E91E63', color: 'white', border: 'none', borderRadius: '0.25rem' }
-            }, '📚 EPUB')
+                style: { padding: '0.625rem 1.25rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#ef4444', color: 'white', border: 'none', borderRadius: '0.25rem', marginRight: '0.625rem', cursor: isExporting ? 'not-allowed' : 'pointer' }
+            }, 'EPUB')
         ),
         exportStatus && React.createElement('div', { style: { marginTop: '0.625rem', fontWeight: 'bold' } }, exportStatus),
 
@@ -6386,21 +6407,20 @@ DiscourseGraphToolkit.ExportTab = function () {
             style: {
                 marginTop: '1rem',
                 padding: '0.75rem',
-                border: '1px solid #e3f2fd',
+                border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#e5e7eb'}`,
                 borderRadius: '0.25rem',
-                backgroundColor: '#f5faff'
+                backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f3f4f6'
             }
         },
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
-                React.createElement('span', { style: { fontSize: '1rem' } }, '🗒️'),
                 React.createElement('span', { style: { fontWeight: 'bold', fontSize: '0.875rem' } },
                     `Orden de Exportación (${orderedQuestions.length} preguntas)`
                 ),
                 React.createElement('span', {
                     style: {
                         fontSize: '0.6875rem',
-                        color: '#666',
-                        backgroundColor: '#e3f2fd',
+                        color: DiscourseGraphToolkit.THEME?.colors?.text || '#1f2937',
+                        backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e5e7eb',
                         padding: '0.125rem 0.5rem',
                         borderRadius: '0.75rem'
                     }
@@ -6671,17 +6691,16 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                             onClick: onMinimize,
                             title: 'Minimizar (mantiene estado)',
                             style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                        }, '➖'),
+                        }, '-'),
                         // Botón Cerrar
                         React.createElement('button', {
                             onClick: onClose,
                             title: 'Cerrar (resetea estado)',
                             style: { border: 'none', background: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }
-                        }, '✕')
+                        }, 'X')
                     )
                 ),
-                // Tabs
-                React.createElement('div', { style: { display: 'flex', borderBottom: '1px solid #eee' } },
+                React.createElement('div', { style: { display: 'flex', borderBottom: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#eee'}` } },
                     ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
                         React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
                             t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
@@ -6692,7 +6711,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                 newProjectsAlert.length > 0 && React.createElement('div', {
                     style: {
                         padding: '0.75rem 1.25rem',
-                        backgroundColor: '#fff3e0',
+                        backgroundColor: '#fff3e0', // Soft warning
                         borderBottom: '1px solid #ffcc80',
                         display: 'flex',
                         alignItems: 'center',
@@ -6700,7 +6719,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                         flexWrap: 'wrap'
                     }
                 },
-                    React.createElement('span', { style: { fontWeight: 'bold', color: '#e65100' } },
+                    React.createElement('span', { style: { fontWeight: 'bold', color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f59e0b' } },
                         `⚠️ ${newProjectsAlert.length} proyecto${newProjectsAlert.length > 1 ? 's' : ''} no registrado${newProjectsAlert.length > 1 ? 's' : ''}:`
                     ),
                     React.createElement('span', { style: { color: '#bf360c', fontSize: '0.8125rem' } },
@@ -6716,7 +6735,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                         },
                         style: {
                             padding: '0.25rem 0.75rem',
-                            backgroundColor: '#4CAF50',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.success || '#10b981',
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -6724,19 +6743,19 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                             fontSize: '0.75rem',
                             marginLeft: 'auto'
                         }
-                    }, '➕ Agregar todos'),
+                    }, 'Agregar todos'),
                     React.createElement('button', {
                         onClick: () => setNewProjectsAlert([]),
                         style: {
                             padding: '0.25rem 0.5rem',
                             backgroundColor: 'transparent',
-                            color: '#666',
-                            border: '1px solid #ccc',
+                            color: DiscourseGraphToolkit.THEME?.colors?.neutral || '#6b7280',
+                            border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#ccc'}`,
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.75rem'
                         }
-                    }, '✕')
+                    }, 'X')
                 ),
 
                 // Content
@@ -6789,7 +6808,7 @@ DiscourseGraphToolkit.openModal = function () {
     if (!floatingButton) {
         floatingButton = document.createElement('div');
         floatingButton.id = 'discourse-graph-toolkit-floating-btn';
-        floatingButton.innerHTML = '📊';
+        floatingButton.innerHTML = 'Discourse Graph';
         floatingButton.title = 'Restaurar Discourse Graph Toolkit';
         floatingButton.style.cssText = `
             position: fixed;

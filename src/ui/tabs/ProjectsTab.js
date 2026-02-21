@@ -217,7 +217,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 }),
                 // Nombre del proyecto
                 React.createElement('span', { style: { flex: 1 } },
-                    hasChildren ? `📁 ${key}` : key,
+                    hasChildren ? `${key}` : key,
                     validationStatus && React.createElement('span', { style: { marginLeft: '0.375rem' } }, validationStatus)
                 ),
                 // Botón eliminar solo para hojas
@@ -238,10 +238,10 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     // --- Render ---
     return React.createElement('div', null,
         // === SECCIÓN 1: LISTA DE PROYECTOS ===
-        React.createElement('h3', { style: { marginTop: 0 } }, '📋 Lista de Proyectos'),
+        React.createElement('h3', { style: { marginTop: 0 } }, 'Lista de Proyectos'),
         React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.625rem' } },
-            React.createElement('button', { onClick: handleValidate, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer' } }, "Validar Existencia"),
-            React.createElement('button', { onClick: handleScanProjects, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: '#e65100' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+            React.createElement('button', { onClick: handleValidate, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f3f4f6', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#ccc'}`, borderRadius: '0.25rem' } }, "Validar Existencia"),
+            React.createElement('button', { onClick: handleScanProjects, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f59e0b', borderRadius: '0.25rem' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
             React.createElement('button', { onClick: handleForceSync, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
         ),
 
@@ -251,7 +251,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 suggestions.map(s =>
                     React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderBottom: '1px solid #eee' } },
                         React.createElement('span', null, s),
-                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '0.1875rem', cursor: 'pointer' } }, '+ Añadir')
+                        React.createElement('button', { onClick: () => handleAddSuggestion(s), style: { fontSize: '0.75rem', padding: '0.25rem 0.5rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.success || '#10b981', color: 'white', border: 'none', borderRadius: '0.1875rem', cursor: 'pointer' } }, '+ Añadir')
                     )
                 )
             )
@@ -272,7 +272,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 disabled: !Object.values(selectedProjectsForDelete).some(v => v),
                 style: {
                     padding: '0.3125rem 0.625rem',
-                    backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? '#f44336' : '#ccc',
+                    backgroundColor: Object.values(selectedProjectsForDelete).some(v => v) ? (DiscourseGraphToolkit.THEME?.colors?.danger || '#ef4444') : (DiscourseGraphToolkit.THEME?.colors?.neutral || '#9ca3af'),
                     color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer'
                 }
             }, 'Eliminar Seleccionados')

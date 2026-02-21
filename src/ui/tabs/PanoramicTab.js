@@ -348,7 +348,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         padding: '0.125rem 0.375rem',
                         borderRadius: '0.125rem'
                     }
-                }, `📁 ${question.project}`)
+                }, `${question.project}`)
             ),
 
             // Ramas (CLMs y EVDs directas)
@@ -473,7 +473,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         },
             // Columna izquierda: título y descripción
             React.createElement('div', { style: { flex: '1' } },
-                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, '🗺️ Vista Panorámica'),
+                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, 'Vista Panorámica'),
                 React.createElement('p', { style: { color: '#666', margin: 0, fontSize: '0.875rem' } },
                     'Vista sintética de todas las ramas del grafo de discurso. Click en cualquier nodo para navegar a Roam.')
             ),
@@ -494,7 +494,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         disabled: isLoading,
                         style: {
                             padding: '0.375rem 0.75rem',
-                            backgroundColor: isLoading ? '#ccc' : '#2196F3',
+                            backgroundColor: isLoading ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -518,7 +518,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
                         hierarchicalProjects.map(p => {
                             const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(p.depth);
-                            const icon = p.isLeaf ? '📄' : '📁';
+                            const icon = '';
                             const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
                             return React.createElement('option', {
                                 key: p.prefix,
@@ -541,7 +541,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.6875rem',
-                            backgroundColor: '#f5f5f5'
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
                         }
                     }, '➕ Expandir'),
                     React.createElement('button', {
@@ -552,7 +552,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
                             fontSize: '0.6875rem',
-                            backgroundColor: '#f5f5f5'
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
                         }
                     }, '➖ Colapsar')
                 ),
@@ -563,7 +563,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         alignItems: 'center',
                         gap: '0.375rem',
                         fontSize: '0.625rem',
-                        color: '#f57c00'
+                        color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f57c00'
                     }
                 },
                     React.createElement('span', null, `📦 ${formatTimeAgo(cacheTimestamp)}`),
@@ -571,7 +571,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         onClick: handleLoadPanoramic,
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#ff9800',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800',
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -587,19 +587,19 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#e3f2fd',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e3f2fd',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
-                            color: '#2196F3'
+                            color: DiscourseGraphToolkit.THEME?.colors?.primaryHover || '#2196F3'
                         }
                     }, `📝 ${filteredQuestions.length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
-                            backgroundColor: '#e8f5e9',
+                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#e8f5e9',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
-                            color: '#4CAF50'
+                            color: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'
                         }
                     }, `📌 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
                     React.createElement('span', {
@@ -656,7 +656,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 border: '1px dashed #ddd'
             }
         },
-            React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, '🗺️'),
+            React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, ''),
             React.createElement('p', null, 'Haz clic en "Cargar Panorámica" para visualizar todas las ramas del grafo.')
         )
     );

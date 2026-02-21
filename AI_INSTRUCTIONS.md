@@ -23,7 +23,7 @@ Plugin para Roam Research que facilita la creación y exportación de grafos de 
 
 ```
 src/
-├── config.js          # Constantes, tipos de nodos, configuración por defecto
+├── config.js          # Constantes, tipos de nodos, configuración por defecto y sistema THEME
 ├── state.js           # Gestión de localStorage (multi-grafo, cache panorámico)
 ├── index.js           # Inicialización y registro de comandos
 ├── api/               # Módulos de acceso a Roam API (por dominio)
