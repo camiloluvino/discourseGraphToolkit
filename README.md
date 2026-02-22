@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.16  
+**Versión:** 1.5.17  
 **Autor:** Camilo Luvino
 
 ## Descripción

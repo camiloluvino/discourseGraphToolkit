@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-20
+**Última actualización:** 2026-02-22
 
 ## Versión Actual
 
-**v1.5.16**
+**v1.5.17**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,10 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.17 (Febrero 2026)
+- **Fix:** Validación de proyectos ahora excluye namespaces puros (prefijos como `yo y mis temas`) que no se usan directamente como `Proyecto Asociado::`. Solo se validan los proyectos hoja o los que existen explícitamente en el grafo.
+- **UX:** Botón "Eliminar No Encontrados" reemplazado por "☑️ Seleccionar No Encontrados" — ahora solo marca los checkboxes de los proyectos no encontrados para que el usuario pueda revisarlos antes de confirmar la eliminación con "Eliminar Seleccionados".
 
 ### v1.5.16 (Febrero 2026)
 - **UI:** Rediseño completo de la Vista Panorámica. Implementado diseño tipo "tarjetas" (cards) para encapsular cada pregunta y sus ramas, separándolas visualmente del resto.

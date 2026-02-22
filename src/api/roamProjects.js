@@ -125,8 +125,28 @@ DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
         if (match) inGraph.add(match[1].trim());
     });
 
+    // Identificar namespaces puros: proyectos que son prefijo de otros pero no se usan solos
+    const namespacePrefixes = new Set();
+    for (const name of projectNames) {
+        const prefix = name + '/';
+        for (const other of projectNames) {
+            if (other !== name && other.startsWith(prefix)) {
+                namespacePrefixes.add(name);
+                break;
+            }
+        }
+    }
+
     const validation = {};
-    projectNames.forEach(name => validation[name] = inGraph.has(name));
+    projectNames.forEach(name => {
+        if (namespacePrefixes.has(name) && !inGraph.has(name)) {
+            // Es un namespace puro (prefijo de otros) y no se usa directamente en el grafo:
+            // no lo marcamos como no encontrado, lo excluimos de la validación
+            // (no se agrega al objeto validation)
+        } else {
+            validation[name] = inGraph.has(name);
+        }
+    });
     return validation;
 };
 

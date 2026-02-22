@@ -169,6 +169,27 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         }
     };
 
+    const handleAddAllSuggestions = async () => {
+        if (suggestions.length === 0) return;
+        const toAdd = suggestions.filter(s => !projects.includes(s));
+        if (toAdd.length === 0) return;
+        const updated = [...new Set([...projects, ...toAdd])].sort();
+        setProjects(updated);
+        setSuggestions([]);
+        DiscourseGraphToolkit.saveProjects(updated);
+        await DiscourseGraphToolkit.syncProjectsToRoam(updated);
+        DiscourseGraphToolkit.showToast(`Se añadieron ${toAdd.length} proyectos.`, 'success');
+    };
+
+    const handleSelectNotFound = () => {
+        const notFound = projects.filter(p => validation[p] === false);
+        if (notFound.length === 0) return;
+        const newSelection = { ...selectedProjectsForDelete };
+        notFound.forEach(p => newSelection[p] = true);
+        setSelectedProjectsForDelete(newSelection);
+        DiscourseGraphToolkit.showToast(`Se seleccionaron ${notFound.length} proyectos no encontrados.`, 'info');
+    };
+
     // --- Render de nodo del árbol de proyectos (recursivo) ---
     const renderProjectTreeNode = (node, key, depth) => {
         const isExpanded = expandedProjects[node.project] !== false;
@@ -239,14 +260,29 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     return React.createElement('div', null,
         // === SECCIÓN 1: LISTA DE PROYECTOS ===
         React.createElement('h3', { style: { marginTop: 0 } }, 'Lista de Proyectos'),
-        React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.625rem' } },
+        React.createElement('div', { style: { display: 'flex', gap: '0.625rem', marginBottom: '0.625rem', flexWrap: 'wrap' } },
             React.createElement('button', { onClick: handleValidate, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f3f4f6', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#ccc'}`, borderRadius: '0.25rem' } }, "Validar Existencia"),
             React.createElement('button', { onClick: handleScanProjects, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fff3e0', border: '1px solid #ff9800', color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f59e0b', borderRadius: '0.25rem' } }, isScanning ? "Buscando..." : "🔍 Buscar Sugerencias"),
+            (() => {
+                const notFoundCount = projects.filter(p => validation[p] === false).length;
+                return notFoundCount > 0
+                    ? React.createElement('button', {
+                        onClick: handleSelectNotFound,
+                        style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', backgroundColor: '#fdecea', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '0.25rem', fontWeight: 'bold' }
+                    }, `☑️ Seleccionar No Encontrados (${notFoundCount})`)
+                    : null;
+            })(),
             React.createElement('button', { onClick: handleForceSync, style: { padding: '0.3125rem 0.625rem', cursor: 'pointer', marginLeft: 'auto' } }, "🔄 Sincronizar")
         ),
 
         suggestions.length > 0 && React.createElement('div', { style: { marginBottom: '1.25rem', padding: '0.625rem', border: '1px solid #ff9800', backgroundColor: '#fff3e0', borderRadius: '0.25rem' } },
-            React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3125rem' } },
+                React.createElement('strong', { style: { color: '#e65100' } }, `Sugerencias encontradas (${suggestions.length}):`),
+                React.createElement('button', {
+                    onClick: handleAddAllSuggestions,
+                    style: { fontSize: '0.75rem', padding: '0.25rem 0.625rem', backgroundColor: DiscourseGraphToolkit.THEME?.colors?.success || '#10b981', color: 'white', border: 'none', borderRadius: '0.1875rem', cursor: 'pointer', fontWeight: 'bold' }
+                }, `✅ Añadir Todos (${suggestions.length})`)
+            ),
             React.createElement('div', { style: { maxHeight: '18.75rem', overflowY: 'auto', border: '1px solid #ddd', backgroundColor: 'white' } },
                 suggestions.map(s =>
                     React.createElement('div', { key: s, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderBottom: '1px solid #eee' } },
