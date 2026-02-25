@@ -23,7 +23,8 @@ Plugin para Roam Research que facilita la creación y exportación de grafos de 
 
 ```
 src/
-├── config.js          # Constantes, tipos de nodos, configuración por defecto y sistema THEME
+├── config.js          # Constantes, tipos de nodos y configuración por defecto
+├── styles.js          # Sistema de diseño (CSS), tokens y clases de utilidad
 ├── state.js           # Gestión de localStorage (multi-grafo, cache panorámico)
 ├── index.js           # Inicialización y registro de comandos
 ├── api/               # Módulos de acceso a Roam API (por dominio)
@@ -166,6 +167,19 @@ blockString.includes('`' + '``')
 // ✅ CORRECTO:
 // Detecta backticks simples y triples (bloques de código)
 ```
+
+## Sistema de Diseño (UI/UX)
+
+> [!IMPORTANT]
+> **No uses estilos en línea (`style={{...}}`) en componentes de React.**
+>
+> El plugin utiliza un sistema de diseño basado en utilidades unificado en `src/ui/styles.js`.
+>
+> 1. **Clases de Utilidad:** Usa clases como `.dgt-flex-row`, `.dgt-card`, `.dgt-mb-sm`.
+> 2. **Variables CSS:** Usa variables nativas para colores (ej. `var(--dgt-bg-primary)`, `var(--dgt-accent-green)`).
+> 3. **Nomenclatura:** Todas las clases propias deben llevar el prefijo `.dgt-`.
+>
+> Si necesitas un estilo nuevo, agrégalo a `src/ui/styles.js` y úsalo mediante `className`.
 
 ## Errores Comunes de IA
 

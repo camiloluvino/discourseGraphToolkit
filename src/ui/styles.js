@@ -238,6 +238,66 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
         }
 
+        /* General Layout */
+        .dgt-container { display: flex; flex-direction: column; height: 100%; }
+
+        /* Utility Classes - Layout */
+        .dgt-flex-row { display: flex; align-items: center; }
+        .dgt-flex-column { display: flex; flex-direction: column; }
+        .dgt-flex-between { display: flex; align-items: center; justify-content: space-between; }
+        .dgt-flex-wrap { flex-wrap: wrap; }
+        .dgt-gap-xs { gap: var(--dgt-spacing-xs); }
+        .dgt-gap-sm { gap: var(--dgt-spacing-sm); }
+        .dgt-gap-md { gap: var(--dgt-spacing-md); }
+        .dgt-gap-lg { gap: var(--dgt-spacing-lg); }
+
+        /* Utility Classes - Spacing */
+        .dgt-mb-0 { margin-bottom: 0 !important; }
+        .dgt-mb-sm { margin-bottom: var(--dgt-spacing-sm); }
+        .dgt-mb-md { margin-bottom: var(--dgt-spacing-md); }
+        .dgt-mb-lg { margin-bottom: var(--dgt-spacing-lg); }
+        .dgt-mt-sm { margin-top: var(--dgt-spacing-sm); }
+        .dgt-mr-xs { margin-right: var(--dgt-spacing-xs); }
+        .dgt-p-sm { padding: var(--dgt-spacing-sm); }
+        .dgt-p-md { padding: var(--dgt-spacing-md); }
+
+        /* Utility Classes - Typography */
+        .dgt-text-sm { font-size: 0.8125rem; }
+        .dgt-text-xs { font-size: 0.75rem; }
+        .dgt-text-primary { color: var(--dgt-text-primary); }
+        .dgt-text-secondary { color: var(--dgt-text-secondary); }
+        .dgt-text-muted { color: var(--dgt-text-muted); }
+        .dgt-text-success { color: var(--dgt-accent-green); }
+        .dgt-text-error { color: var(--dgt-accent-red); }
+        .dgt-text-warning { color: var(--dgt-accent-yellow); }
+        .dgt-text-bold { font-weight: 600; }
+        .dgt-text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Tree View Container */
+        .dgt-tree-container {
+            height: 100%;
+            max-height: 28rem;
+            overflow-y: auto;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            background-color: var(--dgt-bg-primary);
+        }
+
+        /* Form Layout */
+        .dgt-form-group {
+            display: flex;
+            gap: var(--dgt-spacing-sm);
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: var(--dgt-spacing-sm);
+        }
+        .dgt-form-label {
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: var(--dgt-text-primary);
+            white-space: nowrap;
+        }
+
         /* Panels / Cards */
         .dgt-panel {
             border: 1px solid var(--dgt-border-color);
@@ -250,6 +310,30 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             font-size: 0.875rem;
             font-weight: 600;
             color: var(--dgt-text-primary);
+        }
+
+        .dgt-card {
+            background: #ffffff;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            margin-bottom: var(--dgt-spacing-sm);
+            box-shadow: var(--dgt-shadow-sm);
+            transition: var(--dgt-transition-fast);
+        }
+        .dgt-card:hover {
+            box-shadow: var(--dgt-shadow-md);
+            border-color: var(--dgt-border-focus);
+        }
+        .dgt-card-body {
+            padding: var(--dgt-spacing-sm) var(--dgt-spacing-md);
+        }
+
+        .dgt-list-container {
+            max-height: 10rem;
+            overflow-y: auto;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-sm);
+            background-color: #ffffff;
         }
 
         /* Scrollbars */

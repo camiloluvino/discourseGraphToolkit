@@ -222,9 +222,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
             onClick: toggleFn,
             className: `dgt-accordion-header ${depthClass}`
         },
-            React.createElement('span', { style: { color: 'var(--dgt-text-muted)', fontSize: '0.75rem', width: '16px', textAlign: 'center' } },
+            React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
-            React.createElement('div', { style: { flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+            React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem' } },
                 React.createElement('span', { title: node.project },
                     node.project ? node.project.split('/').pop() : '(sin proyecto)'),
                 React.createElement('span', {
@@ -242,24 +242,23 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 React.createElement('div', {
                     key: result.question.pageUid,
                     onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
+                    className: 'dgt-flex-row dgt-text-sm',
                     style: {
                         padding: '0.6rem 0.75rem',
                         paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
                         borderBottom: '1px solid var(--dgt-border-color)',
                         cursor: 'pointer',
                         backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? 'var(--dgt-bg-secondary)' : 'transparent',
-                        display: 'flex',
                         alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        fontSize: '0.8125rem'
+                        gap: '0.75rem'
                     }
                 },
                     React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
                         result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
-                    React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' } },
-                        React.createElement('div', { style: { lineHeight: '1.4', color: 'var(--dgt-text-primary)' } },
+                    React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
+                        React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
                             parseMarkdownBold(result.question.pageTitle.replace('[[QUE]] - ', ''))),
-                        React.createElement('span', { style: { fontSize: '0.6875rem', color: 'var(--dgt-text-secondary)' } },
+                        React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
                             `${result.branchNodes.length} nodos`)
                     )
                 )
@@ -280,22 +279,16 @@ DiscourseGraphToolkit.BranchesTab = function () {
     };
 
     // --- Render ---
-    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
+    return React.createElement('div', { className: 'dgt-container' },
         // Header compacto con badges a la derecha
         React.createElement('div', {
-            style: {
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '0.75rem',
-                gap: '1rem',
-                flexWrap: 'wrap'
-            }
+            className: 'dgt-flex-between dgt-flex-wrap dgt-gap-md dgt-mb-sm',
+            style: { alignItems: 'flex-start' }
         },
             // Lado izquierdo: título y botones
-            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' } },
-                React.createElement('h3', { style: { margin: 0, fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
-                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
+                React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-flex-wrap' },
                     React.createElement('button', {
                         onClick: handleBulkVerifyAll,
                         title: 'Procesar y verificar coherencia de todas las ramas',
@@ -311,10 +304,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 )
             ),
             // Lado derecho: badges y status
-            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem' } },
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end' } },
                 // Badges en línea
                 bulkVerificationResults.length > 0 && React.createElement('div', {
-                    style: { display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'flex-end', position: 'relative' }
+                    className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap',
+                    style: { justifyContent: 'flex-end', position: 'relative' }
                 },
                     React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
                     React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
@@ -336,13 +330,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover' },
                                 React.createElement('div', { className: 'dgt-popover-header' },
                                     React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--dgt-text-secondary)' } }, '✕')
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                                 ),
                                 bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
                                     React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
                                         React.createElement('span', { className: 'dgt-badge dgt-badge-error' }, node.type),
-                                        React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem' } }, '→')
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1 } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px' } }, '→')
                                     )
                                 ))
                             )
@@ -358,13 +352,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover' },
                                 React.createElement('div', { className: 'dgt-popover-header' },
                                     React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--dgt-text-secondary)' } }, '✕')
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                                 ),
                                 orphanResults.map(node =>
                                     React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
                                         React.createElement('span', { className: 'dgt-badge dgt-badge-neutral' }, node.type),
-                                        React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary', style: { padding: '2px 6px', fontSize: '0.625rem' } }, '→')
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1 } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary dgt-text-xs', style: { padding: '2px 6px' } }, '→')
                                     )
                                 )
                             )
@@ -373,21 +367,18 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 ),
                 // Status compacto
                 bulkVerifyStatus && React.createElement('span', {
-                    style: {
-                        fontSize: '0.75rem',
-                        color: bulkVerifyStatus.includes('✅') ? (DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50') :
-                            bulkVerifyStatus.includes('⚠️') ? (DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800') :
-                                bulkVerifyStatus.includes('❌') ? (DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336') : (DiscourseGraphToolkit.THEME?.colors?.neutral || '#666'),
-                        fontWeight: '500'
-                    }
+                    className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
+                            bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
+                                bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
+                        }`
                 }, bulkVerifyStatus)
             )
         ),
 
         // Vista de árbol jerárquico por proyectos (más altura)
-        bulkVerificationResults.length > 0 && React.createElement('div', { style: { flex: 1, minHeight: 0, marginBottom: '0.75rem' } },
+        bulkVerificationResults.length > 0 && React.createElement('div', { className: 'dgt-mb-sm', style: { flex: 1, minHeight: 0 } },
             React.createElement('div', {
-                style: { height: '100%', maxHeight: '28rem', overflowY: 'auto', border: '1px solid #eee', borderRadius: '0.25rem', backgroundColor: '#fafafa' }
+                className: 'dgt-tree-container'
             },
                 React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
                     tree: projectTree,
@@ -399,13 +390,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
         ),
 
         // Panel de detalle (más compacto)
-        selectedBulkQuestion && React.createElement('div', { style: { border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'}`, borderRadius: '0.25rem', padding: '0.75rem', backgroundColor: '#f8f9fa' } },
-            React.createElement('h4', { style: { margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.4' } },
+        selectedBulkQuestion && React.createElement('div', { className: 'dgt-card dgt-card-body' },
+            React.createElement('h4', { className: 'dgt-mb-sm', style: { margin: 0, fontSize: '0.875rem', lineHeight: '1.4' } },
                 parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', ''))),
 
             // Proyecto editable y botones de propagación
-            React.createElement('div', { style: { marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
-                React.createElement('span', { style: { fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.8125rem' } }, 'Proyecto:'),
+            React.createElement('div', { className: 'dgt-form-group' },
+                React.createElement('span', { className: 'dgt-form-label' }, 'Proyecto:'),
                 React.createElement('input', {
                     type: 'text',
                     value: editableProject,
@@ -416,7 +407,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             ),
 
             // Botones de propagación (separados por tipo de error)
-            React.createElement('div', { style: { marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
+            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-flex-wrap dgt-mb-sm' },
                 // Botón 1: Propagar raíz
                 (() => {
                     const nonGeneralizations = selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization');
@@ -443,7 +434,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             ),
 
             // Resumen compacto
-            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' } },
+            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
                 React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
@@ -456,37 +447,37 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Lista de nodos problemáticos
             (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-            React.createElement('div', { className: 'dgt-scrollable', style: { maxHeight: '10rem', overflowY: 'auto', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', backgroundColor: '#ffffff' } },
+            React.createElement('div', { className: 'dgt-list-container dgt-p-sm' },
                 selectedBulkQuestion.coherence.different.map(node =>
                     React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                        React.createElement('span', { style: { color: 'var(--dgt-accent-yellow)', fontSize: '0.8125rem', flexShrink: 0 } }, '⚠️'),
+                        React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '⚠️'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { marginRight: '0.375rem' } }, node.type),
-                            React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-primary)' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            React.createElement('div', { style: { fontSize: '0.625rem', color: 'var(--dgt-text-secondary)', marginTop: '0.125rem' } },
+                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.type),
+                            React.createElement('div', { className: 'dgt-text-xs dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                            React.createElement('div', { className: 'dgt-text-secondary dgt-mt-sm', style: { fontSize: '0.625rem' } },
                                 React.createElement('span', null, `Debería heredar: ${node.parentProject}`),
                                 React.createElement('span', { style: { marginLeft: '0.5rem' } }, `Tiene: ${node.project}`)
                             )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
-                            className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem', flexShrink: 0 }
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }
                         }, '→ Ir')
                     )
                 ),
                 selectedBulkQuestion.coherence.missing.map(node =>
                     React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                        React.createElement('span', { style: { color: 'var(--dgt-accent-red)', fontSize: '0.8125rem', flexShrink: 0 } }, '❌'),
+                        React.createElement('span', { className: 'dgt-text-error dgt-text-sm', style: { flexShrink: 0 } }, '❌'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { marginRight: '0.375rem' } }, node.type),
-                            React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-primary)' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            node.parentProject && React.createElement('div', { style: { fontSize: '0.625rem', color: 'var(--dgt-text-secondary)', marginTop: '0.125rem' } },
+                            React.createElement('span', { className: 'dgt-badge dgt-badge-error dgt-mr-xs' }, node.type),
+                            React.createElement('div', { className: 'dgt-text-xs dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                            node.parentProject && React.createElement('div', { className: 'dgt-text-secondary dgt-mt-sm', style: { fontSize: '0.625rem' } },
                                 `Debería heredar: ${node.parentProject}`
                             )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
-                            className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem', flexShrink: 0 }
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }
                         }, '→ Ir')
                     )
                 )
