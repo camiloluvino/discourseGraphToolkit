@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.5.18"
+$version = "1.5.19"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
@@ -21,6 +21,7 @@ $files = @(
     "src/core/relationshipMapper.js",
     "src/core/markdownCore.js",
     "src/core/html/htmlStyles.js",
+    "src/ui/styles.js",
     "src/core/html/htmlHelpers.js",
     "src/core/html/htmlNodeRenderers.js",
     "src/core/htmlGenerator.js",

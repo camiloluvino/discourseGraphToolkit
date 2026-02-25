@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.18
- * Bundled build: 2026-02-25 14:39:27
+ * DISCOURSE GRAPH TOOLKIT v1.5.19
+ * Bundled build: 2026-02-25 15:13:38
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.18";
+    DiscourseGraphToolkit.VERSION = "1.5.19";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -536,24 +536,26 @@ DiscourseGraphToolkit.TYPES = {
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
 };
 
-// Paleta de Colores Global del Sistema de Diseño
+// Paleta de Colores Global del Sistema de Diseño (Claude-inspired)
 DiscourseGraphToolkit.THEME = {
     colors: {
-        primary: '#3b82f6',     // Azul moderno (Primary actions)
-        primaryHover: '#2563eb',
-        secondary: '#f3f4f6',   // Gris claro (Secondary actions / Backgrounds)
-        secondaryHover: '#e5e7eb',
-        success: '#10b981',     // Verde esmeralda (Completado / Coherente / Validación Ok)
-        successHover: '#059669',
-        warning: '#f59e0b',     // Ámbar (Huérfanos / Faltantes)
-        warningHover: '#d97706',
-        danger: '#ef4444',      // Rojo (Errores / Eliminar)
-        dangerHover: '#dc2626',
-        neutral: '#6b7280',     // Gris texto secundario
-        text: '#1f2937',        // Gris muy oscuro (Casi negro) para legibilidad
-        border: '#e5e7eb',      // Gris para bordes sutiles
-        background: '#ffffff',  // Blanco para cards/modales
-        backgroundApp: '#f9fafb'// Fondo general off-white
+        primary: '#000000',     // Negro (Primary actions)
+        primaryHover: '#2d2c2b',
+        secondary: '#f3f1eb',   // Gris cálido (Secondary actions / Backgrounds)
+        secondaryHover: '#ebe8e0',
+        success: '#377d61',     // Verde oscuro (Completado / Coherente / Validación Ok)
+        successHover: '#2d6850',
+        warning: '#a87e27',     // Amarillo oscuro (Huérfanos / Faltantes / Diferentes)
+        warningHover: '#8a671f',
+        danger: '#bb4f43',      // Rojo oscuro (Errores / Eliminar)
+        dangerHover: '#9a4137',
+        neutral: '#999793',     // Gris texto secundario/muted
+        text: '#2d2c2b',        // Texto principal
+        border: '#e5e3dc',      // Bordes
+        background: '#fbfaf8',  // Blanco cálido para cards/modales
+        backgroundApp: '#fbfaf8',// Fondo general
+        // Accesorios
+        accentPurple: '#6c5c99'  // Para estados especializados
     }
 };
 
@@ -3450,6 +3452,288 @@ DiscourseGraphToolkit.HtmlStyles = {
 };
 
 
+// --- MODULE: src/ui/styles.js ---
+// ============================================================================
+// UI: Base Styles (Claude-Inspired Minimalism)
+// ============================================================================
+
+DiscourseGraphToolkit.injectBaseStyles = function () {
+    const styleId = 'dgt-base-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+        :root {
+            /* Color palette - Claude-inspired Minimalist */
+            --dgt-bg-primary: #fbfaf8;
+            --dgt-bg-secondary: #f3f1eb;
+            --dgt-bg-tertiary: #ebe8e0;
+            --dgt-border-color: #e5e3dc;
+            --dgt-border-focus: #b5b3ad;
+
+            /* Text colors */
+            --dgt-text-primary: #2d2c2b;
+            --dgt-text-secondary: #6b6a68;
+            --dgt-text-muted: #999793;
+
+            /* Accent colors */
+            --dgt-accent-blue: #000000;
+            --dgt-accent-green: #377d61;
+            --dgt-accent-red: #bb4f43;
+            --dgt-accent-yellow: #a87e27;
+            --dgt-accent-purple: #6c5c99;
+
+            /* Shadows */
+            --dgt-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.02);
+            --dgt-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04);
+            --dgt-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
+
+            /* Spacing */
+            --dgt-spacing-xs: 6px;
+            --dgt-spacing-sm: 12px;
+            --dgt-spacing-md: 20px;
+            --dgt-spacing-lg: 32px;
+
+            /* Border radius */
+            --dgt-radius-sm: 6px;
+            --dgt-radius-md: 8px;
+            --dgt-radius-lg: 12px;
+
+            /* Transitions */
+            --dgt-transition-fast: 150ms ease;
+            --dgt-transition-normal: 250ms ease;
+        }
+
+        /* Modal Container Override */
+        #discourse-graph-toolkit-modal > div > div {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            background: var(--dgt-bg-primary) !important;
+            color: var(--dgt-text-primary) !important;
+            box-shadow: var(--dgt-shadow-lg) !important;
+            border: 1px solid var(--dgt-border-color) !important;
+        }
+
+        #discourse-graph-toolkit-modal h2, 
+        #discourse-graph-toolkit-modal h3, 
+        #discourse-graph-toolkit-modal h4 {
+            font-family: 'Lora', 'Georgia', serif !important;
+            font-weight: 500 !important;
+            color: var(--dgt-text-primary) !important;
+        }
+
+        /* Buttons */
+        .dgt-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--dgt-spacing-sm);
+            padding: 8px 16px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            border: 1px solid transparent;
+            border-radius: var(--dgt-radius-sm);
+            cursor: pointer;
+            transition: var(--dgt-transition-fast);
+            font-family: inherit;
+        }
+        .dgt-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .dgt-btn-primary {
+            background: var(--dgt-accent-blue);
+            color: white;
+        }
+        .dgt-btn-primary:hover:not(:disabled) {
+            background: #2d2c2b;
+        }
+        .dgt-btn-secondary {
+            background: transparent;
+            color: var(--dgt-text-primary);
+            border: 1px solid var(--dgt-border-color);
+        }
+        .dgt-btn-secondary:hover:not(:disabled) {
+            background: var(--dgt-bg-secondary);
+        }
+        .dgt-btn-ghost {
+            background: transparent;
+            color: var(--dgt-text-secondary);
+            padding: var(--dgt-spacing-xs) var(--dgt-spacing-sm);
+        }
+        .dgt-btn-ghost:hover:not(:disabled) {
+            color: var(--dgt-text-primary);
+            background: var(--dgt-bg-secondary);
+        }
+
+        /* Badges */
+        .dgt-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            cursor: default;
+        }
+        .dgt-badge.clickable { cursor: pointer; }
+        .dgt-badge.active { border-color: currentColor; }
+        
+        .dgt-badge-success {
+            background: rgba(55, 125, 97, 0.1);
+            color: var(--dgt-accent-green);
+        }
+        .dgt-badge-error {
+            background: rgba(187, 79, 67, 0.1);
+            color: var(--dgt-accent-red);
+        }
+        .dgt-badge-warning {
+            background: rgba(168, 126, 39, 0.1);
+            color: var(--dgt-accent-yellow);
+        }
+        .dgt-badge-info {
+            background: rgba(108, 92, 153, 0.1);
+            color: var(--dgt-accent-purple);
+        }
+        .dgt-badge-neutral {
+            background: var(--dgt-bg-tertiary);
+            color: var(--dgt-text-secondary);
+            border-color: var(--dgt-border-color);
+        }
+
+        /* Accordion / Hierarchy Lists */
+        .dgt-accordion-item {
+            background: #ffffff;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            margin-bottom: var(--dgt-spacing-sm);
+            overflow: hidden;
+        }
+        .dgt-accordion-header {
+            padding: 10px 14px;
+            background: transparent;
+            border-bottom: 1px solid var(--dgt-border-color);
+            display: flex;
+            align-items: center;
+            gap: var(--dgt-spacing-sm);
+            cursor: pointer;
+            transition: var(--dgt-transition-fast);
+        }
+        .dgt-accordion-header:hover {
+            background: var(--dgt-bg-secondary);
+        }
+        .dgt-accordion-header.depth-0 {
+            background: var(--dgt-bg-primary);
+            font-weight: 600;
+        }
+        .dgt-accordion-header.depth-1, .dgt-accordion-header.depth-odd {
+            background: #ffffff;
+        }
+        .dgt-accordion-header.depth-even {
+            background: var(--dgt-bg-primary);
+        }
+
+        /* Popovers */
+        .dgt-popover {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: var(--dgt-spacing-sm);
+            background: #ffffff;
+            border-radius: var(--dgt-radius-md);
+            box-shadow: var(--dgt-shadow-lg);
+            border: 1px solid var(--dgt-border-color);
+            z-index: 1000;
+            min-width: 18rem;
+            max-width: 24rem;
+            max-height: 18rem;
+            overflow-y: auto;
+        }
+        .dgt-popover-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--dgt-border-color);
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+        }
+        .dgt-popover-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--dgt-border-color);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--dgt-text-primary);
+        }
+        .dgt-popover-item:last-child { border-bottom: none; }
+        .dgt-popover-item:hover { background: var(--dgt-bg-secondary); }
+
+        /* Forms */
+        .dgt-input {
+            width: 100%;
+            padding: 6px 12px;
+            background: #ffffff;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-sm);
+            color: var(--dgt-text-primary);
+            font-size: 0.8125rem;
+            transition: var(--dgt-transition-fast);
+            font-family: inherit;
+        }
+        .dgt-input:focus {
+            outline: none;
+            border-color: var(--dgt-border-focus);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Panels / Cards */
+        .dgt-panel {
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            padding: 12px;
+            background: #ffffff;
+        }
+        .dgt-panel-header {
+            margin: 0 0 12px 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--dgt-text-primary);
+        }
+
+        /* Scrollbars */
+        .dgt-scrollable::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .dgt-scrollable::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dgt-scrollable::-webkit-scrollbar-thumb {
+            background: var(--dgt-border-color);
+            border-radius: 4px;
+        }
+        .dgt-scrollable::-webkit-scrollbar-thumb:hover {
+            background: var(--dgt-text-muted);
+        }
+    `;
+    document.head.appendChild(style);
+};
+
+// Auto-inyectar al cargar
+if (document.readyState === 'complete') {
+    DiscourseGraphToolkit.injectBaseStyles();
+} else {
+    window.addEventListener('load', () => DiscourseGraphToolkit.injectBaseStyles());
+}
+
+
 // --- MODULE: src/core/html/htmlHelpers.js ---
 // ============================================================================
 // HTML: Helpers
@@ -4869,35 +5153,19 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const hasChildren = Object.keys(node.children).length > 0;
         const totalQuestions = DiscourseGraphToolkit.countTreeQuestions(node);
 
+        const depthClass = depth === 0 ? 'depth-0' : (depth % 2 !== 0 ? 'depth-odd' : 'depth-even');
+
         return React.createElement('div', {
             onClick: toggleFn,
-            style: {
-                padding: '0.6rem 0.75rem',
-                backgroundColor: depth === 0 ? '#eceff1' : (depth % 2 !== 0 ? '#ffffff' : '#f8f9fa'),
-                borderBottom: '1px solid #e0e0e0',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.8125rem',
-                fontWeight: depth === 0 ? 'bold' : '500',
-                color: '#333'
-            }
+            className: `dgt-accordion-header ${depthClass}`
         },
-            React.createElement('span', { style: { color: '#666', fontSize: '0.75rem', width: '16px', textAlign: 'center' } },
+            React.createElement('span', { style: { color: 'var(--dgt-text-muted)', fontSize: '0.75rem', width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
             React.createElement('div', { style: { flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' } },
                 React.createElement('span', { title: node.project },
                     node.project ? node.project.split('/').pop() : '(sin proyecto)'),
                 React.createElement('span', {
-                    style: {
-                        fontSize: '0.6875rem',
-                        color: '#555',
-                        backgroundColor: '#e0e0e0',
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.1875rem',
-                        fontWeight: 'normal'
-                    }
+                    className: 'dgt-badge dgt-badge-neutral'
                 }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
             )
         );
@@ -4914,9 +5182,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     style: {
                         padding: '0.6rem 0.75rem',
                         paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
-                        borderBottom: '1px solid #eee',
+                        borderBottom: '1px solid var(--dgt-border-color)',
                         cursor: 'pointer',
-                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : '#ffffff',
+                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? 'var(--dgt-bg-secondary)' : 'transparent',
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: '0.75rem',
@@ -4926,9 +5194,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
                         result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' } },
-                        React.createElement('div', { style: { lineHeight: '1.4', color: '#222' } },
+                        React.createElement('div', { style: { lineHeight: '1.4', color: 'var(--dgt-text-primary)' } },
                             parseMarkdownBold(result.question.pageTitle.replace('[[QUE]] - ', ''))),
-                        React.createElement('span', { style: { fontSize: '0.6875rem', color: '#777' } },
+                        React.createElement('span', { style: { fontSize: '0.6875rem', color: 'var(--dgt-text-secondary)' } },
                             `${result.branchNodes.length} nodos`)
                     )
                 )
@@ -4937,24 +5205,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
     };
 
     // --- Badge Component ---
-    const Badge = ({ emoji, count, label, bgColor, textColor, onClick, isActive, title }) => {
+    const Badge = ({ emoji, count, label, type = 'neutral', onClick, isActive, title }) => {
+        const baseClass = `dgt-badge dgt-badge-${type}`;
+        const activeClass = isActive ? 'active' : '';
+        const clickableClass = onClick ? 'clickable' : '';
         return React.createElement('span', {
             onClick: onClick,
             title: title || label,
-            style: {
-                padding: '0.25rem 0.5rem',
-                backgroundColor: bgColor,
-                borderRadius: '0.75rem',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                color: textColor,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                cursor: onClick ? 'pointer' : 'default',
-                border: isActive ? `2px solid ${textColor}` : '2px solid transparent',
-                whiteSpace: 'nowrap'
-            }
+            className: `${baseClass} ${activeClass} ${clickableClass}`.trim()
         }, `${emoji} ${count}`);
     };
 
@@ -4979,31 +5237,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         onClick: handleBulkVerifyAll,
                         title: 'Procesar y verificar coherencia de todas las ramas',
                         disabled: isBulkVerifying,
-                        style: {
-                            padding: '0.5rem 1rem',
-                            backgroundColor: isBulkVerifying ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: isBulkVerifying ? 'not-allowed' : 'pointer',
-                            fontSize: '0.8125rem',
-                            fontWeight: 'bold'
-                        }
+                        className: 'dgt-btn dgt-btn-primary'
                     }, isBulkVerifying ? '⏳...' : '🔄 Procesar'),
                     React.createElement('button', {
                         onClick: handleFindOrphans,
                         title: 'Buscar ramas o nodos que no tienen un proyecto asignado',
                         disabled: isSearchingOrphans,
-                        style: {
-                            padding: '0.5rem 1rem',
-                            backgroundColor: isSearchingOrphans ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : '#607D8B', // Sobrio
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: isSearchingOrphans ? 'not-allowed' : 'pointer',
-                            fontSize: '0.8125rem',
-                            fontWeight: 'bold'
-                        }
+                        className: 'dgt-btn dgt-btn-secondary'
                     }, isSearchingOrphans ? '⏳...' : '👻 Ver Huérfanos')
                 )
             ),
@@ -5013,97 +5253,56 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 bulkVerificationResults.length > 0 && React.createElement('div', {
                     style: { display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'flex-end', position: 'relative' }
                 },
-                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, bgColor: '#e8f5e9', textColor: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50', title: 'Nodos Coherentes' }),
-                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, bgColor: '#e3f2fd', textColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3', title: 'Nodos Especializados' }),
+                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
+                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
                     // Badge Diferente (clickeable)
                     React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '⚠️', count: counts.different, bgColor: '#fff3e0', textColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800', title: 'Nodos Diferentes',
+                            emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
                             onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
                             isActive: openPopover === 'different'
                         }),
-                        // Popover Diferente
-                        openPopover === 'different' && React.createElement('div', {
-                            style: {
-                                position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800'}`, borderRadius: '0.5rem',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
-                                minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '0.75rem', backgroundColor: '#fff3e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
-                            },
-                                React.createElement('span', null, `⚠️ ${counts.different} nodos diferentes`),
-                                React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#666' } }, '✕')
-                            ),
-                            bulkVerificationResults.flatMap(r => r.coherence.different.map(node =>
-                                React.createElement('div', { key: node.uid, style: { padding: '0.375rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' } },
-                                    React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#fff3e0', padding: '0.125rem 0.25rem', borderRadius: '0.125rem' } }, node.type),
-                                    React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer' } }, '→')
-                                )
-                            ))
-                        )
-                    ),
-                    // Badge Sin proyecto (clickeable)
-                    React.createElement('div', { style: { position: 'relative' } },
-                        React.createElement(Badge, {
-                            emoji: '❌', count: counts.missing, bgColor: '#ffebee', textColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336', title: 'Nodos Sin Proyecto',
-                            onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
-                            isActive: openPopover === 'missing'
-                        }),
-                        // Popover Sin proyecto
-                        openPopover === 'missing' && React.createElement('div', {
-                            style: {
-                                position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336'}`, borderRadius: '0.5rem',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
-                                minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '0.75rem', backgroundColor: '#ffebee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
-                            },
-                                React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
-                                React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#666' } }, '✕')
-                            ),
-                            bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
-                                React.createElement('div', { key: node.uid, style: { padding: '0.375rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' } },
-                                    React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#ffebee', padding: '0.125rem 0.25rem', borderRadius: '0.125rem' } }, node.type),
-                                    React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer' } }, '→')
-                                )
-                            ))
-                        )
-                    ),
-                    // Badge Huérfanos (clickeable)
-                    orphanResults.length > 0 && React.createElement('div', { style: { position: 'relative' } },
-                        React.createElement(Badge, {
-                            emoji: '👻', count: counts.orphans, bgColor: '#eceff1', textColor: '#607D8B', title: 'Nodos Huérfanos',
-                            onClick: () => setOpenPopover(openPopover === 'orphans' ? null : 'orphans'),
-                            isActive: openPopover === 'orphans'
-                        }),
-                        // Popover Huérfanos
-                        openPopover === 'orphans' && React.createElement('div', {
-                            style: {
-                                position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: '1px solid #607D8B', borderRadius: '0.5rem',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
-                                minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
-                            }
-                        },
-                            React.createElement('div', {
-                                style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '0.75rem', backgroundColor: '#eceff1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
-                            },
-                                React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
-                                React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#666' } }, '✕')
-                            ),
-                            orphanResults.map(node =>
-                                React.createElement('div', { key: node.uid, style: { padding: '0.375rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' } },
-                                    React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#eceff1', padding: '0.125rem 0.25rem', borderRadius: '0.125rem' } }, node.type),
-                                    React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#607D8B', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer' } }, '→')
+                        // Badge Sin proyecto (clickeable)
+                        React.createElement('div', { style: { position: 'relative' } },
+                            React.createElement(Badge, {
+                                emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
+                                onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
+                                isActive: openPopover === 'missing'
+                            }),
+                            // Popover Sin proyecto
+                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover' },
+                                React.createElement('div', { className: 'dgt-popover-header' },
+                                    React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--dgt-text-secondary)' } }, '✕')
+                                ),
+                                bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
+                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error' }, node.type),
+                                        React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem' } }, '→')
+                                    )
+                                ))
+                            )
+                        ),
+                        // Badge Huérfanos (clickeable)
+                        orphanResults.length > 0 && React.createElement('div', { style: { position: 'relative' } },
+                            React.createElement(Badge, {
+                                emoji: '👻', count: counts.orphans, type: 'neutral', title: 'Nodos Huérfanos',
+                                onClick: () => setOpenPopover(openPopover === 'orphans' ? null : 'orphans'),
+                                isActive: openPopover === 'orphans'
+                            }),
+                            // Popover Huérfanos
+                            openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover' },
+                                React.createElement('div', { className: 'dgt-popover-header' },
+                                    React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--dgt-text-secondary)' } }, '✕')
+                                ),
+                                orphanResults.map(node =>
+                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral' }, node.type),
+                                        React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary', style: { padding: '2px 6px', fontSize: '0.625rem' } }, '→')
+                                    )
                                 )
                             )
                         )
@@ -5148,7 +5347,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     type: 'text',
                     value: editableProject,
                     onChange: (e) => setEditableProject(e.target.value),
-                    style: { flex: 1, minWidth: '10rem', padding: '0.375rem 0.5rem', border: '1px solid #ccc', borderRadius: '0.25rem', fontSize: '0.8125rem' }
+                    className: 'dgt-input',
+                    style: { flex: 1, minWidth: '10rem' }
                 })
             ),
 
@@ -5161,15 +5361,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     return count > 0 && React.createElement('button', {
                         onClick: handleBulkPropagateProject,
                         disabled: isPropagating || !editableProject.trim(),
+                        className: 'dgt-btn dgt-btn-primary',
                         style: {
-                            padding: '0.375rem 0.75rem',
-                            backgroundColor: (isPropagating || !editableProject.trim()) ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'),
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: (isPropagating || !editableProject.trim()) ? 'not-allowed' : 'pointer',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold'
+                            backgroundColor: (isPropagating || !editableProject.trim()) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)'
                         }
                     }, isPropagating ? '⏳...' : `🔄 Propagar raíz (${count})`);
                 })(),
@@ -5180,65 +5374,56 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     return generalizations.length > 0 && React.createElement('button', {
                         onClick: handlePropagateFromParents,
                         disabled: isPropagating,
-                        style: {
-                            padding: '0.375rem 0.75rem',
-                            backgroundColor: isPropagating ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: isPropagating ? 'not-allowed' : 'pointer',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold'
-                        }
+                        className: 'dgt-btn dgt-btn-secondary'
                     }, isPropagating ? '⏳...' : `⬆️ Heredar de padres (${generalizations.length})`);
                 })()
             ),
 
             // Resumen compacto
-            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.75rem', flexWrap: 'wrap' } },
-                React.createElement('span', { style: { padding: '0.25rem 0.5rem', backgroundColor: '#e8f5e9', borderRadius: '0.1875rem' } },
+            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
-                React.createElement('span', { style: { padding: '0.25rem 0.5rem', backgroundColor: '#e3f2fd', borderRadius: '0.1875rem' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
                     `🔀 ${selectedBulkQuestion.coherence.specialized.length}`),
-                React.createElement('span', { style: { padding: '0.25rem 0.5rem', backgroundColor: '#fff3e0', borderRadius: '0.1875rem' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
-                React.createElement('span', { style: { padding: '0.25rem 0.5rem', backgroundColor: '#ffebee', borderRadius: '0.1875rem' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-error' },
                     `❌ ${selectedBulkQuestion.coherence.missing.length}`)
             ),
 
             // Lista de nodos problemáticos
             (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-            React.createElement('div', { style: { maxHeight: '10rem', overflowY: 'auto', border: '1px solid #eee', borderRadius: '0.25rem', backgroundColor: 'white' } },
+            React.createElement('div', { className: 'dgt-scrollable', style: { maxHeight: '10rem', overflowY: 'auto', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', backgroundColor: '#ffffff' } },
                 selectedBulkQuestion.coherence.different.map(node =>
-                    React.createElement('div', { key: node.uid, style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' } },
-                        React.createElement('span', { style: { color: '#ff9800', fontSize: '0.8125rem', flexShrink: 0 } }, '⚠️'),
+                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
+                        React.createElement('span', { style: { color: 'var(--dgt-accent-yellow)', fontSize: '0.8125rem', flexShrink: 0 } }, '⚠️'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#fff3e0', padding: '0.125rem 0.25rem', borderRadius: '0.125rem', marginRight: '0.375rem' } }, node.type),
-                            React.createElement('div', { style: { fontSize: '0.75rem', color: '#333' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            React.createElement('div', { style: { fontSize: '0.625rem', color: '#666', marginTop: '0.125rem' } },
+                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { marginRight: '0.375rem' } }, node.type),
+                            React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-primary)' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                            React.createElement('div', { style: { fontSize: '0.625rem', color: 'var(--dgt-text-secondary)', marginTop: '0.125rem' } },
                                 React.createElement('span', null, `Debería heredar: ${node.parentProject}`),
                                 React.createElement('span', { style: { marginLeft: '0.5rem' } }, `Tiene: ${node.project}`)
                             )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
-                            style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer', flexShrink: 0 }
+                            className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem', flexShrink: 0 }
                         }, '→ Ir')
                     )
                 ),
                 selectedBulkQuestion.coherence.missing.map(node =>
-                    React.createElement('div', { key: node.uid, style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' } },
-                        React.createElement('span', { style: { color: '#f44336', fontSize: '0.8125rem', flexShrink: 0 } }, '❌'),
+                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
+                        React.createElement('span', { style: { color: 'var(--dgt-accent-red)', fontSize: '0.8125rem', flexShrink: 0 } }, '❌'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#ffebee', padding: '0.125rem 0.25rem', borderRadius: '0.125rem', marginRight: '0.375rem' } }, node.type),
-                            React.createElement('div', { style: { fontSize: '0.75rem', color: '#333' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            node.parentProject && React.createElement('div', { style: { fontSize: '0.625rem', color: '#666', marginTop: '0.125rem' } },
+                            React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { marginRight: '0.375rem' } }, node.type),
+                            React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-primary)' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                            node.parentProject && React.createElement('div', { style: { fontSize: '0.625rem', color: 'var(--dgt-text-secondary)', marginTop: '0.125rem' } },
                                 `Debería heredar: ${node.parentProject}`
                             )
                         ),
                         React.createElement('button', {
                             onClick: () => handleNavigateToPage(node.uid),
-                            style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer', flexShrink: 0 }
+                            className: 'dgt-btn dgt-btn-primary', style: { padding: '2px 6px', fontSize: '0.625rem', flexShrink: 0 }
                         }, '→ Ir')
                     )
                 )

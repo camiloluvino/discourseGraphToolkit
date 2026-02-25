@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.18**
+**v1.5.19**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,10 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.19 (Febrero 2026)
+- **UI/UX: Adaptación Estética.** Inyección de diseño minimalista inspirado en Claude (`styles.js`) como CSS global del toolkit. El toolkit utiliza ahora una paleta sobria "off-white", tipografía moderna y variables `.dgt-*`.
+- **UI/UX: Refactor de Ramas.** La pestaña "Ramas" fue refactorizada para utilizar las nuevas clases CSS unificadas en lugar de estilos *inline*, resultando en una interfaz más profesional, con botones grises/antracita, menús contextuales (popovers) estilizados y badges semánticos limpios.
 
 ### v1.5.18 (Febrero 2026)
 - **UI/UX: Rediseño de Pestaña Ramas.** Implementado un layout más compacto que elimina el "efecto partido de tenis", acercando los contadores de nodos al título.

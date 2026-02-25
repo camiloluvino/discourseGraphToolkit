@@ -54,24 +54,26 @@ DiscourseGraphToolkit.TYPES = {
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
 };
 
-// Paleta de Colores Global del Sistema de Diseño
+// Paleta de Colores Global del Sistema de Diseño (Claude-inspired)
 DiscourseGraphToolkit.THEME = {
     colors: {
-        primary: '#3b82f6',     // Azul moderno (Primary actions)
-        primaryHover: '#2563eb',
-        secondary: '#f3f4f6',   // Gris claro (Secondary actions / Backgrounds)
-        secondaryHover: '#e5e7eb',
-        success: '#10b981',     // Verde esmeralda (Completado / Coherente / Validación Ok)
-        successHover: '#059669',
-        warning: '#f59e0b',     // Ámbar (Huérfanos / Faltantes)
-        warningHover: '#d97706',
-        danger: '#ef4444',      // Rojo (Errores / Eliminar)
-        dangerHover: '#dc2626',
-        neutral: '#6b7280',     // Gris texto secundario
-        text: '#1f2937',        // Gris muy oscuro (Casi negro) para legibilidad
-        border: '#e5e7eb',      // Gris para bordes sutiles
-        background: '#ffffff',  // Blanco para cards/modales
-        backgroundApp: '#f9fafb'// Fondo general off-white
+        primary: '#000000',     // Negro (Primary actions)
+        primaryHover: '#2d2c2b',
+        secondary: '#f3f1eb',   // Gris cálido (Secondary actions / Backgrounds)
+        secondaryHover: '#ebe8e0',
+        success: '#377d61',     // Verde oscuro (Completado / Coherente / Validación Ok)
+        successHover: '#2d6850',
+        warning: '#a87e27',     // Amarillo oscuro (Huérfanos / Faltantes / Diferentes)
+        warningHover: '#8a671f',
+        danger: '#bb4f43',      // Rojo oscuro (Errores / Eliminar)
+        dangerHover: '#9a4137',
+        neutral: '#999793',     // Gris texto secundario/muted
+        text: '#2d2c2b',        // Texto principal
+        border: '#e5e3dc',      // Bordes
+        background: '#fbfaf8',  // Blanco cálido para cards/modales
+        backgroundApp: '#fbfaf8',// Fondo general
+        // Accesorios
+        accentPurple: '#6c5c99'  // Para estados especializados
     }
 };
 
