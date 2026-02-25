@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-22
+**Última actualización:** 2026-02-25
 
 ## Versión Actual
 
-**v1.5.17**
+**v1.5.18**
 
 ## Estado de Funcionalidades
 
@@ -26,6 +26,16 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.18 (Febrero 2026)
+- **UI/UX: Rediseño de Pestaña Ramas.** Implementado un layout más compacto que elimina el "efecto partido de tenis", acercando los contadores de nodos al título.
+- **UI/UX: Limpieza de Jerarquía.** Las rutas de proyectos anidados en el árbol ahora solo muestran el nombre final (`split('/').pop()`), reduciendo drásticamente el ruido visual. La ruta completa es visible mediante `title` (tooltip).
+- **UI/UX: Parseo de Markdown.** Los títulos en la pestaña Ramas ahora parsean negritas (`**texto**`), mejorando la legibilidad.
+- **UI/UX: Mejoras de Contraste y Semántica.**
+  - Botón "Verificar" renombrado a "🔄 Procesar" con icono semántico.
+  - Añadidos tooltips descriptivos a todos los badges y botones principales.
+  - Implementado *zebra striping* (fondos alternos) en el árbol jerárquico para mejor seguimiento visual de filas.
+  - Aumentado el padding vertical para que la información "respire".
 
 ### v1.5.17 (Febrero 2026)
 - **Fix:** Validación de proyectos ahora excluye namespaces puros (prefijos como `yo y mis temas`) que no se usan directamente como `Proyecto Asociado::`. Solo se validan los proyectos hoja o los que existen explícitamente en el grafo.

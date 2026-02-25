@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.17
- * Bundled build: 2026-02-22 14:19:25
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.18
+ * Bundled build: 2026-02-25 14:39:27
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.17";
+    DiscourseGraphToolkit.VERSION = "1.5.18";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -4687,6 +4687,17 @@ DiscourseGraphToolkit.BranchesTab = function () {
     }), [bulkVerificationResults, orphanResults]);
 
     // --- Helpers ---
+    const parseMarkdownBold = (text) => {
+        if (!text) return null;
+        const parts = text.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return React.createElement('strong', { key: index }, part.slice(2, -2));
+            }
+            return part;
+        });
+    };
+
     const handleNavigateToPage = (uid) => {
         try {
             window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
@@ -4861,31 +4872,34 @@ DiscourseGraphToolkit.BranchesTab = function () {
         return React.createElement('div', {
             onClick: toggleFn,
             style: {
-                padding: '0.5rem 0.75rem',
-                backgroundColor: depth === 0 ? '#f0f0f0' : '#f8f8f8',
+                padding: '0.6rem 0.75rem',
+                backgroundColor: depth === 0 ? '#eceff1' : (depth % 2 !== 0 ? '#ffffff' : '#f8f9fa'),
                 borderBottom: '1px solid #e0e0e0',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 fontSize: '0.8125rem',
-                fontWeight: depth === 0 ? 'bold' : '500'
+                fontWeight: depth === 0 ? 'bold' : '500',
+                color: '#333'
             }
         },
-            React.createElement('span', { style: { color: '#666', fontSize: '0.75rem' } },
-                isExpanded ? '▼' : '▶'),
-            React.createElement('span', null, ''),
-            React.createElement('span', { style: { flex: 1 } },
-                node.project || '(sin proyecto)'),
-            React.createElement('span', {
-                style: {
-                    fontSize: '0.6875rem',
-                    color: '#666',
-                    backgroundColor: '#f5f5f5',
-                    padding: '0.125rem 0.375rem',
-                    borderRadius: '0.1875rem'
-                }
-            }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
+            React.createElement('span', { style: { color: '#666', fontSize: '0.75rem', width: '16px', textAlign: 'center' } },
+                hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
+            React.createElement('div', { style: { flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+                React.createElement('span', { title: node.project },
+                    node.project ? node.project.split('/').pop() : '(sin proyecto)'),
+                React.createElement('span', {
+                    style: {
+                        fontSize: '0.6875rem',
+                        color: '#555',
+                        backgroundColor: '#e0e0e0',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '0.1875rem',
+                        fontWeight: 'normal'
+                    }
+                }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
+            )
         );
     };
 
@@ -4898,32 +4912,35 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     key: result.question.pageUid,
                     onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
                     style: {
-                        padding: '0.5rem 0.75rem',
+                        padding: '0.6rem 0.75rem',
                         paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
                         borderBottom: '1px solid #eee',
                         cursor: 'pointer',
-                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : 'white',
+                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? '#e3f2fd' : '#ffffff',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
                         fontSize: '0.8125rem'
                     }
                 },
-                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0 } },
+                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
                         result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
-                    React.createElement('span', { style: { flex: 1, lineHeight: '1.3' } },
-                        result.question.pageTitle.replace('[[QUE]] - ', '')),
-                    React.createElement('span', { style: { fontSize: '0.6875rem', color: '#999', whiteSpace: 'nowrap' } },
-                        `${result.branchNodes.length} nodos`)
+                    React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' } },
+                        React.createElement('div', { style: { lineHeight: '1.4', color: '#222' } },
+                            parseMarkdownBold(result.question.pageTitle.replace('[[QUE]] - ', ''))),
+                        React.createElement('span', { style: { fontSize: '0.6875rem', color: '#777' } },
+                            `${result.branchNodes.length} nodos`)
+                    )
                 )
             )
         );
     };
 
     // --- Badge Component ---
-    const Badge = ({ emoji, count, label, bgColor, textColor, onClick, isActive }) => {
+    const Badge = ({ emoji, count, label, bgColor, textColor, onClick, isActive, title }) => {
         return React.createElement('span', {
             onClick: onClick,
+            title: title || label,
             style: {
                 padding: '0.25rem 0.5rem',
                 backgroundColor: bgColor,
@@ -4960,6 +4977,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 React.createElement('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
                     React.createElement('button', {
                         onClick: handleBulkVerifyAll,
+                        title: 'Procesar y verificar coherencia de todas las ramas',
                         disabled: isBulkVerifying,
                         style: {
                             padding: '0.5rem 1rem',
@@ -4971,13 +4989,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             fontSize: '0.8125rem',
                             fontWeight: 'bold'
                         }
-                    }, isBulkVerifying ? '⏳...' : '🔍 Verificar'),
+                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar'),
                     React.createElement('button', {
                         onClick: handleFindOrphans,
+                        title: 'Buscar ramas o nodos que no tienen un proyecto asignado',
                         disabled: isSearchingOrphans,
                         style: {
                             padding: '0.5rem 1rem',
-                            backgroundColor: isSearchingOrphans ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#9C27B0'), // Using secondaryHover or custom color for orphans
+                            backgroundColor: isSearchingOrphans ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : '#607D8B', // Sobrio
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.25rem',
@@ -4985,7 +5004,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             fontSize: '0.8125rem',
                             fontWeight: 'bold'
                         }
-                    }, isSearchingOrphans ? '⏳...' : '👻 Huérfanos')
+                    }, isSearchingOrphans ? '⏳...' : '👻 Ver Huérfanos')
                 )
             ),
             // Lado derecho: badges y status
@@ -4994,12 +5013,12 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 bulkVerificationResults.length > 0 && React.createElement('div', {
                     style: { display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'flex-end', position: 'relative' }
                 },
-                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, bgColor: '#e8f5e9', textColor: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50' }),
-                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, bgColor: '#e3f2fd', textColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3' }),
+                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, bgColor: '#e8f5e9', textColor: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50', title: 'Nodos Coherentes' }),
+                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, bgColor: '#e3f2fd', textColor: DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3', title: 'Nodos Especializados' }),
                     // Badge Diferente (clickeable)
                     React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '⚠️', count: counts.different, bgColor: '#fff3e0', textColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800',
+                            emoji: '⚠️', count: counts.different, bgColor: '#fff3e0', textColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800', title: 'Nodos Diferentes',
                             onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
                             isActive: openPopover === 'different'
                         }),
@@ -5030,7 +5049,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     // Badge Sin proyecto (clickeable)
                     React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '❌', count: counts.missing, bgColor: '#ffebee', textColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336',
+                            emoji: '❌', count: counts.missing, bgColor: '#ffebee', textColor: DiscourseGraphToolkit.THEME?.colors?.danger || '#f44336', title: 'Nodos Sin Proyecto',
                             onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
                             isActive: openPopover === 'missing'
                         }),
@@ -5061,7 +5080,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     // Badge Huérfanos (clickeable)
                     orphanResults.length > 0 && React.createElement('div', { style: { position: 'relative' } },
                         React.createElement(Badge, {
-                            emoji: '👻', count: counts.orphans, bgColor: '#f3e5f5', textColor: '#9C27B0',
+                            emoji: '👻', count: counts.orphans, bgColor: '#eceff1', textColor: '#607D8B', title: 'Nodos Huérfanos',
                             onClick: () => setOpenPopover(openPopover === 'orphans' ? null : 'orphans'),
                             isActive: openPopover === 'orphans'
                         }),
@@ -5069,22 +5088,22 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         openPopover === 'orphans' && React.createElement('div', {
                             style: {
                                 position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem',
-                                backgroundColor: 'white', border: '1px solid #9C27B0', borderRadius: '0.5rem',
+                                backgroundColor: 'white', border: '1px solid #607D8B', borderRadius: '0.5rem',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
                                 minWidth: '18rem', maxWidth: '24rem', maxHeight: '14rem', overflowY: 'auto'
                             }
                         },
                             React.createElement('div', {
-                                style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '0.75rem', backgroundColor: '#f3e5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+                                style: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '0.75rem', backgroundColor: '#eceff1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
                             },
                                 React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
                                 React.createElement('button', { onClick: () => setOpenPopover(null), style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#666' } }, '✕')
                             ),
                             orphanResults.map(node =>
                                 React.createElement('div', { key: node.uid, style: { padding: '0.375rem 0.75rem', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' } },
-                                    React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#f3e5f5', padding: '0.125rem 0.25rem', borderRadius: '0.125rem' } }, node.type),
+                                    React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#eceff1', padding: '0.125rem 0.25rem', borderRadius: '0.125rem' } }, node.type),
                                     React.createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#9C27B0', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer' } }, '→')
+                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, style: { padding: '0.125rem 0.375rem', fontSize: '0.625rem', backgroundColor: '#607D8B', color: 'white', border: 'none', borderRadius: '0.125rem', cursor: 'pointer' } }, '→')
                                 )
                             )
                         )
@@ -5120,7 +5139,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         // Panel de detalle (más compacto)
         selectedBulkQuestion && React.createElement('div', { style: { border: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'}`, borderRadius: '0.25rem', padding: '0.75rem', backgroundColor: '#f8f9fa' } },
             React.createElement('h4', { style: { margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.4' } },
-                selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', '')),
+                parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', ''))),
 
             // Proyecto editable y botones de propagación
             React.createElement('div', { style: { marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
@@ -5195,7 +5214,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         React.createElement('span', { style: { color: '#ff9800', fontSize: '0.8125rem', flexShrink: 0 } }, '⚠️'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
                             React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#fff3e0', padding: '0.125rem 0.25rem', borderRadius: '0.125rem', marginRight: '0.375rem' } }, node.type),
-                            React.createElement('span', { style: { fontSize: '0.75rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
+                            React.createElement('div', { style: { fontSize: '0.75rem', color: '#333' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
                             React.createElement('div', { style: { fontSize: '0.625rem', color: '#666', marginTop: '0.125rem' } },
                                 React.createElement('span', null, `Debería heredar: ${node.parentProject}`),
                                 React.createElement('span', { style: { marginLeft: '0.5rem' } }, `Tiene: ${node.project}`)
@@ -5212,7 +5231,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         React.createElement('span', { style: { color: '#f44336', fontSize: '0.8125rem', flexShrink: 0 } }, '❌'),
                         React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
                             React.createElement('span', { style: { fontSize: '0.625rem', fontWeight: 'bold', backgroundColor: '#ffebee', padding: '0.125rem 0.25rem', borderRadius: '0.125rem', marginRight: '0.375rem' } }, node.type),
-                            React.createElement('span', { style: { fontSize: '0.75rem' } }, (node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')),
+                            React.createElement('div', { style: { fontSize: '0.75rem', color: '#333' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
                             node.parentProject && React.createElement('div', { style: { fontSize: '0.625rem', color: '#666', marginTop: '0.125rem' } },
                                 `Debería heredar: ${node.parentProject}`
                             )
