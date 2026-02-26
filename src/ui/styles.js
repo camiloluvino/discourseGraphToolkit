@@ -331,7 +331,7 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
         }
 
         .dgt-list-container {
-            max-height: 10rem;
+            max-height: 40rem;
             overflow-y: auto;
             border: 1px solid var(--dgt-border-color);
             border-radius: var(--dgt-radius-sm);

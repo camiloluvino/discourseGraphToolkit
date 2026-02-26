@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.21
- * Bundled build: 2026-02-26 09:26:39
+ * Bundled build: 2026-02-26 09:31:46
  */
 
 (function () {
@@ -3786,7 +3786,7 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
         }
 
         .dgt-list-container {
-            max-height: 10rem;
+            max-height: 40rem;
             overflow-y: auto;
             border: 1px solid var(--dgt-border-color);
             border-radius: var(--dgt-radius-sm);
@@ -5537,21 +5537,21 @@ DiscourseGraphToolkit.NodesTab = function () {
 
         // Result List Content
         orphanResults.length > 0 ? (
-            React.createElement('div', { className: 'dgt-card', style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
-                React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm', style: { flex: 1 } },
+            React.createElement('div', { className: 'dgt-card', style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', border: 'none', boxShadow: 'none', background: 'transparent' } },
+                React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm', style: { flex: 1, maxHeight: 'none', border: '1px solid var(--dgt-border-color)' } },
                     orphanResults.map(node =>
-                        React.createElement('div', { key: node.uid, className: 'dgt-popover-item', style: { padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)' } },
-                            React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '👻'),
-                            React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
+                        React.createElement('div', { key: node.uid, className: 'dgt-popover-item', style: { padding: '1rem', marginBottom: '0.75rem', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)', background: '#fff' } },
+                            React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { fontSize: '1.25rem', flexShrink: 0 } }, '👻'),
+                            React.createElement('div', { style: { flex: 1, lineHeight: '1.5', padding: '0 0.5rem' } },
                                 React.createElement('span', { className: 'dgt-badge dgt-badge-neutral dgt-mr-xs' }, node.type),
-                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
-                                React.createElement('div', { className: 'dgt-text-secondary dgt-mt-xs', style: { fontSize: '0.6875rem' } },
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-bold', style: { fontSize: '0.9375rem', marginBottom: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
+                                React.createElement('div', { className: 'dgt-text-secondary', style: { fontSize: '0.75rem', opacity: 0.8 } },
                                     `Referencias de Discourse: ${node.refCount || 0}`
                                 )
                             ),
                             React.createElement('button', {
                                 onClick: () => handleNavigateToPage(node.uid),
-                                className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '4px 8px', flexShrink: 0 }
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '6px 12px', flexShrink: 0 }
                             }, '→ Ir al Nodo')
                         )
                     )
