@@ -29,8 +29,13 @@
 
 ### v1.5.20 (Febrero 2026)
 - **UI/UX: Adaptación Estética Global.** Inyección de diseño minimalista inspirado en Claude (`styles.js`) como CSS global del toolkit. El toolkit utiliza ahora una paleta sobria "off-white", tipografía moderna y variables de diseño unificadas.
+- **UI/UX: Mejoras en Popovers (Huérfanos / Sin Proyecto).**
+  - Aumentadas dimensiones (ancho máximo) para mejor legibilidad.
+  - Implementado truncado de texto inteligente vía CSS (elipsis) eliminando cortes arbitrarios.
+  - Limpieza automática de títulos: se remueven prefijos `[[QUE]]` y corchetes `[[ ]]` para una vista más limpia.
+  - Añadido soporte nativo para tooltips con el nombre completo al pasar el mouse.
 - **UI/UX: Refactor de Pestañas (Ramas y Proyectos).** Eliminación masiva de estilos en línea en favor de clases utilitarias (`.dgt-flex`, `.dgt-card`, etc.). Esto unifica la apariencia de árboles jerárquicos, botones y badges en todo el sistema.
-- **Build:** Actualización de timestamp de compilación y versión para asegurar que los cambios de estilo se desplieguen correctamente.
+- **Build:** Actualización de compilación de `discourse-graph-toolkit.js` asegurando que todos los componentes utilicen el nuevo sistema de estilos globales.
 
 ### v1.5.18 (Febrero 2026)
 - **UI/UX: Rediseño de Pestaña Ramas.** Implementado un layout más compacto que elimina el "efecto partido de tenis", acercando los contadores de nodos al título.

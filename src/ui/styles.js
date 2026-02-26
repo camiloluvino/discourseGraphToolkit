@@ -192,9 +192,9 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             box-shadow: var(--dgt-shadow-lg);
             border: 1px solid var(--dgt-border-color);
             z-index: 1000;
-            min-width: 18rem;
-            max-width: 24rem;
-            max-height: 18rem;
+            min-width: 20rem;
+            max-width: 32rem;
+            max-height: 24rem;
             overflow-y: auto;
         }
         .dgt-popover-header {
@@ -207,13 +207,15 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             align-items: center;
             position: sticky;
             top: 0;
+            background: #ffffff;
+            z-index: 10;
         }
         .dgt-popover-item {
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-bottom: 1px solid var(--dgt-border-color);
             display: flex;
-            align-items: flex-start;
-            gap: 8px;
+            align-items: center;
+            gap: 10px;
             font-size: 0.75rem;
             color: var(--dgt-text-primary);
         }

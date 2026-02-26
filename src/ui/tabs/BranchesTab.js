@@ -327,16 +327,16 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 isActive: openPopover === 'missing'
                             }),
                             // Popover Sin proyecto
-                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover' },
+                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                                 React.createElement('div', { className: 'dgt-popover-header' },
                                     React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
                                     React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                                 ),
                                 bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error' }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1 } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px' } }, '→')
+                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                                     )
                                 ))
                             )
@@ -349,16 +349,16 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 isActive: openPopover === 'orphans'
                             }),
                             // Popover Huérfanos
-                            openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover' },
+                            openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                                 React.createElement('div', { className: 'dgt-popover-header' },
                                     React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
                                     React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                                 ),
                                 orphanResults.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral' }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1 } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').substring(0, 35)),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary dgt-text-xs', style: { padding: '2px 6px' } }, '→')
+                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral', style: { flexShrink: 0 } }, node.type),
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                                     )
                                 )
                             )
@@ -368,8 +368,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // Status compacto
                 bulkVerifyStatus && React.createElement('span', {
                     className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
-                            bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
-                                bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
+                        bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
+                            bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
                         }`
                 }, bulkVerifyStatus)
             )
@@ -447,7 +447,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Lista de nodos problemáticos
             (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-            React.createElement('div', { className: 'dgt-list-container dgt-p-sm' },
+            React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm' },
                 selectedBulkQuestion.coherence.different.map(node =>
                     React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
                         React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '⚠️'),
