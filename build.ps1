@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.5.20"
+$version = "1.5.21"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
@@ -30,6 +30,7 @@ $files = @(
     "src/ui/components/ProjectTreeView.js",
     "src/ui/tabs/ProjectsTab.js",
     "src/ui/tabs/BranchesTab.js",
+    "src/ui/tabs/NodesTab.js",
     "src/ui/tabs/PanoramicTab.js",
     "src/ui/tabs/ExportTab.js",
     "src/ui/tabs/ImportTab.js",

@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-25
+**Última actualización:** 2026-02-26
 
 ## Versión Actual
 
-**v1.5.20**
+**v1.5.21**
 
 ## Estado de Funcionalidades
 
@@ -14,8 +14,8 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Vista de árbol jerárquico + detección de huérfanos |
-| Detección de nodos huérfanos | ✅ Mejorado | Identifica nodos sin proyecto ni relaciones, se actualiza al verificar |
+| Verificación de coherencia (Ramas) | ✅ Estable | Lógica de coherencia jerárquica |
+| Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Mejorado | Rediseñada con layout de tarjetas, estructura jerárquica indentada y cabecera simplificada |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con **profundidad recursiva ilimitada** |
@@ -26,6 +26,12 @@
 | Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.21 (Febrero 2026)
+- **Feature: Pestaña Independiente de Nodos.** Se ha extraído la funcionalidad de búsqueda de huérfanos de la pestaña "Ramas" a una nueva pestaña dedicada llamada "Nodos".
+- **UI/UX: Rediseño de la Gestión de Huérfanos.** Los resultados de búsqueda ahora se muestran en una lista de tarjetas clara y espaciosa, eliminando el uso de popovers pequeños y mejorando la usabilidad.
+- **Refactoring:** Separación de responsabilidades en el código UI (`NodesTab.js`) y simplificación de `BranchesTab.js`.
+- **Build:** Actualizado el script de ensamblaje para incluir el nuevo módulo de pestañas.
 
 ### v1.5.20 (Febrero 2026)
 - **UI/UX: Adaptación Estética Global.** Inyección de diseño minimalista inspirado en Claude (`styles.js`) como CSS global del toolkit. El toolkit utiliza ahora una paleta sobria "off-white", tipografía moderna y variables de diseño unificadas.

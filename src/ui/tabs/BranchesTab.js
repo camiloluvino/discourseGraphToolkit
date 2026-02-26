@@ -10,9 +10,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         bulkVerifyStatus, setBulkVerifyStatus,
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
-        isPropagating, setIsPropagating,
-        orphanResults, setOrphanResults,
-        isSearchingOrphans, setIsSearchingOrphans
+        isPropagating, setIsPropagating
     } = DiscourseGraphToolkit.useToolkit();
 
     // --- Estado para popover de nodos problemáticos ---
@@ -29,9 +27,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
         specialized: bulkVerificationResults.filter(r => r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
-        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length,
-        orphans: orphanResults.length
-    }), [bulkVerificationResults, orphanResults]);
+        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
+    }), [bulkVerificationResults]);
 
     // --- Helpers ---
     const parseMarkdownBold = (text) => {
@@ -94,14 +91,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
             const statusMsg = `✅ ${coherent} coherentes, ${specialized} esp., ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
-
-            // Refrescar huérfanos si ya se habían buscado previamente
-            if (orphanResults.length > 0) {
-                setBulkVerifyStatus(`${statusMsg} ⏳ Actualizando huérfanos...`);
-                const orphans = await DiscourseGraphToolkit.findOrphanNodes();
-                setOrphanResults(orphans);
-                setBulkVerifyStatus(`${statusMsg} 👻 ${orphans.length} huérfanos.`);
-            }
         } catch (e) {
             console.error('Bulk verification error:', e);
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -110,20 +99,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         }
     };
 
-    const handleFindOrphans = async () => {
-        setIsSearchingOrphans(true);
-        setBulkVerifyStatus('⏳ Buscando huérfanos...');
-        try {
-            const orphans = await DiscourseGraphToolkit.findOrphanNodes();
-            setOrphanResults(orphans);
-            setBulkVerifyStatus(`✅ Encontrados ${orphans.length} huérfanos.`);
-        } catch (e) {
-            console.error('Orphan search error:', e);
-            setBulkVerifyStatus('❌ Error: ' + e.message);
-        } finally {
-            setIsSearchingOrphans(false);
-        }
-    };
+
 
     const handleBulkSelectQuestion = (result) => {
         setSelectedBulkQuestion(result);
@@ -294,13 +270,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         title: 'Procesar y verificar coherencia de todas las ramas',
                         disabled: isBulkVerifying,
                         className: 'dgt-btn dgt-btn-primary'
-                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar'),
-                    React.createElement('button', {
-                        onClick: handleFindOrphans,
-                        title: 'Buscar ramas o nodos que no tienen un proyecto asignado',
-                        disabled: isSearchingOrphans,
-                        className: 'dgt-btn dgt-btn-secondary'
-                    }, isSearchingOrphans ? '⏳...' : '👻 Ver Huérfanos')
+                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
                 )
             ),
             // Lado derecho: badges y status
@@ -339,28 +309,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                         React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                                     )
                                 ))
-                            )
-                        ),
-                        // Badge Huérfanos (clickeable)
-                        orphanResults.length > 0 && React.createElement('div', { style: { position: 'relative' } },
-                            React.createElement(Badge, {
-                                emoji: '👻', count: counts.orphans, type: 'neutral', title: 'Nodos Huérfanos',
-                                onClick: () => setOpenPopover(openPopover === 'orphans' ? null : 'orphans'),
-                                isActive: openPopover === 'orphans'
-                            }),
-                            // Popover Huérfanos
-                            openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                orphanResults.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral', style: { flexShrink: 0 } }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                                    )
-                                )
                             )
                         )
                     )

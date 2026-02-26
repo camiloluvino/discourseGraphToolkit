@@ -1,0 +1,108 @@
+// ============================================================================
+// UI: Nodes Tab Component
+// ============================================================================
+
+DiscourseGraphToolkit.NodesTab = function () {
+    const React = window.React;
+    const {
+        orphanResults, setOrphanResults,
+        isSearchingOrphans, setIsSearchingOrphans
+    } = DiscourseGraphToolkit.useToolkit();
+
+    // --- Helpers ---
+    const parseMarkdownBold = (text) => {
+        if (!text) return null;
+        const parts = text.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return React.createElement('strong', { key: index }, part.slice(2, -2));
+            }
+            return part;
+        });
+    };
+
+    const handleNavigateToPage = (uid) => {
+        try {
+            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            DiscourseGraphToolkit.minimizeModal();
+        } catch (e) {
+            console.error("Error navigating to page:", e);
+            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
+        }
+    };
+
+    // --- Handlers ---
+    const handleFindOrphans = async () => {
+        setIsSearchingOrphans(true);
+        try {
+            const orphans = await DiscourseGraphToolkit.findOrphanNodes();
+            setOrphanResults(orphans);
+            DiscourseGraphToolkit.showToast(`Encontrados ${orphans.length} huérfanos.`, 'success');
+        } catch (e) {
+            console.error('Orphan search error:', e);
+            DiscourseGraphToolkit.showToast('Error al buscar huérfanos: ' + e.message, 'error');
+        } finally {
+            setIsSearchingOrphans(false);
+        }
+    };
+
+    // --- Render ---
+    return React.createElement('div', { className: 'dgt-container' },
+        // Header
+        React.createElement('div', {
+            className: 'dgt-flex-between dgt-flex-wrap dgt-gap-md dgt-mb-sm',
+            style: { alignItems: 'flex-start' }
+        },
+            // Left side: Title and search button
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Nodos Huérfanos'),
+                React.createElement('div', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-xs' },
+                    'Nodos (QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
+                ),
+                React.createElement('button', {
+                    onClick: handleFindOrphans,
+                    title: 'Buscar ramas o nodos que no tienen un proyecto asignado ni conexiones',
+                    disabled: isSearchingOrphans,
+                    className: 'dgt-btn dgt-btn-primary'
+                }, isSearchingOrphans ? '⏳ Buscando...' : '👻 Buscar Huérfanos')
+            ),
+
+            // Right side: Counter badge
+            orphanResults.length > 0 &&
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { fontSize: '0.875rem' } },
+                    `👻 ${orphanResults.length} Encontrados`
+                )
+            )
+        ),
+
+        // Result List Content
+        orphanResults.length > 0 ? (
+            React.createElement('div', { className: 'dgt-card', style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
+                React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm', style: { flex: 1 } },
+                    orphanResults.map(node =>
+                        React.createElement('div', { key: node.uid, className: 'dgt-popover-item', style: { padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)' } },
+                            React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '👻'),
+                            React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-neutral dgt-mr-xs' }, node.type),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
+                                React.createElement('div', { className: 'dgt-text-secondary dgt-mt-xs', style: { fontSize: '0.6875rem' } },
+                                    `Referencias de Discourse: ${node.refCount || 0}`
+                                )
+                            ),
+                            React.createElement('button', {
+                                onClick: () => handleNavigateToPage(node.uid),
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '4px 8px', flexShrink: 0 }
+                            }, '→ Ir al Nodo')
+                        )
+                    )
+                )
+            )
+        ) : (
+            !isSearchingOrphans && orphanResults.length === 0 && React.createElement('div', { className: 'dgt-flex-column', style: { alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--dgt-text-muted)' } },
+                React.createElement('span', { style: { fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 } }, '📝'),
+                React.createElement('p', null, 'Haz clic en "Buscar Huérfanos" para analizar el grafo.')
+            )
+        )
+    );
+};

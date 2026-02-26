@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.20
- * Bundled build: 2026-02-25 22:42:47
+ * DISCOURSE GRAPH TOOLKIT v1.5.21
+ * Bundled build: 2026-02-26 09:26:39
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.20";
+    DiscourseGraphToolkit.VERSION = "1.5.21";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -5031,9 +5031,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         bulkVerifyStatus, setBulkVerifyStatus,
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
-        isPropagating, setIsPropagating,
-        orphanResults, setOrphanResults,
-        isSearchingOrphans, setIsSearchingOrphans
+        isPropagating, setIsPropagating
     } = DiscourseGraphToolkit.useToolkit();
 
     // --- Estado para popover de nodos problemáticos ---
@@ -5050,9 +5048,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
         specialized: bulkVerificationResults.filter(r => r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
-        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length,
-        orphans: orphanResults.length
-    }), [bulkVerificationResults, orphanResults]);
+        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
+    }), [bulkVerificationResults]);
 
     // --- Helpers ---
     const parseMarkdownBold = (text) => {
@@ -5115,14 +5112,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
             const statusMsg = `✅ ${coherent} coherentes, ${specialized} esp., ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
-
-            // Refrescar huérfanos si ya se habían buscado previamente
-            if (orphanResults.length > 0) {
-                setBulkVerifyStatus(`${statusMsg} ⏳ Actualizando huérfanos...`);
-                const orphans = await DiscourseGraphToolkit.findOrphanNodes();
-                setOrphanResults(orphans);
-                setBulkVerifyStatus(`${statusMsg} 👻 ${orphans.length} huérfanos.`);
-            }
         } catch (e) {
             console.error('Bulk verification error:', e);
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -5131,20 +5120,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         }
     };
 
-    const handleFindOrphans = async () => {
-        setIsSearchingOrphans(true);
-        setBulkVerifyStatus('⏳ Buscando huérfanos...');
-        try {
-            const orphans = await DiscourseGraphToolkit.findOrphanNodes();
-            setOrphanResults(orphans);
-            setBulkVerifyStatus(`✅ Encontrados ${orphans.length} huérfanos.`);
-        } catch (e) {
-            console.error('Orphan search error:', e);
-            setBulkVerifyStatus('❌ Error: ' + e.message);
-        } finally {
-            setIsSearchingOrphans(false);
-        }
-    };
+
 
     const handleBulkSelectQuestion = (result) => {
         setSelectedBulkQuestion(result);
@@ -5315,13 +5291,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         title: 'Procesar y verificar coherencia de todas las ramas',
                         disabled: isBulkVerifying,
                         className: 'dgt-btn dgt-btn-primary'
-                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar'),
-                    React.createElement('button', {
-                        onClick: handleFindOrphans,
-                        title: 'Buscar ramas o nodos que no tienen un proyecto asignado',
-                        disabled: isSearchingOrphans,
-                        className: 'dgt-btn dgt-btn-secondary'
-                    }, isSearchingOrphans ? '⏳...' : '👻 Ver Huérfanos')
+                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
                 )
             ),
             // Lado derecho: badges y status
@@ -5360,28 +5330,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                         React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                                     )
                                 ))
-                            )
-                        ),
-                        // Badge Huérfanos (clickeable)
-                        orphanResults.length > 0 && React.createElement('div', { style: { position: 'relative' } },
-                            React.createElement(Badge, {
-                                emoji: '👻', count: counts.orphans, type: 'neutral', title: 'Nodos Huérfanos',
-                                onClick: () => setOpenPopover(openPopover === 'orphans' ? null : 'orphans'),
-                                isActive: openPopover === 'orphans'
-                            }),
-                            // Popover Huérfanos
-                            openPopover === 'orphans' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `👻 ${counts.orphans} huérfanos`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                orphanResults.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral', style: { flexShrink: 0 } }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-secondary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                                    )
-                                )
                             )
                         )
                     )
@@ -5502,6 +5450,117 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         }, '→ Ir')
                     )
                 )
+            )
+        )
+    );
+};
+
+
+// --- MODULE: src/ui/tabs/NodesTab.js ---
+// ============================================================================
+// UI: Nodes Tab Component
+// ============================================================================
+
+DiscourseGraphToolkit.NodesTab = function () {
+    const React = window.React;
+    const {
+        orphanResults, setOrphanResults,
+        isSearchingOrphans, setIsSearchingOrphans
+    } = DiscourseGraphToolkit.useToolkit();
+
+    // --- Helpers ---
+    const parseMarkdownBold = (text) => {
+        if (!text) return null;
+        const parts = text.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return React.createElement('strong', { key: index }, part.slice(2, -2));
+            }
+            return part;
+        });
+    };
+
+    const handleNavigateToPage = (uid) => {
+        try {
+            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+            DiscourseGraphToolkit.minimizeModal();
+        } catch (e) {
+            console.error("Error navigating to page:", e);
+            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
+        }
+    };
+
+    // --- Handlers ---
+    const handleFindOrphans = async () => {
+        setIsSearchingOrphans(true);
+        try {
+            const orphans = await DiscourseGraphToolkit.findOrphanNodes();
+            setOrphanResults(orphans);
+            DiscourseGraphToolkit.showToast(`Encontrados ${orphans.length} huérfanos.`, 'success');
+        } catch (e) {
+            console.error('Orphan search error:', e);
+            DiscourseGraphToolkit.showToast('Error al buscar huérfanos: ' + e.message, 'error');
+        } finally {
+            setIsSearchingOrphans(false);
+        }
+    };
+
+    // --- Render ---
+    return React.createElement('div', { className: 'dgt-container' },
+        // Header
+        React.createElement('div', {
+            className: 'dgt-flex-between dgt-flex-wrap dgt-gap-md dgt-mb-sm',
+            style: { alignItems: 'flex-start' }
+        },
+            // Left side: Title and search button
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Nodos Huérfanos'),
+                React.createElement('div', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-xs' },
+                    'Nodos (QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
+                ),
+                React.createElement('button', {
+                    onClick: handleFindOrphans,
+                    title: 'Buscar ramas o nodos que no tienen un proyecto asignado ni conexiones',
+                    disabled: isSearchingOrphans,
+                    className: 'dgt-btn dgt-btn-primary'
+                }, isSearchingOrphans ? '⏳ Buscando...' : '👻 Buscar Huérfanos')
+            ),
+
+            // Right side: Counter badge
+            orphanResults.length > 0 &&
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end' } },
+                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { fontSize: '0.875rem' } },
+                    `👻 ${orphanResults.length} Encontrados`
+                )
+            )
+        ),
+
+        // Result List Content
+        orphanResults.length > 0 ? (
+            React.createElement('div', { className: 'dgt-card', style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
+                React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm', style: { flex: 1 } },
+                    orphanResults.map(node =>
+                        React.createElement('div', { key: node.uid, className: 'dgt-popover-item', style: { padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)' } },
+                            React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '👻'),
+                            React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-neutral dgt-mr-xs' }, node.type),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
+                                React.createElement('div', { className: 'dgt-text-secondary dgt-mt-xs', style: { fontSize: '0.6875rem' } },
+                                    `Referencias de Discourse: ${node.refCount || 0}`
+                                )
+                            ),
+                            React.createElement('button', {
+                                onClick: () => handleNavigateToPage(node.uid),
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '4px 8px', flexShrink: 0 }
+                            }, '→ Ir al Nodo')
+                        )
+                    )
+                )
+            )
+        ) : (
+            !isSearchingOrphans && orphanResults.length === 0 && React.createElement('div', { className: 'dgt-flex-column', style: { alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--dgt-text-muted)' } },
+                React.createElement('span', { style: { fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 } }, '📝'),
+                React.createElement('p', null, 'Haz clic en "Buscar Huérfanos" para analizar el grafo.')
             )
         )
     );
@@ -7036,7 +7095,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                     )
                 ),
                 React.createElement('div', { style: { display: 'flex', borderBottom: `1px solid ${DiscourseGraphToolkit.THEME?.colors?.border || '#eee'}` } },
-                    ['proyectos', 'ramas', 'panoramica', 'exportar', 'importar'].map(t =>
+                    ['proyectos', 'ramas', 'nodos', 'panoramica', 'exportar', 'importar'].map(t =>
                         React.createElement('div', { key: t, onClick: () => setActiveTab(t), style: tabStyle(t) },
                             t === 'panoramica' ? 'Panorámica' : t.charAt(0).toUpperCase() + t.slice(1))
                     )
@@ -7101,6 +7160,9 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
                     // Pestaña Ramas
                     activeTab === 'ramas' && React.createElement(DiscourseGraphToolkit.BranchesTab),
+
+                    // Pestaña Nodos
+                    activeTab === 'nodos' && React.createElement(DiscourseGraphToolkit.NodesTab),
 
                     // Pestaña Panorámica
                     activeTab === 'panoramica' && React.createElement(DiscourseGraphToolkit.PanoramicTab),
