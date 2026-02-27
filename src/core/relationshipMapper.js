@@ -8,7 +8,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         console.log("Mapeando relaciones entre nodos...");
 
         // Paso 1: Crear mapas de búsqueda
-        const { clmTitleMap, evdTitleMap } = this._createTitleMaps(allNodes);
+        const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
         // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
         this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
@@ -18,11 +18,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
         // Paso 4: Mapear relaciones CLM-CLM y CLM-EVD vía #RelatedTo
         this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
+
+        // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
+        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
     },
 
     _createTitleMaps: function (allNodes) {
         const clmTitleMap = {};
         const evdTitleMap = {};
+        const griTitleMap = {};
+        const queTitleMap = {};
 
         for (const uid in allNodes) {
             const node = allNodes[uid];
@@ -31,14 +36,18 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     this._addToTitleMap(clmTitleMap, node, uid, "[[CLM]] - ");
                 } else if (node.type === "EVD") {
                     this._addToTitleMap(evdTitleMap, node, uid, "[[EVD]] - ");
+                } else if (node.type === "GRI") {
+                    this._addToTitleMap(griTitleMap, node, uid, "[[GRI]] - ");
+                } else if (node.type === "QUE") {
+                    this._addToTitleMap(queTitleMap, node, uid, "[[QUE]] - ");
                 }
             } catch (e) {
                 console.warn(`⚠ Error creando mapa para nodo ${uid}: ${e}`);
             }
         }
 
-        console.log(`Mapas creados: ${Object.keys(clmTitleMap).length} CLMs, ${Object.keys(evdTitleMap).length} EVDs`);
-        return { clmTitleMap, evdTitleMap };
+        console.log(`Mapas creados: ${Object.keys(griTitleMap).length} GRIs, ${Object.keys(queTitleMap).length} QUEs, ${Object.keys(clmTitleMap).length} CLMs, ${Object.keys(evdTitleMap).length} EVDs`);
+        return { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap };
     },
 
     _addToTitleMap: function (titleMap, node, uid, prefix) {
@@ -275,6 +284,89 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
+    // --- GRI: Mapear relaciones GRI -> QUE/CLM/GRI vía #Contains ---
+    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap) {
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            if (node.type !== "GRI") continue;
+
+            if (!node.contained_nodes) node.contained_nodes = [];
+
+            try {
+                const data = node.data;
+                const children = data.children || [];
+
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#Contains")) {
+                        // Case 1: Inline (el bloque mismo puede tener una referencia)
+                        this._extractContainedNodes(child, node, uid, allNodes);
+
+                        // Case 2: Container (#Contains -> hijos son las referencias)
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractContainedNodes(subChild, node, uid, allNodes);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(`❌ Error mapeando relaciones para GRI ${uid}: ${e}`);
+            }
+        }
+    },
+
+    // Helper: Extrae nodos contenidos (QUE, CLM, GRI) de un bloque bajo #Contains
+    _extractContainedNodes: function (block, node, sourceUid, allNodes) {
+        try {
+            const refsToCheck = [];
+            if (block.refs) refsToCheck.push(...block.refs);
+            if (block[':block/refs']) {
+                for (const ref of block[':block/refs']) {
+                    if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
+                }
+            }
+
+            for (const ref of refsToCheck) {
+                const refUid = ref.uid || "";
+                if (allNodes[refUid] && refUid !== sourceUid) {
+                    const refType = allNodes[refUid].type;
+                    // GRI puede contener QUE, CLM, o GRI (no EVD directamente)
+                    if (refType === "QUE" || refType === "CLM" || refType === "GRI") {
+                        if (!node.contained_nodes.includes(refUid)) {
+                            node.contained_nodes.push(refUid);
+                        }
+                    }
+                }
+            }
+
+            // Buscar también referencias [[...]] en el texto
+            const blockText = block.string || "";
+            const pattern = /\[\[([^\]]+)\]\]/g;
+            let match;
+            while ((match = pattern.exec(blockText)) !== null) {
+                const refContent = match[1];
+                // Solo buscar nodos discourse (no tags como #Contains)
+                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM')) {
+                    // Intentar encontrar en los mapas existentes via allNodes
+                    for (const nUid in allNodes) {
+                        const n = allNodes[nUid];
+                        if (n.title && n.title.includes(refContent) && nUid !== sourceUid) {
+                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI") {
+                                if (!node.contained_nodes.includes(nUid)) {
+                                    node.contained_nodes.push(nUid);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`⚠ Error extrayendo nodos contenidos en GRI ${sourceUid}: ${e}`);
+        }
+    },
+
     collectDependencies: function (nodes) {
         const dependencies = new Set();
 
@@ -296,6 +388,14 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     for (const child of children) {
                         const str = child.string || "";
                         if (str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+                            this._collectRefsFromBlock(child, dependencies);
+                        }
+                    }
+                }
+                // GRI -> #Contains
+                else if (node.type === "GRI") {
+                    for (const child of children) {
+                        if ((child.string || "").includes("#Contains")) {
                             this._collectRefsFromBlock(child, dependencies);
                         }
                     }

@@ -38,7 +38,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             }
 
             // Lógica de metadatos
-            const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+            const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo", "#Contains"];
             const isStructural = structuralMarkers.includes(blockString);
 
             if (skipMetadata && (!blockString || isStructural)) {
@@ -102,7 +102,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             if (Array.isArray(children) && children.length > 0) {
                 for (const child of children) {
                     const childString = child.string || child[':block/string'] || "";
-                    const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+                    const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo", "#Contains"];
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
                     // FIX: Always exclude structural metadata blocks from text content to avoid duplicates,

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        window.roamAlphaAPI = {
+            ui: {
+                commandPalette: {
+                    addCommand: function(cmd) { console.log('Command registered:', cmd.label); },
+                    removeCommand: function(cmd) { console.log('Command removed:', cmd.label); }
+                }
+            },
+            data: { async: { q: async () => [] } }
+        };
+        window.React = {
+            createElement: function() {},
+            createContext: function() {},
+            useState: function() {},
+            useEffect: function() {},
+            useContext: function() {},
+            useMemo: function() {}
+        };
+        window.ReactDOM = { render: function() {} };
+    </script>
+    <script src="discourse-graph-toolkit.js"></script>
+</head>
+<body>
+    <h1>Test</h1>
+</body>
+</html>

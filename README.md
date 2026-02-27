@@ -1,13 +1,13 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.21  
+**Versión:** 1.5.22  
 **Autor:** Camilo Luvino
 
 ## Descripción
 
-Discourse Graph Toolkit es un plugin para **Roam Research** que facilita la creación, organización y exportación de grafos de discurso académico. Posee una interfaz minimalista y moderna basada en un sistema de diseño de utilidades CSS, optimizado para la claridad visual. Permite estructurar investigaciones usando tres tipos de nodos: **Preguntas (QUE)**, **Afirmaciones (CLM)** y **Evidencias (EVD)**.
+Discourse Graph Toolkit es un plugin para **Roam Research** que facilita la creación, organización y exportación de grafos de discurso académico. Posee una interfaz minimalista y moderna basada en un sistema de diseño de utilidades CSS, optimizado para la claridad visual. Permite estructurar investigaciones usando cuatro tipos de nodos: **GRI (Grupos de Investigación)**, **Preguntas (QUE)**, **Afirmaciones (CLM)** y **Evidencias (EVD)**.
 
-El toolkit está diseñado para investigadores y académicos que utilizan Roam Research para desarrollar argumentos estructurados, gestionar literatura y producir documentos exportables.
+El toolkit está diseñado para investigadores y académicos que utilizan Roam Research para desarrollar argumentos estructurados, gestionar literatura y producir documentos exportables. Lo que lo hace único es su flexibilidad jerárquica: puedes organizar preguntas dentro de grupos (GRI), o tratar a ambos como puntos de entrada independientes al grafo.
 
 ## Características Principales
 

@@ -28,7 +28,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const extraStyle = extraIndent > 0 ? ` style="margin-left: ${extraIndent}px;"` : '';
 
         // CSS class basada en tipo
-        const cssClass = type === 'CLM' ? 'clm-node' : (type === 'EVD' ? 'evd-node' : 'node');
+        const cssClass = type === 'CLM' ? 'clm-node' : (type === 'EVD' ? 'evd-node' : (type === 'GRI' ? 'gri-node' : 'node'));
 
         let html = `<div id="${parentId || ''}" class="node ${cssClass}"${extraStyle}>`;
         html += `<h${hLevel} class="collapsible">`;
@@ -71,6 +71,16 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
                 const evdId = parentId ? `${parentId}_e${k}` : '';
                 html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId);
             }
+        }
+
+        // Hijos: Nodos contenidos (para GRI vía #Contains)
+        if (node.contained_nodes && node.contained_nodes.length > 0) {
+            html += '<div class="contained-nodes">';
+            for (let cn = 0; cn < node.contained_nodes.length; cn++) {
+                const cnId = parentId ? `${parentId}_cn${cn}` : '';
+                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId);
+            }
+            html += '</div>';
         }
 
         // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
@@ -134,6 +144,54 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
                 const evdId = `q${qIndex}_de${j}`;
                 html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId);
             }
+        }
+
+        html += `</div></div>`;
+        return html;
+    },
+
+    // Renderiza un nodo raíz GRI con todos sus nodos contenidos (entry point)
+    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora) {
+        const qId = `r${qIndex}`;
+        const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
+        const prefix = `[[${nodeType}]]`;
+        const title = DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        const cssClass = nodeType === 'GRI' ? 'gri-node' : 'que-node';
+
+        let html = `<div id="${qId}" class="node ${cssClass}">`;
+        html += `<h2 class="collapsible">`;
+        html += `<span class="node-tag">${prefix}</span> - ${title}`;
+        html += `</h2>`;
+        html += `<div class="content">`;
+
+        // Metadata
+        html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+
+        // Contenido del nodo raíz
+        if (config[nodeType]) {
+            const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(rootNode.data || rootNode, config[nodeType], nodeType, excludeBitacora);
+            if (content) {
+                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                html += `<p>${helpers.formatContentForHtml(content)}</p>`;
+                html += `</div>`;
+            }
+        }
+
+        // Nodos contenidos (vía #Contains)
+        const hasContained = rootNode.contained_nodes && rootNode.contained_nodes.length > 0;
+
+        if (!hasContained) {
+            html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            html += '</div></div>';
+            return html;
+        }
+
+        // Renderizar cada nodo contenido (recursión desde profundidad 3)
+        for (let j = 0; j < rootNode.contained_nodes.length; j++) {
+            const cnId = `r${qIndex}_cn${j}`;
+            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId);
         }
 
         html += `</div></div>`;

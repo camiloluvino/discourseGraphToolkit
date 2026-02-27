@@ -57,7 +57,7 @@ DiscourseGraphToolkit.NodesTab = function () {
             React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
                 React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Nodos Huérfanos'),
                 React.createElement('div', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-xs' },
-                    'Nodos (QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
+                    'Nodos (GRI, QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
                 ),
                 React.createElement('button', {
                     onClick: handleFindOrphans,
@@ -85,7 +85,7 @@ DiscourseGraphToolkit.NodesTab = function () {
                             React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { fontSize: '1.25rem', flexShrink: 0 } }, '👻'),
                             React.createElement('div', { style: { flex: 1, lineHeight: '1.5', padding: '0 0.5rem' } },
                                 React.createElement('span', { className: 'dgt-badge dgt-badge-neutral dgt-mr-xs' }, node.type),
-                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-bold', style: { fontSize: '0.9375rem', marginBottom: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-bold', style: { fontSize: '0.9375rem', marginBottom: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(GRI|CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
                                 React.createElement('div', { className: 'dgt-text-secondary', style: { fontSize: '0.75rem', opacity: 0.8 } },
                                     `Referencias de Discourse: ${node.refCount || 0}`
                                 )

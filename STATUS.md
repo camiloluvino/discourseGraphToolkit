@@ -1,31 +1,35 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-26
+**Última actualización:** 2026-02-27
 
 ## Versión Actual
 
-**v1.5.21**
+**v1.5.22**
 
 ## Estado de Funcionalidades
 
 | Funcionalidad | Estado | Notas |
 |---------------|--------|-------|
+| **Nodos GRI (NUEVO)** | ✅ Estable | Grupos de Investigación con relación `#Contains` |
 | Creación de nodos (QUE/CLM/EVD) | ✅ Estable | Atajos Ctrl+Shift+Q/C/E |
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Estable | Lógica de coherencia jerárquica |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Mejorado | Rediseñada con layout de tarjetas, estructura jerárquica indentada y cabecera simplificada |
+| **Vista Panorámica** | ✅ Mejorado | Soporta GRI+QUE como nodos raíz intercambiables |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
-| Exportación HTML | ✅ Estable | Documento interactivo con **profundidad recursiva ilimitada** |
-| Exportación Markdown | ✅ Estable | Indentación recursiva ilimitada para CLMs y EVDs |
+| Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
+| Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
-| Reordenamiento de preguntas | ✅ Mejorado | Orden persistente entre sesiones por proyecto |
-| Importación JSON | ✅ Estable | Sin sobrescritura de existentes |
-| Selector de proyectos (Exportar) | ✅ Estable | Vista de árbol con selección en cascada |
 
 ## Historial Reciente
+
+### v1.5.22 (Febrero 2026)
+- **Feature: Nodos GRI y relación #Contains.** Implementación de un nuevo tipo de nodo organizativo (GRI) que permite agrupar otros nodos mediante la etiqueta `#Contains`.
+- **Arquitectura: Intercambiabilidad de Nodos Raíz.** Se eliminó el presupuesto de que `QUE` es siempre la raíz. Ahora tanto `GRI` como `QUE` funcionan como puntos de entrada equivalentes en la Vista Panorámica y en todos los formatos de exportación.
+- **UI: Soporte Visual para GRI.** En la Panorámica, los GRI se distinguen con un borde púrpura, icono de carpeta (📂) y una visualización indentada de sus contenidos.
+- **Exportación:** Soporte transversal para la jerarquía `GRI → QUE → CLM → EVD` en HTML, Markdown y EPUB.
 
 ### v1.5.21 (Febrero 2026)
 - **Feature: Pestaña Independiente de Nodos.** Se ha extraído la funcionalidad de búsqueda de huérfanos de la pestaña "Ramas" a una nueva pestaña dedicada llamada "Nodos".

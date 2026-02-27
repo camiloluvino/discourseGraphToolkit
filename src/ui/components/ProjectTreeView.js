@@ -41,8 +41,8 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
             // Header del nodo (personalizado por el tab)
             renderNodeHeader(node, key, depth, isExpanded, () => toggleExpand(node.project)),
 
-            // Contenido cuando está expandido
-            isExpanded && React.createElement('div', null,
+            // Contenido cuando está expandido (con guía visual de profundidad)
+            isExpanded && React.createElement('div', depth > 0 ? { className: 'dgt-tree-guide' } : null,
                 // Contenido específico del nodo (preguntas, etc.)
                 renderNodeContent && renderNodeContent(node, depth),
                 // Hijos recursivos

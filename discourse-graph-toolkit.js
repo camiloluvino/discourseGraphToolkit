@@ -1,6 +1,6 @@
-/**
+﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.21
- * Bundled build: 2026-02-26 09:31:46
+ * Bundled build: 2026-02-26 23:56:59
  */
 
 (function () {
@@ -49,7 +49,7 @@ var MarkdownCore = {
             return '';
         }
 
-        var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+        var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo', '#Contains'];
         var isStructural = structuralMarkers.indexOf(blockString) !== -1;
 
         if (skipMetadata && (!blockString || isStructural)) {
@@ -109,7 +109,7 @@ var MarkdownCore = {
             for (var i = 0; i < children.length; i++) {
                 var child = children[i];
                 var childString = child.string || child[':block/string'] || '';
-                var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo', '#Contains'];
                 var isStructuralMetadata = false;
                 for (var j = 0; j < structuralMetadata.length; j++) {
                     if (childString.indexOf(structuralMetadata[j]) === 0) {
@@ -214,61 +214,101 @@ var MarkdownCore = {
             result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
         }
 
+        // Hijos: Nodos contenidos (para GRI vía #Contains)
+        if (node.contained_nodes && node.contained_nodes.length > 0) {
+            for (var cn = 0; cn < node.contained_nodes.length; cn++) {
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
         visited[nodeUid] = false; // Liberar para ramas paralelas
         return result;
     },
 
     // --- Generación de Markdown completo ---
-    generateMarkdown: function (questions, allNodes, config, excludeBitacora, flatMode) {
+    // rootNodes: array de nodos raíz (GRI y/o QUE)
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
         if (typeof config === 'boolean') {
-            config = { QUE: config, CLM: config, EVD: config };
+            config = { GRI: config, QUE: config, CLM: config, EVD: config };
         }
-        if (!config) config = { QUE: true, CLM: true, EVD: true };
+        if (!config) config = { GRI: true, QUE: true, CLM: true, EVD: true };
 
         var result = '# Estructura de Investigación\\n\\n';
 
-        for (var q = 0; q < questions.length; q++) {
-            var question = questions[q];
+        for (var q = 0; q < rootNodes.length; q++) {
+            var rootNode = rootNodes[q];
             try {
-                var qTitle = self.cleanText((question.title || '').replace('[[QUE]] - ', ''));
-                result += '## [[QUE]] - ' + qTitle + '\\n\\n';
+                var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
-                // Metadata de la pregunta
-                result += self.renderMetadata(question.project_metadata || {}, flatMode);
+                if (nodeType === 'QUE') {
+                    // Renderizado específico de QUE (mantiene lógica original)
+                    var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
+                    result += '## [[QUE]] - ' + qTitle + '\\n\\n';
 
-                // Contenido QUE
-                if (config.QUE) {
-                    var queContent = self.extractNodeContent(question.data || question, true, 'QUE', excludeBitacora, flatMode);
-                    if (queContent) result += queContent + '\\n';
-                }
+                    // Metadata de la pregunta
+                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
 
-                var hasClms = question.related_clms && question.related_clms.length > 0;
-                var hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
-
-                if (!hasClms && !hasDirectEvds) {
-                    result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
-                    continue;
-                }
-
-                // CLMs respondidos (recursión desde nivel 3)
-                if (question.related_clms) {
-                    for (var c = 0; c < question.related_clms.length; c++) {
-                        result += self.renderNodeTree(question.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                    // Contenido QUE
+                    if (config.QUE) {
+                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
+                        if (queContent) result += queContent + '\\n';
                     }
-                }
 
-                // EVDs directos de la pregunta (nivel 3)
-                if (question.direct_evds) {
-                    for (var d = 0; d < question.direct_evds.length; d++) {
-                        result += self.renderNodeTree(question.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                    var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
+                    var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
+
+                    if (!hasClms && !hasDirectEvds) {
+                        result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+                        continue;
                     }
+
+                    // CLMs respondidos (recursión desde nivel 3)
+                    if (rootNode.related_clms) {
+                        for (var c = 0; c < rootNode.related_clms.length; c++) {
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    }
+
+                    // EVDs directos de la pregunta (nivel 3)
+                    if (rootNode.direct_evds) {
+                        for (var d = 0; d < rootNode.direct_evds.length; d++) {
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    }
+
+                } else if (nodeType === 'GRI') {
+                    // Renderizado de GRI como nodo raíz
+                    var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
+                    result += '## [[GRI]] - ' + gTitle + '\\n\\n';
+
+                    // Metadata
+                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+
+                    // Contenido GRI
+                    if (config.GRI) {
+                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
+                        if (griContent) result += griContent + '\\n';
+                    }
+
+                    // Nodos contenidos (recursión desde nivel 3)
+                    if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+                        for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    } else {
+                        result += '*No se encontraron nodos contenidos en este grupo.*\\n\\n';
+                    }
+
+                } else {
+                    // Fallback: renderizar con renderNodeTree genérico
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {});
                 }
 
             } catch (err) {
-                result += '*Error procesando pregunta: ' + err + '*\\n\\n';
+                result += '*Error procesando nodo: ' + err + '*\\n\\n';
             }
         }
 
@@ -531,6 +571,7 @@ DiscourseGraphToolkit.FILES = {
 
 // Tipos de Nodos
 DiscourseGraphToolkit.TYPES = {
+    GRI: { prefix: "GRI", label: "Grupo", color: "#6c5c99" },
     QUE: { prefix: "QUE", label: "Pregunta", color: "#2196F3" },
     CLM: { prefix: "CLM", label: "Afirmación", color: "#4CAF50" },
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
@@ -611,6 +652,9 @@ DiscourseGraphToolkit.ROAM_PULL_PATTERN = `[
 
 // Templates por defecto (usando el nombre de campo dinámico en la lógica, aquí es texto)
 DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
+    "GRI": `Proyecto Asociado:: {PROYECTO}
+#Contains
+    -`,
     "QUE": `Proyecto Asociado:: {PROYECTO}
 #RespondedBy
     -`,
@@ -708,6 +752,7 @@ DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
 
 DiscourseGraphToolkit.getNodeType = function (title) {
     if (!title) return null;
+    if (title.includes('[[GRI]]')) return 'GRI';
     if (title.includes('[[QUE]]')) return 'QUE';
     if (title.includes('[[CLM]]')) return 'CLM';
     if (title.includes('[[EVD]]')) return 'EVD';
@@ -1445,6 +1490,26 @@ DiscourseGraphToolkit.getAllQuestions = async function () {
         .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
 };
 
+/**
+ * Obtiene todos los nodos raíz (GRI y QUE) del grafo
+ * GRI y QUE son intercambiables como nodos de entrada al grafo
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.getAllRootNodes = async function () {
+    const query = `[:find ?title ?uid 
+                   :where 
+                   [?page :node/title ?title] 
+                   [?page :block/uid ?uid]
+                   (or
+                     [(clojure.string/starts-with? ?title "[[GRI]]")]
+                     [(clojure.string/starts-with? ?title "[[QUE]]")])]`;
+
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    return results
+        .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
+        .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
+};
+
 
 // --- MODULE: src/api/roamBranchVerification.js ---
 // ============================================================================
@@ -1485,8 +1550,8 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
 
             const nodeType = this.getNodeType(nodeData.title);
 
-            // Si es CLM o EVD, agregarlo a la lista de nodos encontrados
-            if (nodeType === 'CLM' || nodeType === 'EVD') {
+            // Si es CLM, EVD o GRI, agregarlo a la lista de nodos encontrados
+            if (nodeType === 'CLM' || nodeType === 'EVD' || nodeType === 'GRI') {
                 allNodes.set(currentUid, {
                     uid: currentUid,
                     title: nodeData.title,
@@ -1532,7 +1597,7 @@ DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
         const str = block.string || "";
 
         // Si es un bloque de relación, extraer referencias
-        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo") || str.includes("#Contains")) {
             // Extraer refs del bloque actual
             self._extractRefsFromBlock(block, references);
 
@@ -1582,7 +1647,7 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
     while ((match = pattern.exec(str)) !== null) {
         const refContent = match[1];
         // Si parece ser un nodo discourse (CLM, EVD, QUE)
-        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]')) {
+        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]') || refContent.includes('[[GRI]]')) {
             // No podemos obtener el UID desde el texto, pero las refs directas ya lo tienen
         }
     }
@@ -1945,6 +2010,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?page :node/title ?title]
                                [?page :block/uid ?uid]
                                (or
+                                 [(clojure.string/starts-with? ?title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?title "[[EVD]] - ")])]`;
@@ -1971,6 +2037,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?target :block/uid ?target-uid]
                                [?target :node/title ?target-title]
                                (or
+                                 [(clojure.string/starts-with? ?target-title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[EVD]] - ")])
@@ -1978,6 +2045,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?source-block :block/page ?source-page]
                                [?source-page :node/title ?source-title]
                                (or
+                                 [(clojure.string/starts-with? ?source-title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[EVD]] - ")])]`;
@@ -1993,8 +2061,9 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
 
             // Un huérfano es: sin proyecto Y sin referencias entrantes desde otros nodos discourse
             if (!hasProject && refCount === 0) {
-                const type = title.startsWith('[[QUE]]') ? 'QUE' :
-                    title.startsWith('[[CLM]]') ? 'CLM' : 'EVD';
+                const type = title.startsWith('[[GRI]]') ? 'GRI' :
+                    title.startsWith('[[QUE]]') ? 'QUE' :
+                        title.startsWith('[[CLM]]') ? 'CLM' : 'EVD';
                 orphans.push({
                     uid,
                     title,
@@ -2683,7 +2752,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             }
 
             // Lógica de metadatos
-            const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+            const structuralMarkers = ["#SupportedBy", "#RespondedBy", "#RelatedTo", "#Contains"];
             const isStructural = structuralMarkers.includes(blockString);
 
             if (skipMetadata && (!blockString || isStructural)) {
@@ -2747,7 +2816,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             if (Array.isArray(children) && children.length > 0) {
                 for (const child of children) {
                     const childString = child.string || child[':block/string'] || "";
-                    const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo"];
+                    const structuralMetadata = ["#SupportedBy", "#RespondedBy", "#RelatedTo", "#Contains"];
                     const isStructuralMetadata = structuralMetadata.some(meta => childString.startsWith(meta));
 
                     // FIX: Always exclude structural metadata blocks from text content to avoid duplicates,
@@ -2808,7 +2877,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         console.log("Mapeando relaciones entre nodos...");
 
         // Paso 1: Crear mapas de búsqueda
-        const { clmTitleMap, evdTitleMap } = this._createTitleMaps(allNodes);
+        const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
         // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
         this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
@@ -2818,11 +2887,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
         // Paso 4: Mapear relaciones CLM-CLM y CLM-EVD vía #RelatedTo
         this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
+
+        // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
+        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
     },
 
     _createTitleMaps: function (allNodes) {
         const clmTitleMap = {};
         const evdTitleMap = {};
+        const griTitleMap = {};
+        const queTitleMap = {};
 
         for (const uid in allNodes) {
             const node = allNodes[uid];
@@ -2831,14 +2905,18 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     this._addToTitleMap(clmTitleMap, node, uid, "[[CLM]] - ");
                 } else if (node.type === "EVD") {
                     this._addToTitleMap(evdTitleMap, node, uid, "[[EVD]] - ");
+                } else if (node.type === "GRI") {
+                    this._addToTitleMap(griTitleMap, node, uid, "[[GRI]] - ");
+                } else if (node.type === "QUE") {
+                    this._addToTitleMap(queTitleMap, node, uid, "[[QUE]] - ");
                 }
             } catch (e) {
                 console.warn(`⚠ Error creando mapa para nodo ${uid}: ${e}`);
             }
         }
 
-        console.log(`Mapas creados: ${Object.keys(clmTitleMap).length} CLMs, ${Object.keys(evdTitleMap).length} EVDs`);
-        return { clmTitleMap, evdTitleMap };
+        console.log(`Mapas creados: ${Object.keys(griTitleMap).length} GRIs, ${Object.keys(queTitleMap).length} QUEs, ${Object.keys(clmTitleMap).length} CLMs, ${Object.keys(evdTitleMap).length} EVDs`);
+        return { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap };
     },
 
     _addToTitleMap: function (titleMap, node, uid, prefix) {
@@ -3075,6 +3153,89 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
+    // --- GRI: Mapear relaciones GRI -> QUE/CLM/GRI vía #Contains ---
+    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap) {
+        for (const uid in allNodes) {
+            const node = allNodes[uid];
+            if (node.type !== "GRI") continue;
+
+            if (!node.contained_nodes) node.contained_nodes = [];
+
+            try {
+                const data = node.data;
+                const children = data.children || [];
+
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#Contains")) {
+                        // Case 1: Inline (el bloque mismo puede tener una referencia)
+                        this._extractContainedNodes(child, node, uid, allNodes);
+
+                        // Case 2: Container (#Contains -> hijos son las referencias)
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractContainedNodes(subChild, node, uid, allNodes);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(`❌ Error mapeando relaciones para GRI ${uid}: ${e}`);
+            }
+        }
+    },
+
+    // Helper: Extrae nodos contenidos (QUE, CLM, GRI) de un bloque bajo #Contains
+    _extractContainedNodes: function (block, node, sourceUid, allNodes) {
+        try {
+            const refsToCheck = [];
+            if (block.refs) refsToCheck.push(...block.refs);
+            if (block[':block/refs']) {
+                for (const ref of block[':block/refs']) {
+                    if (ref[':block/uid']) refsToCheck.push({ uid: ref[':block/uid'] });
+                }
+            }
+
+            for (const ref of refsToCheck) {
+                const refUid = ref.uid || "";
+                if (allNodes[refUid] && refUid !== sourceUid) {
+                    const refType = allNodes[refUid].type;
+                    // GRI puede contener QUE, CLM, o GRI (no EVD directamente)
+                    if (refType === "QUE" || refType === "CLM" || refType === "GRI") {
+                        if (!node.contained_nodes.includes(refUid)) {
+                            node.contained_nodes.push(refUid);
+                        }
+                    }
+                }
+            }
+
+            // Buscar también referencias [[...]] en el texto
+            const blockText = block.string || "";
+            const pattern = /\[\[([^\]]+)\]\]/g;
+            let match;
+            while ((match = pattern.exec(blockText)) !== null) {
+                const refContent = match[1];
+                // Solo buscar nodos discourse (no tags como #Contains)
+                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM')) {
+                    // Intentar encontrar en los mapas existentes via allNodes
+                    for (const nUid in allNodes) {
+                        const n = allNodes[nUid];
+                        if (n.title && n.title.includes(refContent) && nUid !== sourceUid) {
+                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI") {
+                                if (!node.contained_nodes.includes(nUid)) {
+                                    node.contained_nodes.push(nUid);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`⚠ Error extrayendo nodos contenidos en GRI ${sourceUid}: ${e}`);
+        }
+    },
+
     collectDependencies: function (nodes) {
         const dependencies = new Set();
 
@@ -3096,6 +3257,14 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     for (const child of children) {
                         const str = child.string || "";
                         if (str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+                            this._collectRefsFromBlock(child, dependencies);
+                        }
+                    }
+                }
+                // GRI -> #Contains
+                else if (node.type === "GRI") {
+                    for (const child of children) {
+                        if ((child.string || "").includes("#Contains")) {
                             this._collectRefsFromBlock(child, dependencies);
                         }
                     }
@@ -3167,7 +3336,7 @@ var MarkdownCore = {
             return '';
         }
 
-        var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+        var structuralMarkers = ['#SupportedBy', '#RespondedBy', '#RelatedTo', '#Contains'];
         var isStructural = structuralMarkers.indexOf(blockString) !== -1;
 
         if (skipMetadata && (!blockString || isStructural)) {
@@ -3227,7 +3396,7 @@ var MarkdownCore = {
             for (var i = 0; i < children.length; i++) {
                 var child = children[i];
                 var childString = child.string || child[':block/string'] || '';
-                var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo'];
+                var structuralMetadata = ['#SupportedBy', '#RespondedBy', '#RelatedTo', '#Contains'];
                 var isStructuralMetadata = false;
                 for (var j = 0; j < structuralMetadata.length; j++) {
                     if (childString.indexOf(structuralMetadata[j]) === 0) {
@@ -3332,61 +3501,101 @@ var MarkdownCore = {
             result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
         }
 
+        // Hijos: Nodos contenidos (para GRI vía #Contains)
+        if (node.contained_nodes && node.contained_nodes.length > 0) {
+            for (var cn = 0; cn < node.contained_nodes.length; cn++) {
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
         visited[nodeUid] = false; // Liberar para ramas paralelas
         return result;
     },
 
     // --- Generación de Markdown completo ---
-    generateMarkdown: function (questions, allNodes, config, excludeBitacora, flatMode) {
+    // rootNodes: array de nodos raíz (GRI y/o QUE)
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
         if (typeof config === 'boolean') {
-            config = { QUE: config, CLM: config, EVD: config };
+            config = { GRI: config, QUE: config, CLM: config, EVD: config };
         }
-        if (!config) config = { QUE: true, CLM: true, EVD: true };
+        if (!config) config = { GRI: true, QUE: true, CLM: true, EVD: true };
 
         var result = '# Estructura de Investigación\n\n';
 
-        for (var q = 0; q < questions.length; q++) {
-            var question = questions[q];
+        for (var q = 0; q < rootNodes.length; q++) {
+            var rootNode = rootNodes[q];
             try {
-                var qTitle = self.cleanText((question.title || '').replace('[[QUE]] - ', ''));
-                result += '## [[QUE]] - ' + qTitle + '\n\n';
+                var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
-                // Metadata de la pregunta
-                result += self.renderMetadata(question.project_metadata || {}, flatMode);
+                if (nodeType === 'QUE') {
+                    // Renderizado específico de QUE (mantiene lógica original)
+                    var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
+                    result += '## [[QUE]] - ' + qTitle + '\n\n';
 
-                // Contenido QUE
-                if (config.QUE) {
-                    var queContent = self.extractNodeContent(question.data || question, true, 'QUE', excludeBitacora, flatMode);
-                    if (queContent) result += queContent + '\n';
-                }
+                    // Metadata de la pregunta
+                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
 
-                var hasClms = question.related_clms && question.related_clms.length > 0;
-                var hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
-
-                if (!hasClms && !hasDirectEvds) {
-                    result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
-                    continue;
-                }
-
-                // CLMs respondidos (recursión desde nivel 3)
-                if (question.related_clms) {
-                    for (var c = 0; c < question.related_clms.length; c++) {
-                        result += self.renderNodeTree(question.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                    // Contenido QUE
+                    if (config.QUE) {
+                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
+                        if (queContent) result += queContent + '\n';
                     }
-                }
 
-                // EVDs directos de la pregunta (nivel 3)
-                if (question.direct_evds) {
-                    for (var d = 0; d < question.direct_evds.length; d++) {
-                        result += self.renderNodeTree(question.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                    var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
+                    var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
+
+                    if (!hasClms && !hasDirectEvds) {
+                        result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+                        continue;
                     }
+
+                    // CLMs respondidos (recursión desde nivel 3)
+                    if (rootNode.related_clms) {
+                        for (var c = 0; c < rootNode.related_clms.length; c++) {
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    }
+
+                    // EVDs directos de la pregunta (nivel 3)
+                    if (rootNode.direct_evds) {
+                        for (var d = 0; d < rootNode.direct_evds.length; d++) {
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    }
+
+                } else if (nodeType === 'GRI') {
+                    // Renderizado de GRI como nodo raíz
+                    var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
+                    result += '## [[GRI]] - ' + gTitle + '\n\n';
+
+                    // Metadata
+                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+
+                    // Contenido GRI
+                    if (config.GRI) {
+                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
+                        if (griContent) result += griContent + '\n';
+                    }
+
+                    // Nodos contenidos (recursión desde nivel 3)
+                    if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+                        for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {});
+                        }
+                    } else {
+                        result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
+                    }
+
+                } else {
+                    // Fallback: renderizar con renderNodeTree genérico
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {});
                 }
 
             } catch (err) {
-                result += '*Error procesando pregunta: ' + err + '*\n\n';
+                result += '*Error procesando nodo: ' + err + '*\n\n';
             }
         }
 
@@ -3740,6 +3949,27 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             background-color: var(--dgt-bg-primary);
         }
 
+        /* Tree Depth Guide Lines */
+        .dgt-tree-guide {
+            border-left: 2px solid var(--dgt-border-color);
+            margin-left: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        /* Summary Bar */
+        .dgt-summary-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--dgt-spacing-sm);
+            padding: 8px 14px;
+            background: var(--dgt-bg-secondary);
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            margin-bottom: var(--dgt-spacing-sm);
+        }
+
         /* Form Layout */
         .dgt-form-group {
             display: flex;
@@ -3916,7 +4146,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const extraStyle = extraIndent > 0 ? ` style="margin-left: ${extraIndent}px;"` : '';
 
         // CSS class basada en tipo
-        const cssClass = type === 'CLM' ? 'clm-node' : (type === 'EVD' ? 'evd-node' : 'node');
+        const cssClass = type === 'CLM' ? 'clm-node' : (type === 'EVD' ? 'evd-node' : (type === 'GRI' ? 'gri-node' : 'node'));
 
         let html = `<div id="${parentId || ''}" class="node ${cssClass}"${extraStyle}>`;
         html += `<h${hLevel} class="collapsible">`;
@@ -3959,6 +4189,16 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
                 const evdId = parentId ? `${parentId}_e${k}` : '';
                 html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId);
             }
+        }
+
+        // Hijos: Nodos contenidos (para GRI vía #Contains)
+        if (node.contained_nodes && node.contained_nodes.length > 0) {
+            html += '<div class="contained-nodes">';
+            for (let cn = 0; cn < node.contained_nodes.length; cn++) {
+                const cnId = parentId ? `${parentId}_cn${cn}` : '';
+                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId);
+            }
+            html += '</div>';
         }
 
         // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
@@ -4026,6 +4266,54 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
 
         html += `</div></div>`;
         return html;
+    },
+
+    // Renderiza un nodo raíz GRI con todos sus nodos contenidos (entry point)
+    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora) {
+        const qId = `r${qIndex}`;
+        const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
+        const prefix = `[[${nodeType}]]`;
+        const title = DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, ""));
+        const helpers = DiscourseGraphToolkit.HtmlHelpers;
+
+        const cssClass = nodeType === 'GRI' ? 'gri-node' : 'que-node';
+
+        let html = `<div id="${qId}" class="node ${cssClass}">`;
+        html += `<h2 class="collapsible">`;
+        html += `<span class="node-tag">${prefix}</span> - ${title}`;
+        html += `</h2>`;
+        html += `<div class="content">`;
+
+        // Metadata
+        html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+
+        // Contenido del nodo raíz
+        if (config[nodeType]) {
+            const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(rootNode.data || rootNode, config[nodeType], nodeType, excludeBitacora);
+            if (content) {
+                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                html += `<p>${helpers.formatContentForHtml(content)}</p>`;
+                html += `</div>`;
+            }
+        }
+
+        // Nodos contenidos (vía #Contains)
+        const hasContained = rootNode.contained_nodes && rootNode.contained_nodes.length > 0;
+
+        if (!hasContained) {
+            html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            html += '</div></div>';
+            return html;
+        }
+
+        // Renderizar cada nodo contenido (recursión desde profundidad 3)
+        for (let j = 0; j < rootNode.contained_nodes.length; j++) {
+            const cnId = `r${qIndex}_cn${j}`;
+            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId);
+        }
+
+        html += `</div></div>`;
+        return html;
     }
 };
 
@@ -4044,7 +4332,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
         // Compatibilidad legacy: si contentConfig es boolean, convertir a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
-            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+            config = { GRI: contentConfig, QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
         }
 
         const css = DiscourseGraphToolkit.HtmlStyles.getCSS();
@@ -4070,15 +4358,24 @@ DiscourseGraphToolkit.HtmlGenerator = {
     </div>
 `;
 
-        // Renderizar cada pregunta
+        // Renderizar cada nodo raíz (GRI o QUE)
         for (let i = 0; i < questions.length; i++) {
             try {
-                html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
-                    questions[i], i, allNodes, config, excludeBitacora
-                );
+                const rootNode = questions[i];
+                const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
+
+                if (nodeType === 'GRI') {
+                    html += DiscourseGraphToolkit.HtmlNodeRenderers.renderRootNode(
+                        rootNode, i, allNodes, config, excludeBitacora
+                    );
+                } else {
+                    html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
+                        rootNode, i, allNodes, config, excludeBitacora
+                    );
+                }
             } catch (e) {
-                console.error(`Error procesando pregunta ${i}: ${e}`);
-                html += `<div class="error-message">Error procesando pregunta: ${e}</div>`;
+                console.error(`Error procesando nodo raíz ${i}: ${e}`);
+                html += `<div class="error-message">Error procesando nodo: ${e}</div>`;
             }
         }
 
@@ -4116,6 +4413,9 @@ DiscourseGraphToolkit.HtmlGenerator = {
                     project_metadata: node.project_metadata,
                     related_evds: node.related_evds,
                     supporting_clms: node.supporting_clms,
+                    contained_nodes: node.contained_nodes,
+                    related_clms: node.related_clms,
+                    direct_evds: node.direct_evds,
                     data: helpers.cleanBlockData(node.data || node)
                 }])
             ),
@@ -4671,8 +4971,8 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
             // Header del nodo (personalizado por el tab)
             renderNodeHeader(node, key, depth, isExpanded, () => toggleExpand(node.project)),
 
-            // Contenido cuando está expandido
-            isExpanded && React.createElement('div', null,
+            // Contenido cuando está expandido (con guía visual de profundidad)
+            isExpanded && React.createElement('div', depth > 0 ? { className: 'dgt-tree-guide' } : null,
                 // Contenido específico del nodo (preguntas, etc.)
                 renderNodeContent && renderNodeContent(node, depth),
                 // Hijos recursivos
@@ -5277,71 +5577,78 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
-        // Header compacto con badges a la derecha
+        // Header: título + botón procesar
         React.createElement('div', {
-            className: 'dgt-flex-between dgt-flex-wrap dgt-gap-md dgt-mb-sm',
-            style: { alignItems: 'flex-start' }
+            className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm',
+            style: { alignItems: 'center' }
         },
-            // Lado izquierdo: título y botones
-            React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
-                React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
-                React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-flex-wrap' },
-                    React.createElement('button', {
-                        onClick: handleBulkVerifyAll,
-                        title: 'Procesar y verificar coherencia de todas las ramas',
-                        disabled: isBulkVerifying,
-                        className: 'dgt-btn dgt-btn-primary'
-                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
-                )
-            ),
-            // Lado derecho: badges y status
-            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end' } },
-                // Badges en línea
-                bulkVerificationResults.length > 0 && React.createElement('div', {
-                    className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap',
-                    style: { justifyContent: 'flex-end', position: 'relative' }
-                },
-                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
-                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
-                    // Badge Diferente (clickeable)
-                    React.createElement('div', { style: { position: 'relative' } },
-                        React.createElement(Badge, {
-                            emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
-                            onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
-                            isActive: openPopover === 'different'
-                        }),
-                        // Badge Sin proyecto (clickeable)
-                        React.createElement('div', { style: { position: 'relative' } },
-                            React.createElement(Badge, {
-                                emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
-                                onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
-                                isActive: openPopover === 'missing'
-                            }),
-                            // Popover Sin proyecto
-                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                                    )
-                                ))
+            React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
+            React.createElement('button', {
+                onClick: handleBulkVerifyAll,
+                title: 'Procesar y verificar coherencia de todas las ramas',
+                disabled: isBulkVerifying,
+                className: 'dgt-btn dgt-btn-primary'
+            }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
+        ),
+
+        // Barra de resumen con badges y status
+        (bulkVerificationResults.length > 0 || bulkVerifyStatus) && React.createElement('div', { className: 'dgt-summary-bar' },
+            // Badges — cada uno en su propio wrapper
+            bulkVerificationResults.length > 0 && React.createElement('div', {
+                className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
+            },
+                React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
+                React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
+                // ⚠️ Diferente — wrapper propio con popover
+                React.createElement('div', { style: { position: 'relative' } },
+                    React.createElement(Badge, {
+                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
+                        onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
+                        isActive: openPopover === 'different'
+                    }),
+                    openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
+                        React.createElement('div', { className: 'dgt-popover-header' },
+                            React.createElement('span', null, `⚠️ ${counts.different} con proyecto diferente`),
+                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                        ),
+                        bulkVerificationResults.flatMap(r => r.coherence.different.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, node.type),
+                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                             )
-                        )
+                        ))
                     )
                 ),
-                // Status compacto
-                bulkVerifyStatus && React.createElement('span', {
-                    className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
-                        bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
-                            bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
-                        }`
-                }, bulkVerifyStatus)
-            )
+                // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
+                React.createElement('div', { style: { position: 'relative' } },
+                    React.createElement(Badge, {
+                        emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
+                        onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
+                        isActive: openPopover === 'missing'
+                    }),
+                    openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
+                        React.createElement('div', { className: 'dgt-popover-header' },
+                            React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
+                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                        ),
+                        bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
+                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
+                            )
+                        ))
+                    )
+                )
+            ),
+            // Status text
+            bulkVerifyStatus && React.createElement('span', {
+                className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
+                    bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
+                        bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
+                    }`
+            }, bulkVerifyStatus)
         ),
 
         // Vista de árbol jerárquico por proyectos (más altura)
@@ -5516,7 +5823,7 @@ DiscourseGraphToolkit.NodesTab = function () {
             React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
                 React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Nodos Huérfanos'),
                 React.createElement('div', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-xs' },
-                    'Nodos (QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
+                    'Nodos (GRI, QUE, CLM, EVD) que no pertenecen a ningún proyecto y no están conectados a otros nodos.'
                 ),
                 React.createElement('button', {
                     onClick: handleFindOrphans,
@@ -5544,7 +5851,7 @@ DiscourseGraphToolkit.NodesTab = function () {
                             React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { fontSize: '1.25rem', flexShrink: 0 } }, '👻'),
                             React.createElement('div', { style: { flex: 1, lineHeight: '1.5', padding: '0 0.5rem' } },
                                 React.createElement('span', { className: 'dgt-badge dgt-badge-neutral dgt-mr-xs' }, node.type),
-                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-bold', style: { fontSize: '0.9375rem', marginBottom: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-bold', style: { fontSize: '0.9375rem', marginBottom: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(GRI|CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1'))),
                                 React.createElement('div', { className: 'dgt-text-secondary', style: { fontSize: '0.75rem', opacity: 0.8 } },
                                     `Referencias de Discourse: ${node.refCount || 0}`
                                 )
@@ -5684,16 +5991,16 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // --- Cargar datos panorámicos ---
     const handleLoadPanoramic = async () => {
         setIsLoading(true);
-        setLoadStatus('⏳ Buscando todas las preguntas...');
+        setLoadStatus('⏳ Buscando nodos raíz (GRI + QUE)...');
         setPanoramicData(null);
 
         try {
-            // 1. Obtener todas las preguntas (QUE) del grafo
-            const questions = await DiscourseGraphToolkit.getAllQuestions();
-            setLoadStatus(`⏳ Encontradas ${questions.length} preguntas. Cargando datos...`);
+            // 1. Obtener todos los nodos raíz (GRI y QUE) del grafo
+            const rootNodes = await DiscourseGraphToolkit.getAllRootNodes();
+            setLoadStatus(`⏳ Encontrados ${rootNodes.length} nodos raíz. Cargando datos...`);
 
-            // 2. Obtener datos completos de las preguntas
-            const uids = questions.map(q => q.pageUid);
+            // 2. Obtener datos completos de los nodos raíz
+            const uids = rootNodes.map(q => q.pageUid);
             const result = await DiscourseGraphToolkit.exportPagesNative(
                 uids, null, (msg) => setLoadStatus(`⏳ ${msg}`), true, false
             );
@@ -5728,28 +6035,31 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             // 5. Mapear relaciones
             DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
-            // 6. Obtener proyectos de cada pregunta
+            // 6. Obtener proyectos de cada nodo raíz
             setLoadStatus('⏳ Obteniendo proyectos...');
-            for (const q of questions) {
+            for (const q of rootNodes) {
                 const project = await DiscourseGraphToolkit.getProjectFromNode(q.pageUid);
                 if (allNodes[q.pageUid]) {
                     allNodes[q.pageUid].project = project;
                 }
             }
 
-            // 7. Filtrar solo QUEs del resultado
-            const questionNodes = result.data.filter(node =>
-                DiscourseGraphToolkit.getNodeType(node.title) === 'QUE'
-            ).map(node => ({
+            // 7. Filtrar GRI y QUE del resultado como nodos raíz
+            const rootNodeResults = result.data.filter(node => {
+                const type = DiscourseGraphToolkit.getNodeType(node.title);
+                return type === 'QUE' || type === 'GRI';
+            }).map(node => ({
                 ...node,
                 project: allNodes[node.uid]?.project || null
             }));
 
-            setPanoramicData({ questions: questionNodes, allNodes });
+            setPanoramicData({ questions: rootNodeResults, allNodes });
             // Guardar en cache
-            DiscourseGraphToolkit.savePanoramicCache({ questions: questionNodes, allNodes });
+            DiscourseGraphToolkit.savePanoramicCache({ questions: rootNodeResults, allNodes });
             setCacheTimestamp(Date.now());
-            setLoadStatus(`✅ Cargadas ${questionNodes.length} preguntas con ${Object.keys(allNodes).length} nodos totales.`);
+            const griCount = rootNodeResults.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length;
+            const queCount = rootNodeResults.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'QUE').length;
+            setLoadStatus(`✅ Cargados ${rootNodeResults.length} nodos raíz (${griCount} GRI, ${queCount} QUE) con ${Object.keys(allNodes).length} nodos totales.`);
 
         } catch (e) {
             console.error('Error loading panoramic:', e);
@@ -5826,24 +6136,41 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         );
     };
 
-    // --- Renderizar una pregunta con sus ramas ---
+    // --- Renderizar un nodo raíz (QUE o GRI) con sus ramas ---
     const renderQuestion = (question, allNodes) => {
+        const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
         const isExpanded = expandedQuestions[question.uid] === true; // Colapsado por defecto
-        const clms = question.related_clms || [];
-        const directEvds = question.direct_evds || [];
-        const totalBranches = clms.length + directEvds.length;
+
+        // Determinar ramas según el tipo
+        let clms, directEvds, containedNodes, totalBranches;
+        if (nodeType === 'GRI') {
+            containedNodes = question.contained_nodes || [];
+            clms = [];
+            directEvds = [];
+            totalBranches = containedNodes.length;
+        } else {
+            clms = question.related_clms || [];
+            directEvds = question.direct_evds || [];
+            containedNodes = [];
+            totalBranches = clms.length + directEvds.length;
+        }
+
+        const borderColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
+        const textColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
+        const icon = nodeType === 'GRI' ? '📂' : '📝';
+        const badgeBg = nodeType === 'GRI' ? '#ede9f6' : '#e3f2fd';
 
         return React.createElement('div', {
             key: question.uid,
             style: {
                 marginBottom: '0.5rem',
-                borderLeft: '3px solid #2196F3',
+                borderLeft: `3px solid ${borderColor}`,
                 paddingLeft: '0.75rem',
                 backgroundColor: '#fafafa',
                 borderRadius: '0 0.25rem 0.25rem 0'
             }
         },
-            // Header de la pregunta
+            // Header del nodo raíz
             React.createElement('div', {
                 onClick: () => toggleQuestion(question.uid),
                 style: {
@@ -5894,18 +6221,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 React.createElement('span', {
                     onClick: (e) => { e.stopPropagation(); handleNavigateToPage(question.uid); },
                     style: {
-                        color: '#2196F3',
+                        color: textColor,
                         fontWeight: 'bold',
                         fontSize: '0.8125rem',
                         cursor: 'pointer'
                     },
                     title: question.title
-                }, `📝 ${cleanTitle(question.title, 'QUE')}`),
+                }, `${icon} ${cleanTitle(question.title, nodeType)}`),
                 React.createElement('span', {
                     style: {
                         fontSize: '0.625rem',
                         color: '#999',
-                        backgroundColor: '#e3f2fd',
+                        backgroundColor: badgeBg,
                         padding: '0.125rem 0.375rem',
                         borderRadius: '0.625rem'
                     }
@@ -5921,11 +6248,45 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }, `${question.project}`)
             ),
 
-            // Ramas (CLMs y EVDs directas)
+            // Ramas (expandidas)
             isExpanded && React.createElement('div', {
                 style: { paddingLeft: '1rem', paddingBottom: '0.5rem' }
             },
-                // CLMs
+                // Nodos contenidos de GRI
+                containedNodes.map((cnUid, index) => {
+                    const cn = allNodes[cnUid];
+                    if (!cn) return null;
+                    const cnType = cn.type || DiscourseGraphToolkit.getNodeType(cn.title);
+                    const cnIcon = cnType === 'QUE' ? '📝' : cnType === 'GRI' ? '📂' : '📌';
+                    const cnColor = cnType === 'QUE' ? '#2196F3' : cnType === 'GRI' ? '#6c5c99' : '#4CAF50';
+                    return React.createElement('div', {
+                        key: cnUid,
+                        style: {
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            marginBottom: '0.25rem',
+                            flexWrap: 'wrap'
+                        }
+                    },
+                        React.createElement('span', {
+                            style: { color: '#ccc', marginRight: '0.5rem', fontSize: '0.6875rem' }
+                        }, index === containedNodes.length - 1 ? '└─' : '├─'),
+                        React.createElement('span', {
+                            onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cnUid); },
+                            style: {
+                                color: cnColor,
+                                cursor: 'pointer',
+                                padding: '0.125rem 0.25rem',
+                                borderRadius: '0.125rem',
+                                backgroundColor: cnType === 'QUE' ? '#e3f2fd' : cnType === 'GRI' ? '#ede9f6' : '#e8f5e9',
+                                fontSize: '0.75rem',
+                                whiteSpace: 'nowrap'
+                            },
+                            title: cn.title
+                        }, `${cnIcon} ${cleanTitle(cn.title, cnType)}`)
+                    );
+                }),
+                // CLMs de QUE
                 clms.map((clmUid, index) =>
                     React.createElement('div', {
                         key: clmUid,
@@ -5942,7 +6303,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         renderCLMBranch(clmUid, allNodes)
                     )
                 ),
-                // EVDs directas
+                // EVDs directas de QUE
                 directEvds.map((evdUid, index) => {
                     const evd = allNodes[evdUid];
                     if (!evd) return null;
@@ -5974,7 +6335,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 // Mensaje si no hay ramas
                 totalBranches === 0 && React.createElement('span', {
                     style: { color: '#999', fontSize: '0.75rem', fontStyle: 'italic' }
-                }, 'Sin respuestas')
+                }, nodeType === 'GRI' ? 'Sin nodos contenidos' : 'Sin respuestas')
             )
         );
     };
@@ -6162,7 +6523,16 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             fontSize: '0.625rem',
                             color: DiscourseGraphToolkit.THEME?.colors?.primaryHover || '#2196F3'
                         }
-                    }, `📝 ${filteredQuestions.length}`),
+                    }, `📝 ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
+                    React.createElement('span', {
+                        style: {
+                            padding: '0.125rem 0.375rem',
+                            backgroundColor: '#ede9f6',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.625rem',
+                            color: '#6c5c99'
+                        }
+                    }, `📂 ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
@@ -6335,7 +6705,7 @@ DiscourseGraphToolkit.ExportTab = function () {
     };
 
     const selectAllTypes = () => {
-        setSelectedTypes({ QUE: true, CLM: true, EVD: true });
+        setSelectedTypes({ GRI: true, QUE: true, CLM: true, EVD: true });
     };
 
     // --- Handlers ---
@@ -6360,15 +6730,15 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setPreviewPages(uniquePages);
 
-            // Inicializar orderedQuestions con las QUEs encontradas
-            const quePages = uniquePages.filter(p => {
+            // Inicializar orderedQuestions con los nodos raíz (QUE y GRI) encontrados
+            const rootPages = uniquePages.filter(p => {
                 const type = DiscourseGraphToolkit.getNodeType(p.pageTitle);
-                return type === 'QUE';
+                return type === 'QUE' || type === 'GRI';
             }).map(p => ({ uid: p.pageUid, title: p.pageTitle }));
 
             // Solo actualizar si las QUEs son diferentes
             const currentUIDs = orderedQuestions.map(q => q.uid);
-            const newUIDs = quePages.map(q => q.uid);
+            const newUIDs = rootPages.map(q => q.uid);
             const sameQuestions = currentUIDs.length === newUIDs.length &&
                 currentUIDs.every(uid => newUIDs.includes(uid));
 
@@ -6378,17 +6748,19 @@ DiscourseGraphToolkit.ExportTab = function () {
                 const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
                 if (savedOrder && savedOrder.length > 0) {
                     const reordered = savedOrder
-                        .map(uid => quePages.find(q => q.uid === uid))
+                        .map(uid => rootPages.find(q => q.uid === uid))
                         .filter(Boolean);
-                    // Agregar QUEs nuevas que no estaban en el orden guardado
-                    const newQues = quePages.filter(q => !savedOrder.includes(q.uid));
-                    setOrderedQuestions([...reordered, ...newQues]);
+                    // Agregar nodos nuevos que no estaban en el orden guardado
+                    const newNodes = rootPages.filter(q => !savedOrder.includes(q.uid));
+                    setOrderedQuestions([...reordered, ...newNodes]);
                 } else {
-                    setOrderedQuestions(quePages);
+                    setOrderedQuestions(rootPages);
                 }
             }
 
-            setExportStatus(`Encontradas ${uniquePages.length} páginas (${quePages.length} preguntas).`);
+            const griCount = rootPages.filter(p => DiscourseGraphToolkit.getNodeType(p.title) === 'GRI').length;
+            const queCount = rootPages.filter(p => DiscourseGraphToolkit.getNodeType(p.title) === 'QUE').length;
+            setExportStatus(`Encontradas ${uniquePages.length} páginas (${queCount} preguntas, ${griCount} grupos).`);
             return uniquePages;
         } catch (e) {
             console.error(e);
@@ -6436,7 +6808,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         const questions = result.data.filter(node => {
             const type = DiscourseGraphToolkit.getNodeType(node.title);
-            return type === 'QUE';
+            return type === 'QUE' || type === 'GRI';
         });
 
         // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes
@@ -6453,8 +6825,8 @@ DiscourseGraphToolkit.ExportTab = function () {
             const reordered = savedOrder
                 .map(uid => questions.find(q => q.uid === uid))
                 .filter(Boolean);
-            const newQues = questions.filter(q => !savedOrder.includes(q.uid));
-            orderedQuestionsToExport = [...reordered, ...newQues];
+            const newNodes = questions.filter(q => !savedOrder.includes(q.uid));
+            orderedQuestionsToExport = [...reordered, ...newNodes];
         } else {
             orderedQuestionsToExport = questions;
         }
@@ -6728,7 +7100,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                         style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
-                ['QUE', 'CLM', 'EVD'].map(t =>
+                ['GRI', 'QUE', 'CLM', 'EVD'].map(t =>
                     React.createElement('div', { key: t },
                         React.createElement('label', null,
                             React.createElement('input', {
@@ -6742,7 +7114,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                 ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
                     React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Extraer Todo el Contenido:'),
-                    ['QUE', 'CLM', 'EVD'].map(type =>
+                    ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
                         React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
                             React.createElement('label', null,
                                 React.createElement('input', {
@@ -6952,8 +7324,8 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
     // --- Estados de Exportación ---
     const [selectedProjects, setSelectedProjects] = React.useState({});
-    const [selectedTypes, setSelectedTypes] = React.useState({ QUE: true, CLM: true, EVD: true });
-    const [contentConfig, setContentConfig] = React.useState({ QUE: true, CLM: true, EVD: true });
+    const [selectedTypes, setSelectedTypes] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
+    const [contentConfig, setContentConfig] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');

@@ -49,6 +49,7 @@ DiscourseGraphToolkit.FILES = {
 
 // Tipos de Nodos
 DiscourseGraphToolkit.TYPES = {
+    GRI: { prefix: "GRI", label: "Grupo", color: "#6c5c99" },
     QUE: { prefix: "QUE", label: "Pregunta", color: "#2196F3" },
     CLM: { prefix: "CLM", label: "Afirmación", color: "#4CAF50" },
     EVD: { prefix: "EVD", label: "Evidencia", color: "#FF9800" }
@@ -129,6 +130,9 @@ DiscourseGraphToolkit.ROAM_PULL_PATTERN = `[
 
 // Templates por defecto (usando el nombre de campo dinámico en la lógica, aquí es texto)
 DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
+    "GRI": `Proyecto Asociado:: {PROYECTO}
+#Contains
+    -`,
     "QUE": `Proyecto Asociado:: {PROYECTO}
 #RespondedBy
     -`,

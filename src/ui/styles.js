@@ -285,6 +285,27 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             background-color: var(--dgt-bg-primary);
         }
 
+        /* Tree Depth Guide Lines */
+        .dgt-tree-guide {
+            border-left: 2px solid var(--dgt-border-color);
+            margin-left: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        /* Summary Bar */
+        .dgt-summary-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--dgt-spacing-sm);
+            padding: 8px 14px;
+            background: var(--dgt-bg-secondary);
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            margin-bottom: var(--dgt-spacing-sm);
+        }
+
         /* Form Layout */
         .dgt-form-group {
             display: flex;

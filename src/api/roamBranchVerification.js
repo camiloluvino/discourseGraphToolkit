@@ -36,8 +36,8 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
 
             const nodeType = this.getNodeType(nodeData.title);
 
-            // Si es CLM o EVD, agregarlo a la lista de nodos encontrados
-            if (nodeType === 'CLM' || nodeType === 'EVD') {
+            // Si es CLM, EVD o GRI, agregarlo a la lista de nodos encontrados
+            if (nodeType === 'CLM' || nodeType === 'EVD' || nodeType === 'GRI') {
                 allNodes.set(currentUid, {
                     uid: currentUid,
                     title: nodeData.title,
@@ -83,7 +83,7 @@ DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
         const str = block.string || "";
 
         // Si es un bloque de relación, extraer referencias
-        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo")) {
+        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo") || str.includes("#Contains")) {
             // Extraer refs del bloque actual
             self._extractRefsFromBlock(block, references);
 
@@ -133,7 +133,7 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
     while ((match = pattern.exec(str)) !== null) {
         const refContent = match[1];
         // Si parece ser un nodo discourse (CLM, EVD, QUE)
-        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]')) {
+        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]') || refContent.includes('[[GRI]]')) {
             // No podemos obtener el UID desde el texto, pero las refs directas ya lo tienen
         }
     }
@@ -496,6 +496,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?page :node/title ?title]
                                [?page :block/uid ?uid]
                                (or
+                                 [(clojure.string/starts-with? ?title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?title "[[EVD]] - ")])]`;
@@ -522,6 +523,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?target :block/uid ?target-uid]
                                [?target :node/title ?target-title]
                                (or
+                                 [(clojure.string/starts-with? ?target-title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?target-title "[[EVD]] - ")])
@@ -529,6 +531,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                                [?source-block :block/page ?source-page]
                                [?source-page :node/title ?source-title]
                                (or
+                                 [(clojure.string/starts-with? ?source-title "[[GRI]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[QUE]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[CLM]] - ")]
                                  [(clojure.string/starts-with? ?source-title "[[EVD]] - ")])]`;
@@ -544,8 +547,9 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
 
             // Un huérfano es: sin proyecto Y sin referencias entrantes desde otros nodos discourse
             if (!hasProject && refCount === 0) {
-                const type = title.startsWith('[[QUE]]') ? 'QUE' :
-                    title.startsWith('[[CLM]]') ? 'CLM' : 'EVD';
+                const type = title.startsWith('[[GRI]]') ? 'GRI' :
+                    title.startsWith('[[QUE]]') ? 'QUE' :
+                        title.startsWith('[[CLM]]') ? 'CLM' : 'EVD';
                 orphans.push({
                     uid,
                     title,

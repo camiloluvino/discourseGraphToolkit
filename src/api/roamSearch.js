@@ -54,3 +54,23 @@ DiscourseGraphToolkit.getAllQuestions = async function () {
         .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
         .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
 };
+
+/**
+ * Obtiene todos los nodos raíz (GRI y QUE) del grafo
+ * GRI y QUE son intercambiables como nodos de entrada al grafo
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.getAllRootNodes = async function () {
+    const query = `[:find ?title ?uid 
+                   :where 
+                   [?page :node/title ?title] 
+                   [?page :block/uid ?uid]
+                   (or
+                     [(clojure.string/starts-with? ?title "[[GRI]]")]
+                     [(clojure.string/starts-with? ?title "[[QUE]]")])]`;
+
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    return results
+        .map(r => ({ pageTitle: r[0], pageUid: r[1] }))
+        .sort((a, b) => a.pageTitle.localeCompare(b.pageTitle));
+};

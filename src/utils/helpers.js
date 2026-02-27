@@ -82,6 +82,7 @@ DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
 
 DiscourseGraphToolkit.getNodeType = function (title) {
     if (!title) return null;
+    if (title.includes('[[GRI]]')) return 'GRI';
     if (title.includes('[[QUE]]')) return 'QUE';
     if (title.includes('[[CLM]]')) return 'CLM';
     if (title.includes('[[EVD]]')) return 'EVD';

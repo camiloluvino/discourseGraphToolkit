@@ -256,71 +256,78 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
-        // Header compacto con badges a la derecha
+        // Header: título + botón procesar
         React.createElement('div', {
-            className: 'dgt-flex-between dgt-flex-wrap dgt-gap-md dgt-mb-sm',
-            style: { alignItems: 'flex-start' }
+            className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm',
+            style: { alignItems: 'center' }
         },
-            // Lado izquierdo: título y botones
-            React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
-                React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
-                React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-flex-wrap' },
-                    React.createElement('button', {
-                        onClick: handleBulkVerifyAll,
-                        title: 'Procesar y verificar coherencia de todas las ramas',
-                        disabled: isBulkVerifying,
-                        className: 'dgt-btn dgt-btn-primary'
-                    }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
-                )
-            ),
-            // Lado derecho: badges y status
-            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end' } },
-                // Badges en línea
-                bulkVerificationResults.length > 0 && React.createElement('div', {
-                    className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap',
-                    style: { justifyContent: 'flex-end', position: 'relative' }
-                },
-                    React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
-                    React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
-                    // Badge Diferente (clickeable)
-                    React.createElement('div', { style: { position: 'relative' } },
-                        React.createElement(Badge, {
-                            emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
-                            onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
-                            isActive: openPopover === 'different'
-                        }),
-                        // Badge Sin proyecto (clickeable)
-                        React.createElement('div', { style: { position: 'relative' } },
-                            React.createElement(Badge, {
-                                emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
-                                onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
-                                isActive: openPopover === 'missing'
-                            }),
-                            // Popover Sin proyecto
-                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
-                                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                                    )
-                                ))
+            React.createElement('h3', { className: 'dgt-mb-0', style: { fontSize: '1.125rem' } }, 'Coherencia de Ramas'),
+            React.createElement('button', {
+                onClick: handleBulkVerifyAll,
+                title: 'Procesar y verificar coherencia de todas las ramas',
+                disabled: isBulkVerifying,
+                className: 'dgt-btn dgt-btn-primary'
+            }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
+        ),
+
+        // Barra de resumen con badges y status
+        (bulkVerificationResults.length > 0 || bulkVerifyStatus) && React.createElement('div', { className: 'dgt-summary-bar' },
+            // Badges — cada uno en su propio wrapper
+            bulkVerificationResults.length > 0 && React.createElement('div', {
+                className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
+            },
+                React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
+                React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
+                // ⚠️ Diferente — wrapper propio con popover
+                React.createElement('div', { style: { position: 'relative' } },
+                    React.createElement(Badge, {
+                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
+                        onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
+                        isActive: openPopover === 'different'
+                    }),
+                    openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
+                        React.createElement('div', { className: 'dgt-popover-header' },
+                            React.createElement('span', null, `⚠️ ${counts.different} con proyecto diferente`),
+                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                        ),
+                        bulkVerificationResults.flatMap(r => r.coherence.different.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, node.type),
+                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
                             )
-                        )
+                        ))
                     )
                 ),
-                // Status compacto
-                bulkVerifyStatus && React.createElement('span', {
-                    className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
-                        bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
-                            bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
-                        }`
-                }, bulkVerifyStatus)
-            )
+                // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
+                React.createElement('div', { style: { position: 'relative' } },
+                    React.createElement(Badge, {
+                        emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
+                        onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
+                        isActive: openPopover === 'missing'
+                    }),
+                    openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
+                        React.createElement('div', { className: 'dgt-popover-header' },
+                            React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
+                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                        ),
+                        bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
+                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
+                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
+                            )
+                        ))
+                    )
+                )
+            ),
+            // Status text
+            bulkVerifyStatus && React.createElement('span', {
+                className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
+                    bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
+                        bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
+                    }`
+            }, bulkVerifyStatus)
         ),
 
         // Vista de árbol jerárquico por proyectos (más altura)

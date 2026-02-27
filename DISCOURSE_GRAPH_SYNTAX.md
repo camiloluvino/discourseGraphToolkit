@@ -6,10 +6,11 @@
 
 ## Tipos de Nodos
 
-El sistema usa tres tipos de nodos con prefijos obligatorios:
+El sistema usa cuatro tipos de nodos con prefijos obligatorios:
 
 | Tipo | Título en Roam | Propósito |
 |------|----------------|-----------|
+| **GRI** | `[[GRI]] - Grupo de investigación` | Contenedor organizativo (opcional) |
 | **QUE** | `[[QUE]] - ¿Pregunta de investigación?` | Pregunta que organiza la indagación |
 | **CLM** | `[[CLM]] - Afirmación argumentativa` | Claim que responde a una pregunta |
 | **EVD** | `[[EVD]] - Evidencia o cita textual` | Soporte empírico/bibliográfico |
@@ -17,6 +18,19 @@ El sistema usa tres tipos de nodos con prefijos obligatorios:
 ---
 
 ## Estructura de Página por Tipo
+
+### Grupo de Investigación (GRI) — Opcional
+
+```
+[[GRI]] - Título del grupo organizador
+    - Proyecto Asociado:: [[nombre-proyecto]]
+    - #Contains
+        - [[QUE]] - Pregunta contenida
+        - [[CLM]] - Afirmación contenida
+        - [[GRI]] - Sub-grupo (recursivo)
+```
+
+> ⚠️ GRI es **opcional**. Los grafos sin GRI funcionan exactamente igual.
 
 ### Pregunta (QUE)
 
@@ -56,6 +70,7 @@ Estos tags definen las relaciones que el plugin mapea automáticamente:
 
 | Tag | Usado en | Detecta |
 |-----|----------|---------|
+| `#Contains` | GRI | QUEs, CLMs y GRIs contenidos en el grupo |
 | `#RespondedBy` | QUE | CLMs y EVDs que responden la pregunta |
 | `#SupportedBy` | CLM | EVDs y CLMs que soportan la afirmación |
 | `#RelatedTo` | CLM | CLMs/EVDs relacionados lateralmente |
@@ -138,6 +153,12 @@ El `RelationshipMapper` genera estas propiedades en cada nodo:
 | `related_evds` | UIDs de EVDs bajo `#SupportedBy` |
 | `supporting_clms` | UIDs de CLMs bajo `#SupportedBy` |
 | `connected_clms` | UIDs de CLMs bajo `#RelatedTo` |
+
+### Para GRI
+
+| Propiedad | Contiene |
+|-----------|----------|
+| `contained_nodes` | UIDs de QUEs, CLMs o GRIs bajo `#Contains` |
 
 ---
 

@@ -10,7 +10,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
         // Compatibilidad legacy: si contentConfig es boolean, convertir a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
-            config = { QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
+            config = { GRI: contentConfig, QUE: contentConfig, CLM: contentConfig, EVD: contentConfig };
         }
 
         const css = DiscourseGraphToolkit.HtmlStyles.getCSS();
@@ -36,15 +36,24 @@ DiscourseGraphToolkit.HtmlGenerator = {
     </div>
 `;
 
-        // Renderizar cada pregunta
+        // Renderizar cada nodo raíz (GRI o QUE)
         for (let i = 0; i < questions.length; i++) {
             try {
-                html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
-                    questions[i], i, allNodes, config, excludeBitacora
-                );
+                const rootNode = questions[i];
+                const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
+
+                if (nodeType === 'GRI') {
+                    html += DiscourseGraphToolkit.HtmlNodeRenderers.renderRootNode(
+                        rootNode, i, allNodes, config, excludeBitacora
+                    );
+                } else {
+                    html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
+                        rootNode, i, allNodes, config, excludeBitacora
+                    );
+                }
             } catch (e) {
-                console.error(`Error procesando pregunta ${i}: ${e}`);
-                html += `<div class="error-message">Error procesando pregunta: ${e}</div>`;
+                console.error(`Error procesando nodo raíz ${i}: ${e}`);
+                html += `<div class="error-message">Error procesando nodo: ${e}</div>`;
             }
         }
 
@@ -82,6 +91,9 @@ DiscourseGraphToolkit.HtmlGenerator = {
                     project_metadata: node.project_metadata,
                     related_evds: node.related_evds,
                     supporting_clms: node.supporting_clms,
+                    contained_nodes: node.contained_nodes,
+                    related_clms: node.related_clms,
+                    direct_evds: node.direct_evds,
                     data: helpers.cleanBlockData(node.data || node)
                 }])
             ),

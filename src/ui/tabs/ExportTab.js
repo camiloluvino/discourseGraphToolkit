@@ -99,7 +99,7 @@ DiscourseGraphToolkit.ExportTab = function () {
     };
 
     const selectAllTypes = () => {
-        setSelectedTypes({ QUE: true, CLM: true, EVD: true });
+        setSelectedTypes({ GRI: true, QUE: true, CLM: true, EVD: true });
     };
 
     // --- Handlers ---
@@ -124,15 +124,15 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setPreviewPages(uniquePages);
 
-            // Inicializar orderedQuestions con las QUEs encontradas
-            const quePages = uniquePages.filter(p => {
+            // Inicializar orderedQuestions con los nodos raíz (QUE y GRI) encontrados
+            const rootPages = uniquePages.filter(p => {
                 const type = DiscourseGraphToolkit.getNodeType(p.pageTitle);
-                return type === 'QUE';
+                return type === 'QUE' || type === 'GRI';
             }).map(p => ({ uid: p.pageUid, title: p.pageTitle }));
 
             // Solo actualizar si las QUEs son diferentes
             const currentUIDs = orderedQuestions.map(q => q.uid);
-            const newUIDs = quePages.map(q => q.uid);
+            const newUIDs = rootPages.map(q => q.uid);
             const sameQuestions = currentUIDs.length === newUIDs.length &&
                 currentUIDs.every(uid => newUIDs.includes(uid));
 
@@ -142,17 +142,19 @@ DiscourseGraphToolkit.ExportTab = function () {
                 const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(projectKey);
                 if (savedOrder && savedOrder.length > 0) {
                     const reordered = savedOrder
-                        .map(uid => quePages.find(q => q.uid === uid))
+                        .map(uid => rootPages.find(q => q.uid === uid))
                         .filter(Boolean);
-                    // Agregar QUEs nuevas que no estaban en el orden guardado
-                    const newQues = quePages.filter(q => !savedOrder.includes(q.uid));
-                    setOrderedQuestions([...reordered, ...newQues]);
+                    // Agregar nodos nuevos que no estaban en el orden guardado
+                    const newNodes = rootPages.filter(q => !savedOrder.includes(q.uid));
+                    setOrderedQuestions([...reordered, ...newNodes]);
                 } else {
-                    setOrderedQuestions(quePages);
+                    setOrderedQuestions(rootPages);
                 }
             }
 
-            setExportStatus(`Encontradas ${uniquePages.length} páginas (${quePages.length} preguntas).`);
+            const griCount = rootPages.filter(p => DiscourseGraphToolkit.getNodeType(p.title) === 'GRI').length;
+            const queCount = rootPages.filter(p => DiscourseGraphToolkit.getNodeType(p.title) === 'QUE').length;
+            setExportStatus(`Encontradas ${uniquePages.length} páginas (${queCount} preguntas, ${griCount} grupos).`);
             return uniquePages;
         } catch (e) {
             console.error(e);
@@ -200,7 +202,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         const questions = result.data.filter(node => {
             const type = DiscourseGraphToolkit.getNodeType(node.title);
-            return type === 'QUE';
+            return type === 'QUE' || type === 'GRI';
         });
 
         // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes
@@ -217,8 +219,8 @@ DiscourseGraphToolkit.ExportTab = function () {
             const reordered = savedOrder
                 .map(uid => questions.find(q => q.uid === uid))
                 .filter(Boolean);
-            const newQues = questions.filter(q => !savedOrder.includes(q.uid));
-            orderedQuestionsToExport = [...reordered, ...newQues];
+            const newNodes = questions.filter(q => !savedOrder.includes(q.uid));
+            orderedQuestionsToExport = [...reordered, ...newNodes];
         } else {
             orderedQuestionsToExport = questions;
         }
@@ -492,7 +494,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                         style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
-                ['QUE', 'CLM', 'EVD'].map(t =>
+                ['GRI', 'QUE', 'CLM', 'EVD'].map(t =>
                     React.createElement('div', { key: t },
                         React.createElement('label', null,
                             React.createElement('input', {
@@ -506,7 +508,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                 ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
                     React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Extraer Todo el Contenido:'),
-                    ['QUE', 'CLM', 'EVD'].map(type =>
+                    ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
                         React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
                             React.createElement('label', null,
                                 React.createElement('input', {
