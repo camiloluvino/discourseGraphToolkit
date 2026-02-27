@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.22**
+**v1.5.23**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,10 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ## Historial Reciente
+
+### v1.5.23 (Febrero 2026)
+- **UI: Badges de Tipo en Panorámica.** Se agregaron etiquetas visibles (`QUE`, `GRI`, `CLM`) junto al título de los nodos en la Vista Panorámica para una identificación inmediata de la función de cada nodo.
+- **Lógica: Jerarquía de Contención Respectuosa.** Los nodos GRI o QUE que ya están contenidos dentro de un nodo GRI (vía `#Contains`) ahora se filtran de la lista raíz principal. Solo aparecen dentro de su respectiva jerarquía al expandir el nodo padre, eliminando la redundancia visual.
 
 ### v1.5.22 (Febrero 2026)
 - **Feature: Nodos GRI y relación #Contains.** Implementación de un nuevo tipo de nodo organizativo (GRI) que permite agrupar otros nodos mediante la etiqueta `#Contains`.

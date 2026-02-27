@@ -158,6 +158,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             // 5. Mapear relaciones
             DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
+            // 5.5 Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+            const childNodeUids = new Set();
+            Object.values(allNodes).forEach(node => {
+                if (node.type === 'GRI' && node.contained_nodes) {
+                    node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+                }
+            });
+
             // 6. Obtener proyectos de cada nodo raíz
             setLoadStatus('⏳ Obteniendo proyectos...');
             for (const q of rootNodes) {
@@ -167,10 +175,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             }
 
-            // 7. Filtrar GRI y QUE del resultado como nodos raíz
+            // 7. Filtrar GRI y QUE del resultado como nodos raíz (excluyendo hijos de otro GRI)
             const rootNodeResults = result.data.filter(node => {
                 const type = DiscourseGraphToolkit.getNodeType(node.title);
-                return type === 'QUE' || type === 'GRI';
+                return (type === 'QUE' || type === 'GRI') && !childNodeUids.has(node.uid);
             }).map(node => ({
                 ...node,
                 project: allNodes[node.uid]?.project || null
@@ -341,6 +349,20 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 ),
                 React.createElement('span', { style: { color: '#666', fontSize: '0.6875rem' } },
                     isExpanded ? '▼' : '▶'),
+                // Badge de tipo (QUE/GRI)
+                React.createElement('span', {
+                    style: {
+                        fontSize: '0.5625rem',
+                        fontWeight: 'bold',
+                        color: textColor,
+                        backgroundColor: badgeBg,
+                        padding: '0.0625rem 0.3rem',
+                        borderRadius: '0.1875rem',
+                        border: `1px solid ${borderColor}40`,
+                        letterSpacing: '0.03em',
+                        flexShrink: 0
+                    }
+                }, nodeType),
                 React.createElement('span', {
                     onClick: (e) => { e.stopPropagation(); handleNavigateToPage(question.uid); },
                     style: {
@@ -394,6 +416,19 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         React.createElement('span', {
                             style: { color: '#ccc', marginRight: '0.5rem', fontSize: '0.6875rem' }
                         }, index === containedNodes.length - 1 ? '└─' : '├─'),
+                        // Badge de tipo para nodo contenido
+                        React.createElement('span', {
+                            style: {
+                                fontSize: '0.5rem',
+                                fontWeight: 'bold',
+                                color: cnColor,
+                                backgroundColor: cnType === 'QUE' ? '#e3f2fd' : cnType === 'GRI' ? '#ede9f6' : '#e8f5e9',
+                                padding: '0.0625rem 0.25rem',
+                                borderRadius: '0.125rem',
+                                marginRight: '0.25rem',
+                                letterSpacing: '0.03em'
+                            }
+                        }, cnType),
                         React.createElement('span', {
                             onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cnUid); },
                             style: {
