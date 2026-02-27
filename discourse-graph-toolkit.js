@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.23
- * Bundled build: 2026-02-27 00:41:40
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.24
+ * Bundled build: 2026-02-27 00:58:23
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.23";
+    DiscourseGraphToolkit.VERSION = "1.5.24";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -219,6 +219,27 @@ var MarkdownCore = {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
                 result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
             }
+        }
+
+        // Hijos: CLMs relacionados (para QUE)
+        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+        if (hasRelatedClms) {
+            for (var c = 0; c < node.related_clms.length; c++) {
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs directos (para QUE)
+        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+        if (hasDirectEvds) {
+            for (var d = 0; d < node.direct_evds.length; d++) {
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un QUE no tiene respuestas
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
         }
 
         visited[nodeUid] = false; // Liberar para ramas paralelas
@@ -3506,6 +3527,27 @@ var MarkdownCore = {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
                 result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
             }
+        }
+
+        // Hijos: CLMs relacionados (para QUE)
+        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+        if (hasRelatedClms) {
+            for (var c = 0; c < node.related_clms.length; c++) {
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs directos (para QUE)
+        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+        if (hasDirectEvds) {
+            for (var d = 0; d < node.direct_evds.length; d++) {
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un QUE no tiene respuestas
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
         }
 
         visited[nodeUid] = false; // Liberar para ramas paralelas
@@ -6841,9 +6883,17 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
+        // Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+        const childNodeUids = new Set();
+        Object.values(allNodes).forEach(node => {
+            if (node.type === 'GRI' && node.contained_nodes) {
+                node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+            }
+        });
+
         const questions = result.data.filter(node => {
             const type = DiscourseGraphToolkit.getNodeType(node.title);
-            return type === 'QUE' || type === 'GRI';
+            return (type === 'QUE' || type === 'GRI') && !childNodeUids.has(node.uid);
         });
 
         // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes

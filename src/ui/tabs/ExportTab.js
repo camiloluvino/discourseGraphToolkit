@@ -200,9 +200,17 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
+        // Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+        const childNodeUids = new Set();
+        Object.values(allNodes).forEach(node => {
+            if (node.type === 'GRI' && node.contained_nodes) {
+                node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+            }
+        });
+
         const questions = result.data.filter(node => {
             const type = DiscourseGraphToolkit.getNodeType(node.title);
-            return type === 'QUE' || type === 'GRI';
+            return (type === 'QUE' || type === 'GRI') && !childNodeUids.has(node.uid);
         });
 
         // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes

@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.23**
+**v1.5.24**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,10 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ## Historial Reciente
+
+### v1.5.24 (Febrero 2026)
+- **Fix: Duplicación en Exportar.** Se implementó una lógica de filtrado de nodos hijos en la pestaña Exportar (similar a la Panorámica). Ahora, el Toolkit detecta si un GRI está contenido en otro grupo seleccionado para omitirlo de la lista raíz y evitar duplicados en el archivo final.
+- **Improvement: Respuestas recursivas en Markdown.** Se actualizó `markdownCore.js` para que los nodos `[[QUE]]` exportados como hijos (ej. dentro de un GRI) incluyan correctamente sus respuestas (`CLM` y `EVD`). La función `renderNodeTree` ahora detecta el tipo de nodo y procesa las relaciones específicas de las preguntas.
 
 ### v1.5.23 (Febrero 2026)
 - **Feature: Soporte GRI en Coherencia de Ramas.** La pestaña "Ramas" ahora procesa tanto nodos `[[QUE]]` como `[[GRI]]` como puntos de origen para la verificación de coherencia. Esto permite que proyectos organizados puramente bajo nodos de Grupo sean visibles y auditables en esta pestaña.

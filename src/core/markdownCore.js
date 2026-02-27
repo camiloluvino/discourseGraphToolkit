@@ -209,6 +209,27 @@ var MarkdownCore = {
             }
         }
 
+        // Hijos: CLMs relacionados (para QUE)
+        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+        if (hasRelatedClms) {
+            for (var c = 0; c < node.related_clms.length; c++) {
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Hijos: EVDs directos (para QUE)
+        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+        if (hasDirectEvds) {
+            for (var d = 0; d < node.direct_evds.length; d++) {
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+            }
+        }
+
+        // Mensaje si un QUE no tiene respuestas
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+        }
+
         visited[nodeUid] = false; // Liberar para ramas paralelas
         return result;
     },
