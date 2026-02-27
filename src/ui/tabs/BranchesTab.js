@@ -339,7 +339,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     tree: projectTree,
                     renderNodeHeader: renderBranchesNodeHeader,
                     renderNodeContent: renderBranchesNodeContent,
-                    defaultExpanded: true
+                    defaultExpanded: false
                 })
             )
         ),

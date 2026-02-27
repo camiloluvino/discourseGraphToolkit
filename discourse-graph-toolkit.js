@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.24
- * Bundled build: 2026-02-27 00:58:23
+ * Bundled build: 2026-02-27 15:06:42
  */
 
 (function () {
@@ -5702,7 +5702,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     tree: projectTree,
                     renderNodeHeader: renderBranchesNodeHeader,
                     renderNodeContent: renderBranchesNodeContent,
-                    defaultExpanded: true
+                    defaultExpanded: false
                 })
             )
         ),
