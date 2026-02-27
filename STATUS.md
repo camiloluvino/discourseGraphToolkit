@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.24**
+**v1.5.25**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,9 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ## Historial Reciente
+
+### v1.5.25 (Febrero 2026)
+- **Feature: Soporte para GRI → #Contains → EVD.** Se actualizó el mapper de relaciones para que los nodos de tipo `[[EVD]]` sean reconocidos como contenidos válidos dentro de un `[[GRI]]` mediante la etiqueta `#Contains`. Esto permite una organización jerárquica más profunda, permitiendo que un grupo contenga directamente evidencias o que sub-grupos organizadores las agrupen. Las capas de exportación (Markdown, HTML, EPUB) ya reflejan este cambio automáticamente.
 
 ### v1.5.24 (Febrero 2026)
 - **Fix: Duplicación en Exportar.** Se implementó una lógica de filtrado de nodos hijos en la pestaña Exportar (similar a la Panorámica). Ahora, el Toolkit detecta si un GRI está contenido en otro grupo seleccionado para omitirlo de la lista raíz y evitar duplicados en el archivo final.

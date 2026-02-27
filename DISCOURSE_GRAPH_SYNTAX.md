@@ -28,6 +28,7 @@ El sistema usa cuatro tipos de nodos con prefijos obligatorios:
         - [[QUE]] - Pregunta contenida
         - [[CLM]] - Afirmación contenida
         - [[GRI]] - Sub-grupo (recursivo)
+        - [[EVD]] - Evidencia contenida
 ```
 
 > ⚠️ GRI es **opcional**. Los grafos sin GRI funcionan exactamente igual.
@@ -158,7 +159,7 @@ El `RelationshipMapper` genera estas propiedades en cada nodo:
 
 | Propiedad | Contiene |
 |-----------|----------|
-| `contained_nodes` | UIDs de QUEs, CLMs o GRIs bajo `#Contains` |
+| `contained_nodes` | UIDs de QUEs, CLMs, GRIs o EVDs bajo `#Contains` |
 
 ---
 

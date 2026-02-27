@@ -331,8 +331,8 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 const refUid = ref.uid || "";
                 if (allNodes[refUid] && refUid !== sourceUid) {
                     const refType = allNodes[refUid].type;
-                    // GRI puede contener QUE, CLM, o GRI (no EVD directamente)
-                    if (refType === "QUE" || refType === "CLM" || refType === "GRI") {
+                    // GRI puede contener QUE, CLM, GRI, o EVD
+                    if (refType === "QUE" || refType === "CLM" || refType === "GRI" || refType === "EVD") {
                         if (!node.contained_nodes.includes(refUid)) {
                             node.contained_nodes.push(refUid);
                         }
@@ -347,12 +347,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
             while ((match = pattern.exec(blockText)) !== null) {
                 const refContent = match[1];
                 // Solo buscar nodos discourse (no tags como #Contains)
-                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM')) {
+                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM') || refContent.includes('EVD')) {
                     // Intentar encontrar en los mapas existentes via allNodes
                     for (const nUid in allNodes) {
                         const n = allNodes[nUid];
                         if (n.title && n.title.includes(refContent) && nUid !== sourceUid) {
-                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI") {
+                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI" || n.type === "EVD") {
                                 if (!node.contained_nodes.includes(nUid)) {
                                     node.contained_nodes.push(nUid);
                                 }
