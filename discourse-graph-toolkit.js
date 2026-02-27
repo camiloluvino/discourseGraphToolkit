@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.23
- * Bundled build: 2026-02-27 00:27:40
+ * Bundled build: 2026-02-27 00:41:40
  */
 
 (function () {
@@ -5376,12 +5376,12 @@ DiscourseGraphToolkit.BranchesTab = function () {
     // --- Handlers ---
     const handleBulkVerifyAll = async () => {
         setIsBulkVerifying(true);
-        setBulkVerifyStatus('⏳ Cargando preguntas...');
+        setBulkVerifyStatus('⏳ Cargando ramas y preguntas...');
         setBulkVerificationResults([]);
         setSelectedBulkQuestion(null);
 
         try {
-            const questions = await DiscourseGraphToolkit.getAllQuestions();
+            const questions = await DiscourseGraphToolkit.getAllRootNodes();
             const results = [];
 
             for (let i = 0; i < questions.length; i++) {
@@ -5526,7 +5526,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     node.project ? node.project.split('/').pop() : '(sin proyecto)'),
                 React.createElement('span', {
                     className: 'dgt-badge dgt-badge-neutral'
-                }, `${totalQuestions} pregunta${totalQuestions !== 1 ? 's' : ''}`)
+                }, `${totalQuestions} rama${totalQuestions !== 1 ? 's' : ''}`)
             )
         );
     };
@@ -5554,7 +5554,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
                         React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
-                            parseMarkdownBold(result.question.pageTitle.replace('[[QUE]] - ', ''))),
+                            parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
                         React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
                             `${result.branchNodes.length} nodos`)
                     )
@@ -5668,7 +5668,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         // Panel de detalle (más compacto)
         selectedBulkQuestion && React.createElement('div', { className: 'dgt-card dgt-card-body' },
             React.createElement('h4', { className: 'dgt-mb-sm', style: { margin: 0, fontSize: '0.875rem', lineHeight: '1.4' } },
-                parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace('[[QUE]] - ', ''))),
+                parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
 
             // Proyecto editable y botones de propagación
             React.createElement('div', { className: 'dgt-form-group' },

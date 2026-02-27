@@ -26,8 +26,10 @@
 ## Historial Reciente
 
 ### v1.5.23 (Febrero 2026)
-- **UI: Badges de Tipo en Panorámica.** Se agregaron etiquetas visibles (`QUE`, `GRI`, `CLM`) junto al título de los nodos en la Vista Panorámica para una identificación inmediata de la función de cada nodo.
-- **Lógica: Jerarquía de Contención Respectuosa.** Los nodos GRI o QUE que ya están contenidos dentro de un nodo GRI (vía `#Contains`) ahora se filtran de la lista raíz principal. Solo aparecen dentro de su respectiva jerarquía al expandir el nodo padre, eliminando la redundancia visual.
+- **Feature: Soporte GRI en Coherencia de Ramas.** La pestaña "Ramas" ahora procesa tanto nodos `[[QUE]]` como `[[GRI]]` como puntos de origen para la verificación de coherencia. Esto permite que proyectos organizados puramente bajo nodos de Grupo sean visibles y auditables en esta pestaña.
+- **UI: Generalización de Etiquetas en Ramas.** Se actualizaron las etiquetas ("X preguntas" → "X ramas") y la lógica de limpieza de títulos para soportar ambos tipos de nodos raíz.
+- **UI: Badges de Tipo en Panorámica.** Se agregaron etiquetas visibles (`QUE`, `GRI`, `CLM`) junto al título de los nodos en la Vista Panorámica para una identificación inmediata.
+- **Lógica: Jerarquía de Contención Respectuosa.** Los nodos GRI o QUE que ya están contenidos dentro de un nodo GRI (vía `#Contains`) ahora se filtran de la lista raíz principal en la Panorámica.
 
 ### v1.5.22 (Febrero 2026)
 - **Feature: Nodos GRI y relación #Contains.** Implementación de un nuevo tipo de nodo organizativo (GRI) que permite agrupar otros nodos mediante la etiqueta `#Contains`.
