@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-27
+**Última actualización:** 2026-02-28
 
 ## Versión Actual
 
-**v1.5.25**
+**v1.5.26**
 
 ## Estado de Funcionalidades
 
@@ -17,13 +17,21 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Estable | Lógica de coherencia jerárquica |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Mejorado | Soporta GRI+QUE como nodos raíz intercambiables |
+| **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda recursiva e interactiva |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ## Historial Reciente
+
+### v1.5.26 (Febrero 2026)
+- **UI/UX: Anidación Profunda Interactiva en Panorámica.**
+  - Implementación de renderizado recursivo N-niveles para todos los tipos de nodos (`GRI`, `QUE`, `CLM`, `EVD`).
+  - **Nodos Colapsables:** Cualquier nodo anidado con hijos ahora incluye botones `▼`/`▶` y es expansible de forma independiente.
+  - **Navegación Deshabilitada:** Se eliminó la navegación a la página de Roam al hacer clic para favorecer la interactividad de expansión/colapsado dentro de la misma vista.
+  - **Mejora Visual:** Alineación horizontal fija mediante fuentes monospace y contenedores flex sin wrap para los conectores del árbol (`├─`, `└─`), asegurando una jerarquía visual limpia.
+  - **Expandir Todo:** El botón global ahora expande recursivamente todos los niveles del grafo de manera inteligente.
 
 ### v1.5.25 (Febrero 2026)
 - **Feature: Soporte para GRI → #Contains → EVD.** Se actualizó el mapper de relaciones para que los nodos de tipo `[[EVD]]` sean reconocidos como contenidos válidos dentro de un `[[GRI]]` mediante la etiqueta `#Contains`. Esto permite una organización jerárquica más profunda, permitiendo que un grupo contenga directamente evidencias o que sub-grupos organizadores las agrupen. Las capas de exportación (Markdown, HTML, EPUB) ya reflejan este cambio automáticamente.
