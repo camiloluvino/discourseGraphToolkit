@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.26**
+**v1.5.27**
 
 ## Estado de Funcionalidades
 
@@ -24,6 +24,13 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ## Historial Reciente
+
+### v1.5.27 (Marzo 2026)
+- **Fix: Carga de Datos Recursiva en Panorámica y Exportación.**
+  - Se implementó un bucle de carga iterativa para asegurar que todos los descendientes directos e indirectos (vinculados por `#SupportedBy`, `#RespondedBy`, `#RelatedTo` o `#Contains`) sean traídos de Roam independientemente de su profundidad.
+  - Esto soluciona el problema donde los "nietos" o niveles inferiores de una rama no aparecían en la Vista Panorámica ni en los archivos de exportación.
+  - Se incluyó un límite de seguridad de profundidad (Nivel 10) para prevenir bucles infinitos en caso de referencias circulares en el grafo.
+  - Mejora de los mensajes de estado durante la carga ("Cargando X nodos (nivel Y)...") para dar visibilidad total al proceso de extracción profunda.
 
 ### v1.5.26 (Febrero 2026)
 - **UI/UX: Anidación Profunda Interactiva en Panorámica.**
