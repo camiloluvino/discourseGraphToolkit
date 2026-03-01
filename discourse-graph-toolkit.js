@@ -1,6 +1,6 @@
-/**
+﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.26
- * Bundled build: 2026-02-28 16:05:51
+ * Bundled build: 2026-02-28 22:22:48
  */
 
 (function () {
