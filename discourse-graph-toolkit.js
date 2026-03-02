@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.27
- * Bundled build: 2026-02-28 23:06:48
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.28
+ * Bundled build: 2026-03-02 11:46:08
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.27";
+    DiscourseGraphToolkit.VERSION = "1.5.28";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -3891,7 +3891,7 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
         .dgt-popover {
             position: absolute;
             top: 100%;
-            right: 0;
+            left: 0;
             margin-top: var(--dgt-spacing-sm);
             background: #ffffff;
             border-radius: var(--dgt-radius-md);

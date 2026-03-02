@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-02-28
+**Última actualización:** 2026-03-02
 
 ## Versión Actual
 
-**v1.5.27**
+**v1.5.28**
 
 ## Estado de Funcionalidades
 
@@ -23,7 +23,9 @@
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
-## Historial Reciente
+### v1.5.28 (Marzo 2026)
+- **Fix: Alineación de Popovers en Pestaña Ramas.** Se corrigió un problema visual donde los popovers de advertencia (nodos diferentes o sin proyecto) se desplegaban hacia la izquierda, causando que el contenido se cortara fuera del contenedor. Ahora se alinean correctamente hacia la derecha (`left: 0`).
+- **Build:** Reconstrucción del bundle para incluir el ajuste de CSS global.
 
 ### v1.5.27 (Marzo 2026)
 - **Fix: Carga de Datos Recursiva en Panorámica y Exportación.**

@@ -185,7 +185,7 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
         .dgt-popover {
             position: absolute;
             top: 100%;
-            right: 0;
+            left: 0;
             margin-top: var(--dgt-spacing-sm);
             background: #ffffff;
             border-radius: var(--dgt-radius-md);
