@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.28**
+**v1.5.29**
 
 ## Estado de Funcionalidades
 
@@ -23,9 +23,14 @@
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
+### v1.5.29 (Marzo 2026)
+- **Fix: Carga y Mapeo Recursivo en Panorámica (Deep Nesting).** 
+  - Se implementó un algoritmo de búsqueda recursiva en el árbol de bloques para identificar relaciones (`#SupportedBy`, `#RespondedBy`, etc.) incluso cuando están anidadas profundamente dentro de otros bloques en la misma página.
+  - Se actualizó el cargador de datos para realizar hasta 5 niveles de peticiones iterativas, asegurando que todos los nodos referenciados en niveles inferiores sean descargados e integrados en el mapa de relaciones.
+  - Esto soluciona definitivamente el problema donde la Vista Panorámica se "detenía" en el Nivel 2, permitiendo ahora visualizar ramas completas (Niveles 3, 4, 5+) de forma fluida.
+
 ### v1.5.28 (Marzo 2026)
-- **Fix: Alineación de Popovers en Pestaña Ramas.** Se corrigió un problema visual donde los popovers de advertencia (nodos diferentes o sin proyecto) se desplegaban hacia la izquierda, causando que el contenido se cortara fuera del contenedor. Ahora se alinean correctamente hacia la derecha (`left: 0`).
-- **Build:** Reconstrucción del bundle para incluir el ajuste de CSS global.
+- **Fix: Alineación de Popovers en Pestaña Ramas.** Se corrigió un problema visual donde los popovers de advertencia se cortaban. Ahora se alinean correctamente (`left: 0`).
 
 ### v1.5.27 (Marzo 2026)
 - **Fix: Carga de Datos Recursiva en Panorámica y Exportación.**

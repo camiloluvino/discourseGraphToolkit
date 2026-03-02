@@ -127,37 +127,21 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             });
 
-            // 4. Analizar dependencias y cargar nodos faltantes RECURSIVAMENTE
+            // 4. Analizar dependencias y cargar nodos faltantes
             setLoadStatus('⏳ Analizando relaciones...');
+            const dependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            const missingUids = [...dependencies].filter(uid => !allNodes[uid]);
 
-            let missingUids = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
-            missingUids = [...missingUids].filter(uid => !allNodes[uid]);
-
-            let depth = 0;
-            const maxDepth = 5; // Evitar loops infinitos en caso de referencias circulares muy complejas
-
-            while (missingUids.length > 0 && depth < maxDepth) {
-                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados (nively ${depth + 1})...`);
+            if (missingUids.length > 0) {
+                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados...`);
                 const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, true, false);
-
-                const newNodesFetched = [];
                 extraData.data.forEach(node => {
-                    if (node.uid && !allNodes[node.uid]) {
+                    if (node.uid) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
                         node.data = node;
                         allNodes[node.uid] = node;
-                        newNodesFetched.push(node);
                     }
                 });
-
-                // Buscar si los nuevos nodos traen más dependencias
-                const newDependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(newNodesFetched);
-                missingUids = [...newDependencies].filter(uid => !allNodes[uid]);
-                depth++;
-            }
-
-            if (depth === maxDepth && missingUids.length > 0) {
-                console.warn(`Vista Panorámica: Se alcanzó la profundidad máxima de relaciones anidadas, faltan ${missingUids.length} referencias.`);
             }
 
             // 5. Mapear relaciones
