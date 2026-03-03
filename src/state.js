@@ -259,3 +259,25 @@ DiscourseGraphToolkit.clearPanoramicCache = function () {
         this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
     );
 };
+
+// --- Cache de Vista Panorámica (Estado Expandido) ---
+DiscourseGraphToolkit.savePanoramicExpandedQuestions = function (expandedQuestions) {
+    try {
+        localStorage.setItem(
+            this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED),
+            JSON.stringify(expandedQuestions)
+        );
+    } catch (e) {
+        console.warn("Panoramic expanded cache save failed:", e);
+    }
+};
+
+DiscourseGraphToolkit.loadPanoramicExpandedQuestions = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED)
+    );
+    if (!stored) return {};
+    try {
+        return JSON.parse(stored);
+    } catch (e) { return {}; }
+};

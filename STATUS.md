@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-03-02
+**Última actualización:** 2026-03-03
 
 ## Versión Actual
 
-**v1.5.29**
+**v1.5.30**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,20 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Estable | Lógica de coherencia jerárquica |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Soporta filtros rápidos e indicadores visuales de error |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda recursiva e interactiva |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.30 (Marzo 2026)
+- **UI/UX: Mejora en Revisión de Nodos (Pestaña Ramas).**
+  - **Filtros Rápidos:** Al hacer clic en las insignias de error (`⚠️` o `❌`) en la barra de resumen, el árbol de proyectos se filtra automáticamente para mostrar solo las ramas afectadas.
+  - **Auto-expansión:** Al activar un filtro, los proyectos que contienen errores se expanden automáticamente para revelar los nodos problemáticos.
+  - **Indicadores en Carpetas:** Los proyectos (carpetas) ahora muestran iconos `⚠️` o `❌` si contienen alguna rama con errores, incluso cuando están contraídos. Esto permite identificar rápidamente qué áreas requieren atención.
+  - **Interacción Mejorada:** Se rediseñó el comportamiento de los badges para facilitar la navegación fluida entre el diagnóstico y la corrección.
 
 ### v1.5.29 (Marzo 2026)
 - **Fix: Carga y Mapeo Recursivo en Panorámica (Deep Nesting).** 

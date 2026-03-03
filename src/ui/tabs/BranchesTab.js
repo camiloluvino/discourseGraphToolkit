@@ -13,14 +13,82 @@ DiscourseGraphToolkit.BranchesTab = function () {
         isPropagating, setIsPropagating
     } = DiscourseGraphToolkit.useToolkit();
 
-    // --- Estado para popover de nodos problemáticos ---
-    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'orphans' | null
+    // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
+    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
+    const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
 
-    // --- Árbol jerárquico (calculado) ---
+    // --- Árbol jerárquico (calculado y filtrado) ---
     const projectTree = React.useMemo(() => {
         if (bulkVerificationResults.length === 0) return {};
-        return DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
-    }, [bulkVerificationResults]);
+        const baseTree = DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
+
+        // Función auxiliar para verificar si un nodo o sus hijos tienen un error específico
+        const nodeHasErrorStatus = (node, targetStatus) => {
+            if (node.questions && node.questions.some(q => q.status === targetStatus)) {
+                return true;
+            }
+            if (node.children) {
+                for (const childKey in node.children) {
+                    if (nodeHasErrorStatus(node.children[childKey], targetStatus)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        // Función para filtrar el árbol manteniendo la estructura
+        const filterTreeRecursive = (treeNodes) => {
+            const filtered = {};
+            for (const key in treeNodes) {
+                const node = treeNodes[key];
+                const hasError = nodeHasErrorStatus(node, activeFilter);
+
+                if (hasError) {
+                    // Si este nodo tiene el error, debemos incluirlo
+                    filtered[key] = { ...node };
+                    // Filtrar recursivamente sus hijos
+                    if (node.children) {
+                        const filteredChildren = filterTreeRecursive(node.children);
+                        // Si los hijos no tienen el error, pero el padre sí (por una pregunta directa del padre), 
+                        // mantenemos los hijos vacíos o lo que devuelva el filtro. En este caso, solo nos quedamos 
+                        // con lo estrictamente necesario.
+                        filtered[key].children = Object.keys(filteredChildren).length > 0 ? filteredChildren : {};
+                    }
+                }
+            }
+            return filtered;
+        };
+
+        if (!activeFilter) {
+            return baseTree;
+        }
+
+        return filterTreeRecursive(baseTree);
+
+    }, [bulkVerificationResults, activeFilter]);
+
+    // Calcular estatus globales de un nodo (para el encabezado de carpetas)
+    const getProjectErrorCounts = React.useCallback((node) => {
+        let diff = 0;
+        let miss = 0;
+
+        const countErrors = (n) => {
+            if (n.questions) {
+                n.questions.forEach(q => {
+                    if (q.status === 'different') diff++;
+                    if (q.status === 'missing') miss++;
+                });
+            }
+            if (n.children) {
+                for (const k in n.children) {
+                    countErrors(n.children[k]);
+                }
+            }
+        };
+        countErrors(node);
+        return { diff, miss };
+    }, []);
 
     // --- Contadores ---
     const counts = React.useMemo(() => ({
@@ -194,15 +262,24 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const depthClass = depth === 0 ? 'depth-0' : (depth % 2 !== 0 ? 'depth-odd' : 'depth-even');
 
+        const { diff, miss } = getProjectErrorCounts(node);
+
         return React.createElement('div', {
             onClick: toggleFn,
             className: `dgt-accordion-header ${depthClass}`
         },
             React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
-            React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem' } },
+            React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem', alignItems: 'center' } },
                 React.createElement('span', { title: node.project },
-                    node.project ? node.project.split('/').pop() : '(sin proyecto)'),
+                    node.project ? node.project.split('/').pop() : '(sin proyecto)'
+                ),
+                // Indicadores de error visuales en la carpeta
+                (miss > 0 || diff > 0) && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs', style: { marginLeft: 'auto' } },
+                    miss > 0 && React.createElement('span', { title: `${miss} ramas sin proyecto`, style: { fontSize: '0.75rem' } }, '❌'),
+                    diff > 0 && React.createElement('span', { title: `${diff} ramas con proyecto diferente`, style: { fontSize: '0.75rem' } }, '⚠️')
+                ),
+                // Contador total
                 React.createElement('span', {
                     className: 'dgt-badge dgt-badge-neutral'
                 }, `${totalQuestions} rama${totalQuestions !== 1 ? 's' : ''}`)
@@ -281,9 +358,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
-                        onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
-                        isActive: openPopover === 'different'
+                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Clic para filtrar árbol | Doble clic popover',
+                        onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
+                        isActive: activeFilter === 'different'
                     }),
                     openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
@@ -302,9 +379,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
-                        onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
-                        isActive: openPopover === 'missing'
+                        emoji: '❌', count: counts.missing, type: 'error', title: 'Clic para filtrar árbol | Doble clic popover',
+                        onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
+                        isActive: activeFilter === 'missing'
                     }),
                     openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
@@ -339,7 +416,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     tree: projectTree,
                     renderNodeHeader: renderBranchesNodeHeader,
                     renderNodeContent: renderBranchesNodeContent,
-                    defaultExpanded: false
+                    defaultExpanded: activeFilter !== null // Auto expandir si hay un filtro
                 })
             )
         ),

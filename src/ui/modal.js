@@ -45,7 +45,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
     // --- Estados de Panorámica (persisten entre cambios de pestaña) ---
     const [panoramicData, setPanoramicData] = React.useState(null);
-    const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState({});
+    const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState(DiscourseGraphToolkit.loadPanoramicExpandedQuestions());
     const [panoramicLoadStatus, setPanoramicLoadStatus] = React.useState('');
     const [panoramicSelectedProject, setPanoramicSelectedProject] = React.useState('');
 

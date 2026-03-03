@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.29
- * Bundled build: 2026-03-02 12:21:20
+ * DISCOURSE GRAPH TOOLKIT v1.5.30
+ * Bundled build: 2026-03-03 03:42:26
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.29";
+    DiscourseGraphToolkit.VERSION = "1.5.30";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -556,7 +556,8 @@ DiscourseGraphToolkit.STORAGE = {
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
     HISTORY_EXPORT: "discourseGraphToolkit_history_export",
     QUESTION_ORDER: "discourseGraphToolkit_question_order",
-    PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache"
+    PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache",
+    PANORAMIC_EXPANDED: "discourseGraphToolkit_panoramic_expanded"
 };
 
 // Get current graph name from Roam API or URL
@@ -1267,6 +1268,28 @@ DiscourseGraphToolkit.clearPanoramicCache = function () {
     localStorage.removeItem(
         this.getStorageKey(this.STORAGE.PANORAMIC_CACHE)
     );
+};
+
+// --- Cache de Vista Panorámica (Estado Expandido) ---
+DiscourseGraphToolkit.savePanoramicExpandedQuestions = function (expandedQuestions) {
+    try {
+        localStorage.setItem(
+            this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED),
+            JSON.stringify(expandedQuestions)
+        );
+    } catch (e) {
+        console.warn("Panoramic expanded cache save failed:", e);
+    }
+};
+
+DiscourseGraphToolkit.loadPanoramicExpandedQuestions = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED)
+    );
+    if (!stored) return {};
+    try {
+        return JSON.parse(stored);
+    } catch (e) { return {}; }
 };
 
 
@@ -2911,6 +2934,19 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
+
+        // Resumen de diagnóstico
+        let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
+        for (const uid in allNodes) {
+            const n = allNodes[uid];
+            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
+            if (n.type === 'CLM') {
+                clmSuppLinks += (n.supporting_clms || []).length;
+                clmEvdLinks += (n.related_evds || []).length;
+                clmConnLinks += (n.connected_clms || []).length;
+            }
+        }
+        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
     },
 
     _createTitleMaps: function (allNodes) {
@@ -5467,14 +5503,82 @@ DiscourseGraphToolkit.BranchesTab = function () {
         isPropagating, setIsPropagating
     } = DiscourseGraphToolkit.useToolkit();
 
-    // --- Estado para popover de nodos problemáticos ---
-    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'orphans' | null
+    // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
+    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
+    const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
 
-    // --- Árbol jerárquico (calculado) ---
+    // --- Árbol jerárquico (calculado y filtrado) ---
     const projectTree = React.useMemo(() => {
         if (bulkVerificationResults.length === 0) return {};
-        return DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
-    }, [bulkVerificationResults]);
+        const baseTree = DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
+
+        // Función auxiliar para verificar si un nodo o sus hijos tienen un error específico
+        const nodeHasErrorStatus = (node, targetStatus) => {
+            if (node.questions && node.questions.some(q => q.status === targetStatus)) {
+                return true;
+            }
+            if (node.children) {
+                for (const childKey in node.children) {
+                    if (nodeHasErrorStatus(node.children[childKey], targetStatus)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        // Función para filtrar el árbol manteniendo la estructura
+        const filterTreeRecursive = (treeNodes) => {
+            const filtered = {};
+            for (const key in treeNodes) {
+                const node = treeNodes[key];
+                const hasError = nodeHasErrorStatus(node, activeFilter);
+
+                if (hasError) {
+                    // Si este nodo tiene el error, debemos incluirlo
+                    filtered[key] = { ...node };
+                    // Filtrar recursivamente sus hijos
+                    if (node.children) {
+                        const filteredChildren = filterTreeRecursive(node.children);
+                        // Si los hijos no tienen el error, pero el padre sí (por una pregunta directa del padre), 
+                        // mantenemos los hijos vacíos o lo que devuelva el filtro. En este caso, solo nos quedamos 
+                        // con lo estrictamente necesario.
+                        filtered[key].children = Object.keys(filteredChildren).length > 0 ? filteredChildren : {};
+                    }
+                }
+            }
+            return filtered;
+        };
+
+        if (!activeFilter) {
+            return baseTree;
+        }
+
+        return filterTreeRecursive(baseTree);
+
+    }, [bulkVerificationResults, activeFilter]);
+
+    // Calcular estatus globales de un nodo (para el encabezado de carpetas)
+    const getProjectErrorCounts = React.useCallback((node) => {
+        let diff = 0;
+        let miss = 0;
+
+        const countErrors = (n) => {
+            if (n.questions) {
+                n.questions.forEach(q => {
+                    if (q.status === 'different') diff++;
+                    if (q.status === 'missing') miss++;
+                });
+            }
+            if (n.children) {
+                for (const k in n.children) {
+                    countErrors(n.children[k]);
+                }
+            }
+        };
+        countErrors(node);
+        return { diff, miss };
+    }, []);
 
     // --- Contadores ---
     const counts = React.useMemo(() => ({
@@ -5648,15 +5752,24 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const depthClass = depth === 0 ? 'depth-0' : (depth % 2 !== 0 ? 'depth-odd' : 'depth-even');
 
+        const { diff, miss } = getProjectErrorCounts(node);
+
         return React.createElement('div', {
             onClick: toggleFn,
             className: `dgt-accordion-header ${depthClass}`
         },
             React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
-            React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem' } },
+            React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem', alignItems: 'center' } },
                 React.createElement('span', { title: node.project },
-                    node.project ? node.project.split('/').pop() : '(sin proyecto)'),
+                    node.project ? node.project.split('/').pop() : '(sin proyecto)'
+                ),
+                // Indicadores de error visuales en la carpeta
+                (miss > 0 || diff > 0) && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs', style: { marginLeft: 'auto' } },
+                    miss > 0 && React.createElement('span', { title: `${miss} ramas sin proyecto`, style: { fontSize: '0.75rem' } }, '❌'),
+                    diff > 0 && React.createElement('span', { title: `${diff} ramas con proyecto diferente`, style: { fontSize: '0.75rem' } }, '⚠️')
+                ),
+                // Contador total
                 React.createElement('span', {
                     className: 'dgt-badge dgt-badge-neutral'
                 }, `${totalQuestions} rama${totalQuestions !== 1 ? 's' : ''}`)
@@ -5735,9 +5848,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Nodos Diferentes',
-                        onClick: () => counts.different > 0 && setOpenPopover(openPopover === 'different' ? null : 'different'),
-                        isActive: openPopover === 'different'
+                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Clic para filtrar árbol | Doble clic popover',
+                        onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
+                        isActive: activeFilter === 'different'
                     }),
                     openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
@@ -5756,9 +5869,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '❌', count: counts.missing, type: 'error', title: 'Nodos Sin Proyecto',
-                        onClick: () => counts.missing > 0 && setOpenPopover(openPopover === 'missing' ? null : 'missing'),
-                        isActive: openPopover === 'missing'
+                        emoji: '❌', count: counts.missing, type: 'error', title: 'Clic para filtrar árbol | Doble clic popover',
+                        onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
+                        isActive: activeFilter === 'missing'
                     }),
                     openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
@@ -5793,7 +5906,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     tree: projectTree,
                     renderNodeHeader: renderBranchesNodeHeader,
                     renderNodeContent: renderBranchesNodeContent,
-                    defaultExpanded: false
+                    defaultExpanded: activeFilter !== null // Auto expandir si hay un filtro
                 })
             )
         ),
@@ -6077,10 +6190,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     // --- Helpers ---
     const toggleQuestion = (uid) => {
-        setExpandedQuestions(prev => ({
-            ...prev,
-            [uid]: !prev[uid]
-        }));
+        setExpandedQuestions(prev => {
+            const newState = { ...prev, [uid]: !prev[uid] };
+            DiscourseGraphToolkit.savePanoramicExpandedQuestions(newState);
+            return newState;
+        });
     };
 
     const cleanTitle = (title, type) => {
@@ -6171,7 +6285,13 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             }
 
             // 5. Mapear relaciones
+            console.log(`📊 Vista Panorámica (v${DiscourseGraphToolkit.VERSION}): ${Object.keys(allNodes).length} nodos en allNodes antes de mapear relaciones.`);
             DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            // 5.1 Debug: Verificar que las relaciones se mapearon correctamente
+            const clmsWithSupporting = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.supporting_clms || []).length > 0);
+            const clmsWithEvds = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.related_evds || []).length > 0);
+            console.log(`📊 CLMs con supporting_clms: ${clmsWithSupporting.length}, CLMs con related_evds: ${clmsWithEvds.length}`);
 
             // 5.5 Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
             const childNodeUids = new Set();
@@ -6657,6 +6777,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                                 if (hasCh) allExpanded[node.uid] = true;
                             });
                             setExpandedQuestions(allExpanded);
+                            DiscourseGraphToolkit.savePanoramicExpandedQuestions(allExpanded);
                         },
                         style: {
                             padding: '0.25rem 0.5rem',
@@ -6668,7 +6789,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         }
                     }, '➕ Expandir'),
                     React.createElement('button', {
-                        onClick: () => setExpandedQuestions({}),
+                        onClick: () => {
+                            setExpandedQuestions({});
+                            DiscourseGraphToolkit.savePanoramicExpandedQuestions({});
+                        },
                         style: {
                             padding: '0.25rem 0.5rem',
                             border: '1px solid #ccc',
@@ -7546,7 +7670,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
 
     // --- Estados de Panorámica (persisten entre cambios de pestaña) ---
     const [panoramicData, setPanoramicData] = React.useState(null);
-    const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState({});
+    const [panoramicExpandedQuestions, setPanoramicExpandedQuestions] = React.useState(DiscourseGraphToolkit.loadPanoramicExpandedQuestions());
     const [panoramicLoadStatus, setPanoramicLoadStatus] = React.useState('');
     const [panoramicSelectedProject, setPanoramicSelectedProject] = React.useState('');
 

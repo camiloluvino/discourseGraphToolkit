@@ -67,10 +67,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     // --- Helpers ---
     const toggleQuestion = (uid) => {
-        setExpandedQuestions(prev => ({
-            ...prev,
-            [uid]: !prev[uid]
-        }));
+        setExpandedQuestions(prev => {
+            const newState = { ...prev, [uid]: !prev[uid] };
+            DiscourseGraphToolkit.savePanoramicExpandedQuestions(newState);
+            return newState;
+        });
     };
 
     const cleanTitle = (title, type) => {
@@ -161,7 +162,13 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             }
 
             // 5. Mapear relaciones
+            console.log(`📊 Vista Panorámica (v${DiscourseGraphToolkit.VERSION}): ${Object.keys(allNodes).length} nodos en allNodes antes de mapear relaciones.`);
             DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+            // 5.1 Debug: Verificar que las relaciones se mapearon correctamente
+            const clmsWithSupporting = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.supporting_clms || []).length > 0);
+            const clmsWithEvds = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.related_evds || []).length > 0);
+            console.log(`📊 CLMs con supporting_clms: ${clmsWithSupporting.length}, CLMs con related_evds: ${clmsWithEvds.length}`);
 
             // 5.5 Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
             const childNodeUids = new Set();
@@ -647,6 +654,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                                 if (hasCh) allExpanded[node.uid] = true;
                             });
                             setExpandedQuestions(allExpanded);
+                            DiscourseGraphToolkit.savePanoramicExpandedQuestions(allExpanded);
                         },
                         style: {
                             padding: '0.25rem 0.5rem',
@@ -658,7 +666,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         }
                     }, '➕ Expandir'),
                     React.createElement('button', {
-                        onClick: () => setExpandedQuestions({}),
+                        onClick: () => {
+                            setExpandedQuestions({});
+                            DiscourseGraphToolkit.savePanoramicExpandedQuestions({});
+                        },
                         style: {
                             padding: '0.25rem 0.5rem',
                             border: '1px solid #ccc',

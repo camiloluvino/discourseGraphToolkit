@@ -21,6 +21,19 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
+
+        // Resumen de diagnóstico
+        let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
+        for (const uid in allNodes) {
+            const n = allNodes[uid];
+            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
+            if (n.type === 'CLM') {
+                clmSuppLinks += (n.supporting_clms || []).length;
+                clmEvdLinks += (n.related_evds || []).length;
+                clmConnLinks += (n.connected_clms || []).length;
+            }
+        }
+        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
     },
 
     _createTitleMaps: function (allNodes) {
