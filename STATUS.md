@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.30**
+**v1.5.31**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,15 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.31 (Marzo 2026)
+- **UI/UX: Limpieza y Modernización de la Vista Panorámica.**
+  - **Eliminación de Ruido Visual:** Se quitaron los iconos redundantes (`📌`, `📎`, `📝`, `📂`) y los conectores ASCII (`├─`, `└─`) de los títulos de los nodos.
+  - **Identación Estructural:** Nuevas líneas guía sutiles (`border-left`) y márgenes limpios para representar la jerarquía del árbol de forma profesional.
+  - **Calma Tipográfica:** Se eliminaron los fondos coloreados invasivos en el texto. Ahora el contenido es gris oscuro/negro neutro sobre fondo blanco, mejorando drásticamente la lectura de textos largos.
+  - **Badges de Tipo:** Se unificó el uso de etiquetas de tipo compactas y coloreadas a la izquierda del texto para mantener la semántica visual.
+  - **Markdown Bold:** Soporte nativo para visualizar negritas (`**asteriscos**` o `__guiones__`) en los títulos de los nodos del árbol.
+  - **Alineación:** Mejorada la alineación vertical de los controles de expansión y badges.
 
 ### v1.5.30 (Marzo 2026)
 - **UI/UX: Mejora en Revisión de Nodos (Pestaña Ramas).**

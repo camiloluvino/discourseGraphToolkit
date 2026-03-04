@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.30
- * Bundled build: 2026-03-03 03:42:26
+ * DISCOURSE GRAPH TOOLKIT v1.5.31
+ * Bundled build: 2026-03-04 10:08:29
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.30";
+    DiscourseGraphToolkit.VERSION = "1.5.31";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -6201,6 +6201,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return (title || '').replace(new RegExp(`\\[\\[${type}\\]\\]\\s*-\\s*`), '');
     };
 
+    const renderMarkdownTitle = (text) => {
+        if (!text) return null;
+        // Divide el texto por secuencias de negrita (**texto** o __texto__)
+        const parts = text.split(/(\*\*.*?\*\*|__.*?__)/g);
+        return parts.map((part, index) => {
+            if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+                return React.createElement('strong', { key: index }, part.slice(2, -2));
+            }
+            return part; // Texto normal (String)
+        });
+    };
+
     const formatTimeAgo = (timestamp) => {
         const diff = Date.now() - timestamp;
         const mins = Math.floor(diff / 60000);
@@ -6358,7 +6370,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     whiteSpace: 'nowrap'
                 },
                 title: clm.title
-            }, `📌 ${cleanTitle(clm.title, 'CLM')}`),
+            }, React.createElement(React.Fragment, null, "📌 ", renderMarkdownTitle(cleanTitle(clm.title, 'CLM')))),
 
             // EVDs del CLM
             clm.related_evds && clm.related_evds.length > 0 && React.createElement(React.Fragment, null,
@@ -6378,7 +6390,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             whiteSpace: 'nowrap'
                         },
                         title: evd.title
-                    }, `📎 ${cleanTitle(evd.title, 'EVD').substring(0, 20)}`);
+                    }, React.createElement(React.Fragment, null, "📎 ", renderMarkdownTitle(cleanTitle(evd.title, 'EVD').substring(0, 20))));
                 }),
                 clm.related_evds.length > 3 && React.createElement('span', {
                     style: { color: '#999', fontSize: '0.625rem', marginLeft: '0.25rem' }
@@ -6398,18 +6410,16 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         );
     };
 
-    // --- Renderizar nodo contenido (recursivo) ---
-    const renderContainedNode = (uid, allNodes, depth = 1, isLast = false, prefix = '') => {
+    const renderContainedNode = (uid, allNodes, depth = 1) => {
         const node = allNodes[uid];
         if (!node) return null;
 
         const maxDepth = 7;
-        if (depth > maxDepth) return React.createElement('div', { style: { color: '#999', fontSize: '0.6875rem', paddingLeft: `${depth}rem` } }, '...');
+        if (depth > maxDepth) return React.createElement('div', { style: { color: '#999', fontSize: '0.6875rem', paddingLeft: '1rem' } }, '...');
 
         const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-        const icon = nodeType === 'QUE' ? '📝' : nodeType === 'GRI' ? '📂' : nodeType === 'EVD' ? '📎' : '📌';
         const color = nodeType === 'QUE' ? '#2196F3' : nodeType === 'GRI' ? '#6c5c99' : nodeType === 'EVD' ? '#ff9800' : '#4CAF50';
-        const bgColor = nodeType === 'QUE' ? '#e3f2fd' : nodeType === 'GRI' ? '#ede9f6' : nodeType === 'EVD' ? '#fff3e0' : '#e8f5e9';
+        const badgeBg = nodeType === 'QUE' ? '#e3f2fd' : nodeType === 'GRI' ? '#ede9f6' : nodeType === 'EVD' ? '#fff3e0' : '#e8f5e9';
 
         // Determinar ramas/hijos según el tipo
         let childrenUids = [];
@@ -6417,22 +6427,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
         else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
 
-        const connector = isLast ? '└─ ' : '├─ ';
-
-        // Función auxiliar para renderizar el prefijo visual manteniendo el espaciado
-        const renderPrefix = (pfx) => {
-            return pfx.split('').map((char, i) => {
-                if (char === ' ') return React.createElement('span', { key: i, style: { display: 'inline-block', width: '0.5rem' } });
-                return React.createElement('span', { key: i, style: { display: 'inline-block', width: '0.5rem', textAlign: 'center' } }, char);
-            });
-        };
-
-        const nextPrefix = prefix + (isLast ? '   ' : '│  ');
-
         const hasChildren = childrenUids.length > 0;
         const isExpanded = expandedQuestions[uid] === true;
 
-        return React.createElement('div', { key: uid },
+        return React.createElement('div', {
+            key: uid,
+            style: {
+                marginLeft: depth === 1 ? '0' : '1rem',
+                borderLeft: depth === 1 ? 'none' : '1px solid #e0e0e0',
+                paddingLeft: depth === 1 ? '0' : '0.5rem',
+                paddingTop: '0.125rem'
+            }
+        },
             // Fila del nodo actual
             React.createElement('div', {
                 onClick: hasChildren ? (e) => { e.stopPropagation(); toggleQuestion(uid); } : undefined,
@@ -6440,58 +6446,54 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     display: 'flex',
                     alignItems: 'flex-start',
                     marginBottom: '0.25rem',
-                    cursor: hasChildren ? 'pointer' : 'default'
+                    cursor: hasChildren ? 'pointer' : 'default',
+                    lineHeight: '1.4'
                 }
             },
-                React.createElement('div', {
+                // Icono de expandir/colapsar (espacio reservado aunque no tenga hijos)
+                React.createElement('span', {
                     style: {
-                        color: '#ccc',
-                        marginRight: '0.25rem',
-                        fontSize: '0.6875rem',
-                        fontFamily: 'monospace',
+                        color: hasChildren ? '#666' : 'transparent',
+                        fontSize: '0.6rem',
+                        width: '0.75rem',
                         display: 'flex',
-                        flexShrink: 0,
-                        whiteSpace: 'pre'
+                        alignItems: 'center',
+                        marginTop: '0.25rem',
+                        flexShrink: 0
                     }
-                }, prefix + connector),
-
-                // Icono de expandir/colapsar si tiene hijos
-                hasChildren && React.createElement('span', {
-                    style: { color: '#666', fontSize: '0.6rem', marginRight: '0.25rem', display: 'flex', alignItems: 'center', marginTop: '0.15rem' }
                 }, isExpanded ? '▼' : '▶'),
 
-                // Badge de tipo (solo para contenedores estructurales como QUE y GRI)
-                (nodeType === 'QUE' || nodeType === 'GRI') && React.createElement('span', {
+                // Badge de tipo (para todos)
+                React.createElement('span', {
                     style: {
                         fontSize: '0.5rem',
                         fontWeight: 'bold',
                         color: color,
-                        backgroundColor: bgColor,
-                        padding: '0.0625rem 0.25rem',
+                        backgroundColor: badgeBg,
+                        padding: '0.125rem 0.25rem',
                         borderRadius: '0.125rem',
-                        marginRight: '0.25rem',
-                        letterSpacing: '0.03em'
+                        marginRight: '0.375rem',
+                        letterSpacing: '0.03em',
+                        flexShrink: 0,
+                        marginTop: '0.125rem'
                     }
                 }, nodeType),
 
                 // Título del nodo
                 React.createElement('span', {
                     style: {
-                        color: color,
-                        padding: '0.125rem 0.25rem',
-                        borderRadius: '0.125rem',
-                        backgroundColor: bgColor,
+                        color: '#333',
                         fontSize: '0.75rem',
-                        whiteSpace: 'nowrap'
+                        wordBreak: 'break-word'
                     },
                     title: node.title
-                }, `${icon} ${cleanTitle(node.title, nodeType)}`)
+                }, renderMarkdownTitle(cleanTitle(node.title, nodeType)))
             ),
 
             // Hijos recursivos
             hasChildren && isExpanded && React.createElement('div', null,
-                childrenUids.map((childUid, index) =>
-                    renderContainedNode(childUid, allNodes, depth + 1, index === childrenUids.length - 1, nextPrefix)
+                childrenUids.map((childUid) =>
+                    renderContainedNode(childUid, allNodes, depth + 1)
                 )
             )
         );
@@ -6518,7 +6520,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         const borderColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
         const textColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
-        const icon = nodeType === 'GRI' ? '📂' : '📝';
         const badgeBg = nodeType === 'GRI' ? '#ede9f6' : '#e3f2fd';
 
         return React.createElement('div', {
@@ -6536,10 +6537,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 onClick: () => toggleQuestion(question.uid),
                 style: {
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
+                    alignItems: 'flex-start',
+                    gap: '0.375rem',
                     padding: '0.5rem 0',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    lineHeight: '1.4'
                 }
             },
                 // Botones de reordenamiento (solo si hay proyecto seleccionado)
@@ -6577,8 +6579,13 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         }
                     }, '▼')
                 ),
-                React.createElement('span', { style: { color: '#666', fontSize: '0.6875rem' } },
-                    isExpanded ? '▼' : '▶'),
+                React.createElement('span', {
+                    style: {
+                        color: '#666',
+                        fontSize: '0.6875rem',
+                        marginTop: '0.2rem'
+                    }
+                }, isExpanded ? '▼' : '▶'),
                 // Badge de tipo (QUE/GRI)
                 React.createElement('span', {
                     style: {
@@ -6590,17 +6597,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         borderRadius: '0.1875rem',
                         border: `1px solid ${borderColor}40`,
                         letterSpacing: '0.03em',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        marginTop: '0.125rem'
                     }
                 }, nodeType),
                 React.createElement('span', {
                     style: {
-                        color: textColor,
+                        color: '#222',
                         fontWeight: 'bold',
                         fontSize: '0.8125rem'
                     },
                     title: question.title
-                }, `${icon} ${cleanTitle(question.title, nodeType)}`),
+                }, renderMarkdownTitle(cleanTitle(question.title, nodeType))),
                 React.createElement('span', {
                     style: {
                         fontSize: '0.625rem',
@@ -6623,14 +6631,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
             // Ramas (expandidas)
             isExpanded && React.createElement('div', {
-                style: { paddingLeft: '1rem', paddingBottom: '0.5rem' }
+                style: { paddingLeft: '0.5rem', paddingBottom: '0.5rem' }
             },
                 // Renderizar todos los nodos contenidos directamente (que se encargarán de sus propios hijos recursivamente)
                 nodeType === 'GRI' ?
-                    containedNodes.map((cnUid, index) => renderContainedNode(cnUid, allNodes, 1, index === containedNodes.length - 1, '')) :
+                    containedNodes.map((cnUid) => renderContainedNode(cnUid, allNodes, 1)) :
                     React.createElement(React.Fragment, null,
-                        clms.map((clmUid, index) => renderContainedNode(clmUid, allNodes, 1, index === clms.length - 1 && directEvds.length === 0, '')),
-                        directEvds.map((evdUid, index) => renderContainedNode(evdUid, allNodes, 1, index === directEvds.length - 1, ''))
+                        clms.map((clmUid) => renderContainedNode(clmUid, allNodes, 1)),
+                        directEvds.map((evdUid) => renderContainedNode(evdUid, allNodes, 1))
                     ),
 
                 // Mensaje si no hay ramas
@@ -6837,36 +6845,40 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e3f2fd',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
+                            fontWeight: 'bold',
                             color: DiscourseGraphToolkit.THEME?.colors?.primaryHover || '#2196F3'
                         }
-                    }, `📝 ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
+                    }, `QUE: ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
                             backgroundColor: '#ede9f6',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
+                            fontWeight: 'bold',
                             color: '#6c5c99'
                         }
-                    }, `📂 ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
+                    }, `GRI: ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
                             backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#e8f5e9',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
+                            fontWeight: 'bold',
                             color: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'
                         }
-                    }, `📌 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
+                    }, `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
                     React.createElement('span', {
                         style: {
                             padding: '0.125rem 0.375rem',
                             backgroundColor: '#fff3e0',
                             borderRadius: '0.5rem',
                             fontSize: '0.625rem',
+                            fontWeight: 'bold',
                             color: '#ff9800'
                         }
-                    }, `📎 ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
+                    }, `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
                 )
             )
         ),
