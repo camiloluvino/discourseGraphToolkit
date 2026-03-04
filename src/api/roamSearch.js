@@ -39,6 +39,36 @@ DiscourseGraphToolkit.queryDiscoursePages = async function (projectName, selecte
 };
 
 /**
+ * Reverse-lookup: dado un set de UIDs de nodos hijo (CLM/EVD),
+ * encuentra los nodos QUE/GRI padre que los referencian vía block refs.
+ * @param {Array<string>} childUids - UIDs de nodos CLM/EVD
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.findParentRootNodes = async function (childUids) {
+    if (!childUids || childUids.length === 0) return [];
+
+    const query = `[:find ?page-title ?page-uid
+                    :in $ [?ref-uid ...]
+                    :where
+                    [?ref-page :block/uid ?ref-uid]
+                    [?block :block/refs ?ref-page]
+                    [?block :block/page ?page]
+                    [?page :node/title ?page-title]
+                    [?page :block/uid ?page-uid]
+                    (or
+                      [(clojure.string/starts-with? ?page-title "[[QUE]]")]
+                      [(clojure.string/starts-with? ?page-title "[[GRI]]")])]`;
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query, childUids);
+        return Array.from(new Map(results.map(r => [r[1], { pageTitle: r[0], pageUid: r[1] }])).values());
+    } catch (e) {
+        console.warn("Error finding parent root nodes:", e);
+        return [];
+    }
+};
+
+/**
  * Obtiene todas las preguntas (QUE) del grafo
  * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
  */

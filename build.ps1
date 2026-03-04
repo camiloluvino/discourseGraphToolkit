@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.5.32"
+$version = "1.5.33"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(

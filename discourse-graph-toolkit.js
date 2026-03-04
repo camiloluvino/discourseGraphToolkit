@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.32
- * Bundled build: 2026-03-04 15:49:26
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.33
+ * Bundled build: 2026-03-04 16:33:58
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.32";
+    DiscourseGraphToolkit.VERSION = "1.5.33";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1515,6 +1515,36 @@ DiscourseGraphToolkit.queryDiscoursePages = async function (projectName, selecte
     const pages = await this.findPagesWithProject(projectName);
     const prefixes = selectedTypes.map(t => `[[${t}]]`);
     return pages.filter(p => prefixes.some(prefix => p.pageTitle.startsWith(prefix)));
+};
+
+/**
+ * Reverse-lookup: dado un set de UIDs de nodos hijo (CLM/EVD),
+ * encuentra los nodos QUE/GRI padre que los referencian vía block refs.
+ * @param {Array<string>} childUids - UIDs de nodos CLM/EVD
+ * @returns {Promise<Array<{pageTitle: string, pageUid: string}>>}
+ */
+DiscourseGraphToolkit.findParentRootNodes = async function (childUids) {
+    if (!childUids || childUids.length === 0) return [];
+
+    const query = `[:find ?page-title ?page-uid
+                    :in $ [?ref-uid ...]
+                    :where
+                    [?ref-page :block/uid ?ref-uid]
+                    [?block :block/refs ?ref-page]
+                    [?block :block/page ?page]
+                    [?page :node/title ?page-title]
+                    [?page :block/uid ?page-uid]
+                    (or
+                      [(clojure.string/starts-with? ?page-title "[[QUE]]")]
+                      [(clojure.string/starts-with? ?page-title "[[GRI]]")])]`;
+
+    try {
+        const results = await window.roamAlphaAPI.data.async.q(query, childUids);
+        return Array.from(new Map(results.map(r => [r[1], { pageTitle: r[0], pageUid: r[1] }])).values());
+    } catch (e) {
+        console.warn("Error finding parent root nodes:", e);
+        return [];
+    }
 };
 
 /**
@@ -6979,13 +7009,29 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
 
-            setPreviewPages(uniquePages);
-
             // Inicializar orderedQuestions con los nodos raíz (QUE y GRI) encontrados
-            const rootPages = uniquePages.filter(p => {
+            let rootPages = uniquePages.filter(p => {
                 const type = DiscourseGraphToolkit.getNodeType(p.pageTitle);
                 return type === 'QUE' || type === 'GRI';
             }).map(p => ({ uid: p.pageUid, title: p.pageTitle }));
+
+            // Fallback: si no hay QUE/GRI pero sí hay CLM/EVD, buscar padres
+            if (rootPages.length === 0 && uniquePages.length > 0) {
+                setExportStatus("Buscando nodos raíz padre...");
+                const childUids = uniquePages.map(p => p.pageUid);
+                const parentRoots = await DiscourseGraphToolkit.findParentRootNodes(childUids);
+                if (parentRoots.length > 0) {
+                    // Agregar padres a la lista de páginas
+                    for (const parent of parentRoots) {
+                        if (!uniquePages.some(p => p.pageUid === parent.pageUid)) {
+                            uniquePages.push(parent);
+                        }
+                    }
+                    rootPages = parentRoots.map(p => ({ uid: p.pageUid, title: p.pageTitle }));
+                }
+            }
+
+            setPreviewPages(uniquePages);
 
             // Solo actualizar si las QUEs son diferentes
             const currentUIDs = orderedQuestions.map(q => q.uid);
@@ -7065,11 +7111,123 @@ DiscourseGraphToolkit.ExportTab = function () {
             }
         });
 
-        const questions = result.data.filter(node => {
+        let questions = result.data.filter(node => {
             const type = DiscourseGraphToolkit.getNodeType(node.title);
             return (type === 'QUE' || type === 'GRI') && !childNodeUids.has(node.uid);
         });
 
+        // Fallback: si no hay QUE/GRI pero hay CLM/EVD, buscar nodos raíz padre
+        if (questions.length === 0 && result.data.length > 0) {
+            setExportStatus("Buscando nodos raíz padre...");
+            const childUids = result.data.map(n => n.uid);
+            const parentRoots = await DiscourseGraphToolkit.findParentRootNodes(childUids);
+
+            if (parentRoots.length > 0) {
+                const parentUids = parentRoots.map(p => p.pageUid).filter(uid => !allNodes[uid]);
+                if (parentUids.length > 0) {
+                    setExportStatus(`Cargando ${parentUids.length} nodos raíz padre...`);
+                    const parentData = await DiscourseGraphToolkit.exportPagesNative(parentUids, null, null, anyContent, false);
+                    parentData.data.forEach(node => {
+                        if (node.uid) {
+                            node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                            node.data = node;
+                            allNodes[node.uid] = node;
+                        }
+                    });
+
+                    // Re-colectar dependencias de los nuevos padres
+                    const newDeps = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(
+                        parentUids.filter(uid => allNodes[uid]).map(uid => allNodes[uid])
+                    );
+                    const newMissing = [...newDeps].filter(uid => !allNodes[uid]);
+                    if (newMissing.length > 0) {
+                        const extraData2 = await DiscourseGraphToolkit.exportPagesNative(newMissing, null, null, anyContent, false);
+                        extraData2.data.forEach(node => {
+                            if (node.uid) {
+                                node.type = DiscourseGraphToolkit.getNodeType(node.title);
+                                node.data = node;
+                                allNodes[node.uid] = node;
+                            }
+                        });
+                    }
+
+                    // Re-mapear relaciones con todos los nodos
+                    DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
+
+                    // Recalcular childNodeUids
+                    childNodeUids.clear();
+                    Object.values(allNodes).forEach(node => {
+                        if (node.type === 'GRI' && node.contained_nodes) {
+                            node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+                        }
+                    });
+                }
+
+                // Re-filtrar para nodos raíz
+                questions = Object.values(allNodes).filter(node => {
+                    const type = DiscourseGraphToolkit.getNodeType(node.title);
+                    return (type === 'QUE' || type === 'GRI') && !childNodeUids.has(node.uid);
+                });
+            }
+        }
+
+        // Podar ramas: filtrar para solo incluir ramas relevantes al proyecto seleccionado
+        if (questions.length > 0) {
+            // Obtener UIDs de páginas NATIVAS del proyecto (sin contaminación del fallback)
+            const trueProjectPages = [];
+            for (const p of pNames) {
+                const pages = await DiscourseGraphToolkit.findPagesWithProject(p);
+                trueProjectPages.push(...pages);
+            }
+            const projectPageUids = new Set(trueProjectPages.map(p => p.pageUid));
+            const relevanceCache = {};
+
+            const isRelevantToProject = (uid, visited) => {
+                if (relevanceCache[uid] !== undefined) return relevanceCache[uid];
+                if (!visited) visited = {};
+                if (visited[uid]) return false;
+                visited[uid] = true;
+
+                if (projectPageUids.has(uid)) {
+                    relevanceCache[uid] = true;
+                    return true;
+                }
+
+                const node = allNodes[uid];
+                if (!node) { relevanceCache[uid] = false; return false; }
+
+                const children = [].concat(
+                    node.related_clms || [],
+                    node.direct_evds || [],
+                    node.supporting_clms || [],
+                    node.related_evds || [],
+                    node.contained_nodes || []
+                );
+
+                for (let i = 0; i < children.length; i++) {
+                    if (isRelevantToProject(children[i], Object.assign({}, visited))) {
+                        relevanceCache[uid] = true;
+                        return true;
+                    }
+                }
+
+                relevanceCache[uid] = false;
+                return false;
+            };
+
+            // Podar si algún nodo raíz NO es nativo del proyecto (fue agregado por fallback)
+            const needsPruning = questions.some(q => !projectPageUids.has(q.uid));
+            if (needsPruning) {
+                for (const uid in allNodes) {
+                    const node = allNodes[uid];
+                    if (node.related_clms) node.related_clms = node.related_clms.filter(u => isRelevantToProject(u));
+                    if (node.direct_evds) node.direct_evds = node.direct_evds.filter(u => isRelevantToProject(u));
+                    if (node.supporting_clms) node.supporting_clms = node.supporting_clms.filter(u => isRelevantToProject(u));
+                    if (node.related_evds) node.related_evds = node.related_evds.filter(u => isRelevantToProject(u));
+                    if (node.contained_nodes) node.contained_nodes = node.contained_nodes.filter(u => isRelevantToProject(u));
+                }
+            }
+        }
         // Inicializar orden de preguntas si está vacío o tiene UIDs diferentes
         const currentUIDs = orderedQuestions.map(q => q.uid);
         const newUIDs = questions.map(q => q.uid);

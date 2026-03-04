@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.32**
+**v1.5.33**
 
 ## Estado de Funcionalidades
 
@@ -20,8 +20,15 @@
 | **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda, escaneo de proyectos en todos los niveles y filtrado selectivo de ramas |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
-| Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
+| Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.33 (Marzo 2026)
+- **Fix: Exportación de sub-proyectos sin nodos QUE/GRI propios.**
+  - Cuando un sub-proyecto (ej. `tesis/afectos/definiciones/Ahmed`) contiene solo nodos CLM y EVD, la exportación ahora encuentra automáticamente los nodos QUE/GRI padre que los referencian.
+  - **Reverse-Lookup Datalog:** Nueva función `findParentRootNodes` que traza las referencias hacia arriba (CLM → QUE) usando `block.refs` en Roam.
+  - **Fallback en Export:** Si `prepareExportData` no encuentra nodos raíz (QUE/GRI) entre las páginas del proyecto, ejecuta el reverse-lookup, carga los padres, reconstruye las relaciones y genera el markdown correctamente.
+  - **Preview consistente:** La misma lógica de fallback se aplica en `handlePreview`, mostrando correctamente el conteo de nodos raíz descubiertos.
 
 ### v1.5.32 (Marzo 2026)
 - **Vista Panorámica: Escaneo de Proyectos y Filtrado de Ramas.**
