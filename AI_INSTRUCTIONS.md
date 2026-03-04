@@ -175,9 +175,10 @@ blockString.includes('`' + '``')
 >
 > El plugin utiliza un sistema de diseño basado en utilidades unificado en `src/ui/styles.js`.
 >
-> 1. **Clases de Utilidad:** Usa clases como `.dgt-flex-row`, `.dgt-card`, `.dgt-mb-sm`.
+> > 1. **Clases de Utilidad:** Usa clases como `.dgt-flex-row`, `.dgt-card`, `.dgt-mb-sm`.
 > 2. **Variables CSS:** Usa variables nativas para colores (ej. `var(--dgt-bg-primary)`, `var(--dgt-accent-green)`).
 > 3. **Nomenclatura:** Todas las clases propias deben llevar el prefijo `.dgt-`.
+> 4. **Referencia de Implementación:** Consulta `BranchesTab.js` y `PanoramicTab.js` para ver ejemplos de cómo representar jerarquías complejas usando el design system en lugar de estilos inline.
 >
 > Si necesitas un estilo nuevo, agrégalo a `src/ui/styles.js` y úsalo mediante `className`.
 

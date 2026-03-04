@@ -93,7 +93,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
     // --- Contadores ---
     const counts = React.useMemo(() => ({
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
-        specialized: bulkVerificationResults.filter(r => r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
         missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
     }), [bulkVerificationResults]);
@@ -153,10 +152,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent').length;
-            const specialized = results.filter(r => r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            const statusMsg = `✅ ${coherent} coherentes, ${specialized} esp., ${different} dif., ${missing} sin proy.`;
+            const statusMsg = `✅ ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
@@ -307,7 +305,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     }
                 },
                     React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
-                        result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
+                        result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
                         React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
                             parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
@@ -354,7 +352,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
             },
                 React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
-                React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
@@ -469,8 +466,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
                 React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
-                React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                    `🔀 ${selectedBulkQuestion.coherence.specialized.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-error' },

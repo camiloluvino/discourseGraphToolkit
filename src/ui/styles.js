@@ -359,6 +359,44 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             background-color: #ffffff;
         }
 
+        /* Panoramic Specific Utilities */
+        .dgt-panoramic-root {
+            border-left: 3px solid var(--dgt-border-color);
+            border-radius: 0 var(--dgt-radius-sm) var(--dgt-radius-sm) 0;
+            background-color: var(--dgt-bg-primary);
+            transition: var(--dgt-transition-fast);
+            margin-bottom: var(--dgt-spacing-sm);
+            padding-left: var(--dgt-spacing-sm);
+        }
+        .dgt-panoramic-root:hover {
+            box-shadow: var(--dgt-shadow-md);
+            border-color: var(--dgt-border-focus);
+            background-color: #ffffff;
+        }
+        .dgt-panoramic-root-que { border-left-color: var(--dgt-accent-blue); }
+        .dgt-panoramic-root-gri { border-left-color: var(--dgt-accent-purple); }
+        
+        .dgt-panoramic-node-row {
+            display: flex;
+            align-items: flex-start;
+            padding: 4px;
+            margin-left: -4px;
+            cursor: pointer;
+            transition: var(--dgt-transition-fast);
+            border-radius: var(--dgt-radius-sm);
+            line-height: 1.4;
+        }
+        .dgt-panoramic-node-row.has-children:hover {
+            background-color: var(--dgt-bg-secondary);
+        }
+        
+        .dgt-panoramic-branch-line {
+            border-left: 1px solid var(--dgt-border-color);
+            margin-left: 1rem;
+            padding-left: 0.5rem;
+            padding-top: 0.125rem;
+        }
+
         /* Scrollbars */
         .dgt-scrollable::-webkit-scrollbar {
             width: 8px;

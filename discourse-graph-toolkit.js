@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.31
- * Bundled build: 2026-03-04 10:08:29
+ * Bundled build: 2026-03-04 13:45:13
  */
 
 (function () {
@@ -4192,6 +4192,44 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             background-color: #ffffff;
         }
 
+        /* Panoramic Specific Utilities */
+        .dgt-panoramic-root {
+            border-left: 3px solid var(--dgt-border-color);
+            border-radius: 0 var(--dgt-radius-sm) var(--dgt-radius-sm) 0;
+            background-color: var(--dgt-bg-primary);
+            transition: var(--dgt-transition-fast);
+            margin-bottom: var(--dgt-spacing-sm);
+            padding-left: var(--dgt-spacing-sm);
+        }
+        .dgt-panoramic-root:hover {
+            box-shadow: var(--dgt-shadow-md);
+            border-color: var(--dgt-border-focus);
+            background-color: #ffffff;
+        }
+        .dgt-panoramic-root-que { border-left-color: var(--dgt-accent-blue); }
+        .dgt-panoramic-root-gri { border-left-color: var(--dgt-accent-purple); }
+        
+        .dgt-panoramic-node-row {
+            display: flex;
+            align-items: flex-start;
+            padding: 4px;
+            margin-left: -4px;
+            cursor: pointer;
+            transition: var(--dgt-transition-fast);
+            border-radius: var(--dgt-radius-sm);
+            line-height: 1.4;
+        }
+        .dgt-panoramic-node-row.has-children:hover {
+            background-color: var(--dgt-bg-secondary);
+        }
+        
+        .dgt-panoramic-branch-line {
+            border-left: 1px solid var(--dgt-border-color);
+            margin-left: 1rem;
+            padding-left: 0.5rem;
+            padding-top: 0.125rem;
+        }
+
         /* Scrollbars */
         .dgt-scrollable::-webkit-scrollbar {
             width: 8px;
@@ -5583,7 +5621,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
     // --- Contadores ---
     const counts = React.useMemo(() => ({
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
-        specialized: bulkVerificationResults.filter(r => r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
         missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
     }), [bulkVerificationResults]);
@@ -5643,10 +5680,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent').length;
-            const specialized = results.filter(r => r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
-            const statusMsg = `✅ ${coherent} coherentes, ${specialized} esp., ${different} dif., ${missing} sin proy.`;
+            const statusMsg = `✅ ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
         } catch (e) {
@@ -5797,7 +5833,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     }
                 },
                     React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
-                        result.status === 'coherent' ? '✅' : result.status === 'specialized' ? '🔀' : result.status === 'different' ? '⚠️' : '❌'),
+                        result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
                         React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
                             parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
@@ -5844,7 +5880,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
             },
                 React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
-                React.createElement(Badge, { emoji: '🔀', count: counts.specialized, type: 'info', title: 'Nodos Especializados' }),
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
@@ -5959,8 +5994,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
                 React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
                     `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
-                React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                    `🔀 ${selectedBulkQuestion.coherence.specialized.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-error' },
@@ -6313,12 +6346,44 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             });
 
-            // 6. Obtener proyectos de cada nodo raíz
+            // 6. Obtener proyectos de *todos* los nodos cargados en allNodes
             setLoadStatus('⏳ Obteniendo proyectos...');
-            for (const q of rootNodes) {
-                const project = await DiscourseGraphToolkit.getProjectFromNode(q.pageUid);
-                if (allNodes[q.pageUid]) {
-                    allNodes[q.pageUid].project = project;
+            const allNodeUids = Object.keys(allNodes);
+
+            // Usar query en bloque para mayor eficiencia
+            const PM = DiscourseGraphToolkit.ProjectManager;
+            const escapedPattern = PM.getEscapedFieldPattern();
+            const projectQuery = `[:find ?page-uid ?string
+                                   :in $ [?page-uid ...]
+                                   :where 
+                                   [?page :block/uid ?page-uid]
+                                   [?block :block/page ?page]
+                                   [?block :block/string ?string]
+                                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+            try {
+                const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, allNodeUids);
+                const fieldPattern = PM.getFieldPattern();
+                const regex = PM.getFieldRegex();
+
+                projectResults.forEach(r => {
+                    const docUid = r[0];
+                    const blockString = r[1];
+                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                        const match = blockString.match(regex);
+                        if (match && allNodes[docUid]) {
+                            allNodes[docUid].project = match[1].trim();
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn("No se pudieron obtener los proyectos en bulk:", e);
+                // Fallback: procesar uno a uno los rootNodes
+                for (const q of rootNodes) {
+                    const project = await DiscourseGraphToolkit.getProjectFromNode(q.pageUid);
+                    if (allNodes[q.pageUid]) {
+                        allNodes[q.pageUid].project = project;
+                    }
                 }
             }
 
@@ -6361,14 +6426,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         },
             // CLM node
             React.createElement('span', {
-                style: {
-                    color: '#4CAF50',
-                    padding: '0.125rem 0.25rem',
-                    borderRadius: '0.125rem',
-                    backgroundColor: '#e8f5e9',
-                    fontSize: '0.75rem',
-                    whiteSpace: 'nowrap'
-                },
+                className: 'dgt-badge dgt-badge-success',
+                style: { fontSize: '0.75rem', textTransform: 'none', fontWeight: 'normal', padding: '2px 4px' },
                 title: clm.title
             }, React.createElement(React.Fragment, null, "📌 ", renderMarkdownTitle(cleanTitle(clm.title, 'CLM')))),
 
@@ -6380,15 +6439,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     if (!evd) return null;
                     return React.createElement('span', {
                         key: evdUid,
-                        style: {
-                            color: '#ff9800',
-                            padding: '0.125rem 0.25rem',
-                            borderRadius: '0.125rem',
-                            backgroundColor: '#fff3e0',
-                            fontSize: '0.6875rem',
-                            marginRight: i < clm.related_evds.length - 1 ? '0.25rem' : 0,
-                            whiteSpace: 'nowrap'
-                        },
+                        className: 'dgt-badge dgt-badge-warning',
+                        style: { marginRight: i < clm.related_evds.length - 1 ? '0.25rem' : 0, textTransform: 'none', fontWeight: 'normal', fontSize: '0.6875rem', padding: '2px 4px' },
                         title: evd.title
                     }, React.createElement(React.Fragment, null, "📎 ", renderMarkdownTitle(cleanTitle(evd.title, 'EVD').substring(0, 20))));
                 }),
@@ -6410,7 +6462,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         );
     };
 
-    const renderContainedNode = (uid, allNodes, depth = 1) => {
+    const renderContainedNode = (uid, allNodes, depth = 1, parentUid = null) => {
         const node = allNodes[uid];
         if (!node) return null;
 
@@ -6418,8 +6470,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (depth > maxDepth) return React.createElement('div', { style: { color: '#999', fontSize: '0.6875rem', paddingLeft: '1rem' } }, '...');
 
         const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-        const color = nodeType === 'QUE' ? '#2196F3' : nodeType === 'GRI' ? '#6c5c99' : nodeType === 'EVD' ? '#ff9800' : '#4CAF50';
-        const badgeBg = nodeType === 'QUE' ? '#e3f2fd' : nodeType === 'GRI' ? '#ede9f6' : nodeType === 'EVD' ? '#fff3e0' : '#e8f5e9';
+        const badgeClass = nodeType === 'QUE' ? 'dgt-badge-neutral' : nodeType === 'GRI' ? 'dgt-badge-info' : nodeType === 'EVD' ? 'dgt-badge-warning' : 'dgt-badge-success';
 
         // Determinar ramas/hijos según el tipo
         let childrenUids = [];
@@ -6430,62 +6481,52 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const hasChildren = childrenUids.length > 0;
         const isExpanded = expandedQuestions[uid] === true;
 
+        // Determinar si este nodo es una especialización válida de su padre
+        let isSpecialized = false;
+        if (parentUid && allNodes[parentUid]) {
+            const parentProject = allNodes[parentUid].project;
+            const nodeProject = node.project;
+            if (parentProject && nodeProject && nodeProject !== parentProject && nodeProject.startsWith(parentProject + '/')) {
+                isSpecialized = true;
+            }
+        }
+
         return React.createElement('div', {
             key: uid,
-            style: {
-                marginLeft: depth === 1 ? '0' : '1rem',
-                borderLeft: depth === 1 ? 'none' : '1px solid #e0e0e0',
-                paddingLeft: depth === 1 ? '0' : '0.5rem',
-                paddingTop: '0.125rem'
-            }
+            className: depth === 1 ? '' : 'dgt-panoramic-branch-line'
         },
             // Fila del nodo actual
             React.createElement('div', {
                 onClick: hasChildren ? (e) => { e.stopPropagation(); toggleQuestion(uid); } : undefined,
-                style: {
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    marginBottom: '0.25rem',
-                    cursor: hasChildren ? 'pointer' : 'default',
-                    lineHeight: '1.4'
-                }
+                className: `dgt-panoramic-node-row ${hasChildren ? 'has-children' : ''}`,
+                style: { cursor: hasChildren ? 'pointer' : 'default' }
             },
                 // Icono de expandir/colapsar (espacio reservado aunque no tenga hijos)
                 React.createElement('span', {
+                    className: 'dgt-text-muted',
                     style: {
-                        color: hasChildren ? '#666' : 'transparent',
-                        fontSize: '0.6rem',
-                        width: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        marginTop: '0.25rem',
-                        flexShrink: 0
+                        color: hasChildren ? 'var(--dgt-text-muted)' : 'transparent',
+                        fontSize: '0.6rem', width: '0.75rem', display: 'flex', alignItems: 'center', marginTop: '0.25rem', flexShrink: 0
                     }
                 }, isExpanded ? '▼' : '▶'),
 
                 // Badge de tipo (para todos)
                 React.createElement('span', {
-                    style: {
-                        fontSize: '0.5rem',
-                        fontWeight: 'bold',
-                        color: color,
-                        backgroundColor: badgeBg,
-                        padding: '0.125rem 0.25rem',
-                        borderRadius: '0.125rem',
-                        marginRight: '0.375rem',
-                        letterSpacing: '0.03em',
-                        flexShrink: 0,
-                        marginTop: '0.125rem'
-                    }
+                    className: `dgt-badge ${badgeClass} dgt-mr-xs`,
+                    style: { fontSize: '0.5625rem', flexShrink: 0, marginTop: '2px', padding: '2px 4px' }
                 }, nodeType),
+
+                // Indicador de nodo especializado
+                isSpecialized && React.createElement('span', {
+                    className: 'dgt-mr-xs',
+                    style: { fontSize: '0.625rem', marginTop: '2px', display: 'flex' },
+                    title: `Nodo Especializado: Su proyecto (${node.project}) es un sub-proyecto de su nodo padre (${allNodes[parentUid]?.project}).`
+                }, '🔀'),
 
                 // Título del nodo
                 React.createElement('span', {
-                    style: {
-                        color: '#333',
-                        fontSize: '0.75rem',
-                        wordBreak: 'break-word'
-                    },
+                    className: 'dgt-text-primary',
+                    style: { fontSize: '0.8125rem', wordBreak: 'break-word', flex: 1 },
                     title: node.title
                 }, renderMarkdownTitle(cleanTitle(node.title, nodeType)))
             ),
@@ -6493,7 +6534,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             // Hijos recursivos
             hasChildren && isExpanded && React.createElement('div', null,
                 childrenUids.map((childUid) =>
-                    renderContainedNode(childUid, allNodes, depth + 1)
+                    renderContainedNode(childUid, allNodes, depth + 1, uid)
                 )
             )
         );
@@ -6518,114 +6559,57 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             totalBranches = clms.length + directEvds.length;
         }
 
-        const borderColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
-        const textColor = nodeType === 'GRI' ? '#6c5c99' : '#2196F3';
-        const badgeBg = nodeType === 'GRI' ? '#ede9f6' : '#e3f2fd';
+        const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
         return React.createElement('div', {
             key: question.uid,
-            style: {
-                marginBottom: '0.5rem',
-                borderLeft: `3px solid ${borderColor}`,
-                paddingLeft: '0.75rem',
-                backgroundColor: '#fafafa',
-                borderRadius: '0 0.25rem 0.25rem 0'
-            }
+            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()}`
         },
             // Header del nodo raíz
             React.createElement('div', {
                 onClick: () => toggleQuestion(question.uid),
-                style: {
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.375rem',
-                    padding: '0.5rem 0',
-                    cursor: 'pointer',
-                    lineHeight: '1.4'
-                }
+                className: 'dgt-panoramic-node-row',
+                style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
                 // Botones de reordenamiento (solo si hay proyecto seleccionado)
                 selectedProject && React.createElement('div', {
-                    style: { display: 'flex', flexDirection: 'column', marginRight: '0.25rem' },
+                    className: 'dgt-flex-column dgt-mr-xs',
                     onClick: (e) => e.stopPropagation()
                 },
                     React.createElement('button', {
                         onClick: () => moveQuestionUp(orderedQuestionUIDs.indexOf(question.uid)),
                         disabled: orderedQuestionUIDs.indexOf(question.uid) === 0,
-                        style: {
-                            padding: '0 0.25rem',
-                            fontSize: '0.5rem',
-                            lineHeight: '1',
-                            cursor: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 'not-allowed' : 'pointer',
-                            opacity: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 0.3 : 1,
-                            border: '1px solid #ccc',
-                            borderRadius: '2px',
-                            backgroundColor: '#fff',
-                            marginBottom: '1px'
-                        }
+                        className: 'dgt-btn-ghost dgt-text-xs',
+                        style: { padding: 0, lineHeight: 1, marginBottom: '2px', opacity: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 0.3 : 1 }
                     }, '▲'),
                     React.createElement('button', {
                         onClick: () => moveQuestionDown(orderedQuestionUIDs.indexOf(question.uid)),
                         disabled: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1,
-                        style: {
-                            padding: '0 0.25rem',
-                            fontSize: '0.5rem',
-                            lineHeight: '1',
-                            cursor: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 'not-allowed' : 'pointer',
-                            opacity: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 0.3 : 1,
-                            border: '1px solid #ccc',
-                            borderRadius: '2px',
-                            backgroundColor: '#fff'
-                        }
+                        className: 'dgt-btn-ghost dgt-text-xs',
+                        style: { padding: 0, lineHeight: 1, opacity: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 0.3 : 1 }
                     }, '▼')
                 ),
                 React.createElement('span', {
-                    style: {
-                        color: '#666',
-                        fontSize: '0.6875rem',
-                        marginTop: '0.2rem'
-                    }
+                    className: 'dgt-text-muted dgt-text-xs',
+                    style: { marginTop: '4px', width: '12px', textAlign: 'center' }
                 }, isExpanded ? '▼' : '▶'),
                 // Badge de tipo (QUE/GRI)
                 React.createElement('span', {
-                    style: {
-                        fontSize: '0.5625rem',
-                        fontWeight: 'bold',
-                        color: textColor,
-                        backgroundColor: badgeBg,
-                        padding: '0.0625rem 0.3rem',
-                        borderRadius: '0.1875rem',
-                        border: `1px solid ${borderColor}40`,
-                        letterSpacing: '0.03em',
-                        flexShrink: 0,
-                        marginTop: '0.125rem'
-                    }
+                    className: `dgt-badge ${badgeClass}`,
+                    style: { flexShrink: 0, marginTop: '2px' }
                 }, nodeType),
                 React.createElement('span', {
-                    style: {
-                        color: '#222',
-                        fontWeight: 'bold',
-                        fontSize: '0.8125rem'
-                    },
+                    className: 'dgt-text-primary dgt-text-bold',
+                    style: { fontSize: '0.8125rem', flex: 1, wordBreak: 'break-word' },
                     title: question.title
                 }, renderMarkdownTitle(cleanTitle(question.title, nodeType))),
                 React.createElement('span', {
-                    style: {
-                        fontSize: '0.625rem',
-                        color: '#999',
-                        backgroundColor: badgeBg,
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.625rem'
-                    }
+                    className: 'dgt-badge dgt-badge-neutral',
+                    style: { fontSize: '0.625rem' }
                 }, `${totalBranches} rama${totalBranches !== 1 ? 's' : ''}`),
                 question.project && React.createElement('span', {
-                    style: {
-                        fontSize: '0.625rem',
-                        color: '#666',
-                        backgroundColor: '#f5f5f5',
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.125rem'
-                    }
+                    className: 'dgt-badge dgt-badge-neutral',
+                    style: { fontSize: '0.625rem', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)' }
                 }, `${question.project}`)
             ),
 
@@ -6635,15 +6619,15 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             },
                 // Renderizar todos los nodos contenidos directamente (que se encargarán de sus propios hijos recursivamente)
                 nodeType === 'GRI' ?
-                    containedNodes.map((cnUid) => renderContainedNode(cnUid, allNodes, 1)) :
+                    containedNodes.map((cnUid) => renderContainedNode(cnUid, allNodes, 1, question.uid)) :
                     React.createElement(React.Fragment, null,
-                        clms.map((clmUid) => renderContainedNode(clmUid, allNodes, 1)),
-                        directEvds.map((evdUid) => renderContainedNode(evdUid, allNodes, 1))
+                        clms.map((clmUid) => renderContainedNode(clmUid, allNodes, 1, question.uid)),
+                        directEvds.map((evdUid) => renderContainedNode(evdUid, allNodes, 1, question.uid))
                     ),
 
                 // Mensaje si no hay ramas
                 totalBranches === 0 && React.createElement('span', {
-                    style: { color: '#999', fontSize: '0.75rem', fontStyle: 'italic', paddingLeft: '1.5rem' }
+                    className: 'dgt-text-muted dgt-text-xs', style: { fontStyle: 'italic', paddingLeft: '1.5rem' }
                 }, nodeType === 'GRI' ? 'Sin nodos contenidos' : 'Sin respuestas')
             )
         );
@@ -6700,60 +6684,30 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     const hierarchicalProjects = getHierarchicalProjects();
 
     // --- Render ---
-    return React.createElement('div', null,
+    return React.createElement('div', { className: 'dgt-container' },
         // Header con layout de dos columnas: título a la izquierda, controles a la derecha
-        React.createElement('div', {
-            style: {
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '0.75rem',
-                gap: '1rem'
-            }
-        },
+        React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm dgt-gap-md', style: { alignItems: 'flex-start' } },
             // Columna izquierda: título y descripción
             React.createElement('div', { style: { flex: '1' } },
-                React.createElement('h3', { style: { marginTop: 0, marginBottom: '0.25rem' } }, 'Vista Panorámica'),
-                React.createElement('p', { style: { color: '#666', margin: 0, fontSize: '0.875rem' } },
+                React.createElement('h3', { className: 'dgt-mb-xs', style: { marginTop: 0 } }, 'Vista Panorámica'),
+                React.createElement('p', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-0' },
                     'Vista sintética de todas las ramas del grafo de discurso.')
             ),
             // Columna derecha: controles compactos
-            React.createElement('div', {
-                style: {
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: '0.375rem',
-                    flexShrink: 0
-                }
-            },
+            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end', flexShrink: 0 } },
                 // Fila 1: Botón cargar + dropdown
-                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+                React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm' },
                     React.createElement('button', {
                         onClick: handleLoadPanoramic,
                         disabled: isLoading,
-                        style: {
-                            padding: '0.375rem 0.75rem',
-                            backgroundColor: isLoading ? (DiscourseGraphToolkit.THEME?.colors?.neutral || '#ccc') : (DiscourseGraphToolkit.THEME?.colors?.primary || '#2196F3'),
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: isLoading ? 'not-allowed' : 'pointer',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold'
-                        }
+                        className: 'dgt-btn dgt-btn-primary'
                     }, isLoading ? '⏳...' : '🔄 Cargar'),
                     // Filtro de proyecto (jerárquico)
                     panoramicData && hierarchicalProjects.length > 0 && React.createElement('select', {
                         value: selectedProject,
                         onChange: (e) => setSelectedProject(e.target.value),
-                        style: {
-                            padding: '0.25rem 0.375rem',
-                            border: '1px solid #ccc',
-                            borderRadius: '0.25rem',
-                            fontSize: '0.6875rem',
-                            maxWidth: '250px'
-                        }
+                        className: 'dgt-input dgt-text-xs',
+                        style: { padding: '4px 6px', maxWidth: '250px' }
                     },
                         React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
                         hierarchicalProjects.map(p => {
@@ -6768,7 +6722,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     )
                 ),
                 // Fila 2: Botones expandir/colapsar
-                panoramicData && React.createElement('div', { style: { display: 'flex', gap: '0.375rem' } },
+                panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
                     React.createElement('button', {
                         onClick: () => {
                             const allExpanded = {};
@@ -6787,141 +6741,65 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             setExpandedQuestions(allExpanded);
                             DiscourseGraphToolkit.savePanoramicExpandedQuestions(allExpanded);
                         },
-                        style: {
-                            padding: '0.25rem 0.5rem',
-                            border: '1px solid #ccc',
-                            borderRadius: '0.25rem',
-                            cursor: 'pointer',
-                            fontSize: '0.6875rem',
-                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
-                        }
+                        className: 'dgt-btn-ghost dgt-text-xs',
+                        style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
                     }, '➕ Expandir'),
                     React.createElement('button', {
                         onClick: () => {
                             setExpandedQuestions({});
                             DiscourseGraphToolkit.savePanoramicExpandedQuestions({});
                         },
-                        style: {
-                            padding: '0.25rem 0.5rem',
-                            border: '1px solid #ccc',
-                            borderRadius: '0.25rem',
-                            cursor: 'pointer',
-                            fontSize: '0.6875rem',
-                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondary || '#f5f5f5'
-                        }
+                        className: 'dgt-btn-ghost dgt-text-xs',
+                        style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
                     }, '➖ Colapsar')
                 ),
                 // Fila 3: Cache info (si existe)
                 cacheTimestamp && !isLoading && React.createElement('div', {
-                    style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.375rem',
-                        fontSize: '0.625rem',
-                        color: DiscourseGraphToolkit.THEME?.colors?.warning || '#f57c00'
-                    }
+                    className: 'dgt-flex-row dgt-text-warning dgt-gap-xs',
+                    style: { fontSize: '0.625rem' }
                 },
                     React.createElement('span', null, `📦 ${formatTimeAgo(cacheTimestamp)}`),
                     React.createElement('button', {
                         onClick: handleLoadPanoramic,
-                        style: {
-                            padding: '0.125rem 0.375rem',
-                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.warning || '#ff9800',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: 'pointer',
-                            fontSize: '0.5625rem'
-                        }
+                        className: 'dgt-btn-ghost dgt-text-xs',
+                        style: { padding: '2px 4px' }
                     }, '🔄')
                 ),
                 // Fila 4: Estadísticas compactas
-                panoramicData && React.createElement('div', {
-                    style: { display: 'flex', gap: '0.375rem' }
-                },
-                    React.createElement('span', {
-                        style: {
-                            padding: '0.125rem 0.375rem',
-                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.secondaryHover || '#e3f2fd',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.625rem',
-                            fontWeight: 'bold',
-                            color: DiscourseGraphToolkit.THEME?.colors?.primaryHover || '#2196F3'
-                        }
-                    }, `QUE: ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
-                    React.createElement('span', {
-                        style: {
-                            padding: '0.125rem 0.375rem',
-                            backgroundColor: '#ede9f6',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.625rem',
-                            fontWeight: 'bold',
-                            color: '#6c5c99'
-                        }
-                    }, `GRI: ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
-                    React.createElement('span', {
-                        style: {
-                            padding: '0.125rem 0.375rem',
-                            backgroundColor: DiscourseGraphToolkit.THEME?.colors?.successHover || '#e8f5e9',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.625rem',
-                            fontWeight: 'bold',
-                            color: DiscourseGraphToolkit.THEME?.colors?.success || '#4CAF50'
-                        }
-                    }, `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
-                    React.createElement('span', {
-                        style: {
-                            padding: '0.125rem 0.375rem',
-                            backgroundColor: '#fff3e0',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.625rem',
-                            fontWeight: 'bold',
-                            color: '#ff9800'
-                        }
-                    }, `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
+                panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
+                        `QUE: ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
+                        `GRI: ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
+                        `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
+                        `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
                 )
             )
         ),
 
         // Status (compacto, solo si hay mensajes de carga activa)
         loadStatus && !loadStatus.includes('📦') && React.createElement('div', {
-            style: {
-                marginBottom: '0.5rem',
-                padding: '0.375rem 0.625rem',
-                backgroundColor: loadStatus.includes('✅') ? '#e8f5e9' :
-                    loadStatus.includes('❌') ? '#ffebee' : '#f5f5f5',
-                borderRadius: '0.25rem',
-                fontWeight: 'bold',
-                fontSize: '0.75rem'
-            }
+            className: `dgt-p-sm dgt-mb-sm dgt-text-xs dgt-text-bold ${loadStatus.includes('✅') ? 'dgt-text-success' : loadStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'}`,
+            style: { backgroundColor: 'var(--dgt-bg-secondary)', borderRadius: 'var(--dgt-radius-sm)' }
         }, loadStatus),
 
         // Lista de preguntas con sus ramas
-        panoramicData && React.createElement('div', {
-            style: {
-                maxHeight: '28rem',
-                overflowY: 'auto',
-                border: '1px solid #eee',
-                borderRadius: '0.25rem',
-                padding: '0.75rem',
-                backgroundColor: 'white'
-            }
-        },
+        panoramicData && React.createElement('div', { className: 'dgt-list-container dgt-p-sm' },
             filteredQuestions.length > 0
                 ? filteredQuestions.map(q => renderQuestion(q, panoramicData.allNodes))
-                : React.createElement('p', { style: { color: '#999', textAlign: 'center' } },
+                : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
                     'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
         ),
 
         // Mensaje inicial
         !panoramicData && !isLoading && React.createElement('div', {
+            className: 'dgt-p-md dgt-text-muted dgt-text-center',
             style: {
-                padding: '3rem',
-                textAlign: 'center',
-                color: '#999',
-                backgroundColor: '#fafafa',
-                borderRadius: '0.25rem',
-                border: '1px dashed #ddd'
+                backgroundColor: 'var(--dgt-bg-primary)',
+                borderRadius: 'var(--dgt-radius-sm)',
+                border: '1px dashed var(--dgt-border-focus)'
             }
         },
             React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, ''),

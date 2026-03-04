@@ -108,6 +108,7 @@ Si prefieres tener control total sobre la versión del plugin:
 | **Proyectos** | Gestiona proyectos, valida existencia, busca sugerencias |
 | **Ramas** | Verifica coherencia de `Proyecto Asociado::` en todas las ramas |
 | **Nodos** | Gestión y búsqueda de nodos huérfanos sin proyecto ni conexiones |
+| **Panorámica** | Vista sintética y pulida de todas las ramas del grafo con diseño unificado |
 | **Exportar** | Exporta nodos a JSON, HTML, Markdown o EPUB |
 | **Importar** | Importa grafos desde archivos JSON |
 

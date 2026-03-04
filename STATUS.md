@@ -24,13 +24,15 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ### v1.5.31 (Marzo 2026)
-- **UI/UX: Limpieza y Modernización de la Vista Panorámica.**
+- **UI/UX: Migración al Design System (dgt-*) en Vista Panorámica.**
+  - **Eliminación de Estilos Inline:** Se refactorizó completamente `PanoramicTab.js` para eliminar cientos de líneas de estilos inline, sustituyéndolos por clases utilitarias del sistema de diseño global.
+  - **Consistencia Visual:** La Vista Panorámica ahora utiliza la misma paleta de colores, tipografía (Inter/Lora) y espaciado que la pestaña de Ramas, logrando una estética unificada y profesional.
+  - **Nuevas Utilidades en styles.js:** Se agregaron clases específicas (`.dgt-panoramic-*`) para manejar la representación jerárquica (líneas de rama, márgenes de árbol) sin depender de hacks de estilo en el componente.
   - **Eliminación de Ruido Visual:** Se quitaron los iconos redundantes (`📌`, `📎`, `📝`, `📂`) y los conectores ASCII (`├─`, `└─`) de los títulos de los nodos.
   - **Identación Estructural:** Nuevas líneas guía sutiles (`border-left`) y márgenes limpios para representar la jerarquía del árbol de forma profesional.
   - **Calma Tipográfica:** Se eliminaron los fondos coloreados invasivos en el texto. Ahora el contenido es gris oscuro/negro neutro sobre fondo blanco, mejorando drásticamente la lectura de textos largos.
-  - **Badges de Tipo:** Se unificó el uso de etiquetas de tipo compactas y coloreadas a la izquierda del texto para mantener la semántica visual.
-  - **Markdown Bold:** Soporte nativo para visualizar negritas (`**asteriscos**` o `__guiones__`) en los títulos de los nodos del árbol.
-  - **Alineación:** Mejorada la alineación vertical de los controles de expansión y badges.
+  - **Badges de Tipo:** Se unificó el uso de etiquetas de tipo compactas y coloreadas para mantener la semántica visual.
+  - **Markdown Bold:** Soporte nativo para visualizar negritas (`**asteriscos**` o `__guiones__`) en los títulos de los nodos.
 
 ### v1.5.30 (Marzo 2026)
 - **UI/UX: Mejora en Revisión de Nodos (Pestaña Ramas).**
