@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.31
- * Bundled build: 2026-03-04 13:45:13
+ * DISCOURSE GRAPH TOOLKIT v1.5.32
+ * Bundled build: 2026-03-04 15:49:26
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.31";
+    DiscourseGraphToolkit.VERSION = "1.5.32";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -6269,6 +6269,42 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         }
     }, []); // Solo al montar
 
+    // --- Helpers de Relevancia del Proyecto ---
+    const relevanceCache = React.useMemo(() => new Map(), [panoramicData, selectedProject]);
+
+    const isNodeRelevant = React.useCallback((uid, allNodes, targetProject, visited = new Set()) => {
+        if (!targetProject) return true;
+        if (relevanceCache.has(uid)) return relevanceCache.get(uid);
+        if (visited.has(uid)) return false;
+
+        visited.add(uid);
+        const node = allNodes[uid];
+        if (!node) return false;
+
+        // Is it a direct match?
+        if (node.project && (node.project === targetProject || node.project.startsWith(targetProject + '/'))) {
+            relevanceCache.set(uid, true);
+            return true;
+        }
+
+        // Check descendants
+        const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
+        let childrenUids = [];
+        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
+        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
+        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
+
+        for (const childUid of childrenUids) {
+            if (isNodeRelevant(childUid, allNodes, targetProject, new Set(visited))) {
+                relevanceCache.set(uid, true);
+                return true;
+            }
+        }
+
+        relevanceCache.set(uid, false);
+        return false;
+    }, [relevanceCache]);
+
     // --- Cargar datos panorámicos ---
     const handleLoadPanoramic = async () => {
         setIsLoading(true);
@@ -6478,6 +6514,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
         else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
 
+        // Filtrar hijos según proyecto seleccionado para recortar la rama
+        if (selectedProject) {
+            childrenUids = childrenUids.filter(childUid => isNodeRelevant(childUid, allNodes, selectedProject));
+        }
+
         const hasChildren = childrenUids.length > 0;
         const isExpanded = expandedQuestions[uid] === true;
 
@@ -6551,13 +6592,19 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             containedNodes = question.contained_nodes || [];
             clms = [];
             directEvds = [];
-            totalBranches = containedNodes.length;
         } else {
             clms = question.related_clms || [];
             directEvds = question.direct_evds || [];
             containedNodes = [];
-            totalBranches = clms.length + directEvds.length;
         }
+
+        if (selectedProject) {
+            containedNodes = containedNodes.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
+            clms = clms.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
+            directEvds = directEvds.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
+        }
+
+        totalBranches = containedNodes.length + clms.length + directEvds.length;
 
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
@@ -6641,12 +6688,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (orderedQuestionUIDs.length > 0) {
             return orderedQuestionUIDs
                 .map(uid => panoramicData.questions.find(q => q.uid === uid))
-                .filter(Boolean);
+                .filter(Boolean)
+                .filter(q => isNodeRelevant(q.uid, panoramicData.allNodes, selectedProject));
         }
-        return panoramicData.questions.filter(q => {
-            if (!q.project) return false;
-            return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
-        });
+        return panoramicData.questions.filter(q => isNodeRelevant(q.uid, panoramicData.allNodes, selectedProject));
     };
 
     // --- Obtener lista jerárquica de proyectos (incluyendo prefijos intermedios) ---
@@ -6655,13 +6700,13 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const allPrefixes = new Set();
         const leafProjects = new Set();
 
-        panoramicData.questions.forEach(q => {
-            if (q.project) {
+        Object.values(panoramicData.allNodes).forEach(node => {
+            if (node.project) {
                 // Agregar la rama completa (es una hoja)
-                leafProjects.add(q.project);
-                allPrefixes.add(q.project);
+                leafProjects.add(node.project);
+                allPrefixes.add(node.project);
                 // Agregar todos los prefijos intermedios
-                const parts = q.project.split('/');
+                const parts = node.project.split('/');
                 for (let i = 1; i < parts.length; i++) {
                     allPrefixes.add(parts.slice(0, i).join('/'));
                 }
@@ -6672,8 +6717,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const sorted = Array.from(allPrefixes).sort();
         return sorted.map(prefix => {
             const isLeaf = leafProjects.has(prefix);
-            const count = panoramicData.questions.filter(q =>
-                q.project && (q.project === prefix || q.project.startsWith(prefix + '/'))
+            const count = Object.values(panoramicData.allNodes).filter(node =>
+                node.project && (node.project === prefix || node.project.startsWith(prefix + '/'))
             ).length;
             const depth = prefix.split('/').length - 1;
             return { prefix, isLeaf, count, depth };

@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-03-03
+**Última actualización:** 2026-03-04
 
 ## Versión Actual
 
-**v1.5.31**
+**v1.5.32**
 
 ## Estado de Funcionalidades
 
@@ -17,11 +17,17 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Soporta filtros rápidos e indicadores visuales de error |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda recursiva e interactiva |
+| **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda, escaneo de proyectos en todos los niveles y filtrado selectivo de ramas |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Estable | Los GRI aparecen como H2 y sus contenidos como H3+ |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.32 (Marzo 2026)
+- **Vista Panorámica: Escaneo de Proyectos y Filtrado de Ramas.**
+  - **Detección Profunda:** El filtro de proyectos ahora escanea todos los nodos cargados (CLMs, EVDs, GRIs, QUEs) y no solo los nodos raíz. Esto permite filtrar por proyectos muy específicos que solo aparecen en niveles profundos.
+  - **Filtrado Recursivo de Ramas:** Al seleccionar un proyecto, la vista ahora filtra dinámicamente el árbol para mostrar solo las ramas que contienen nodos relevantes a ese proyecto, ocultando el ruido del resto del grafo.
+  - **Optimización de UI:** El contador del dropdown refleja ahora el total de nodos encontrados en todos los niveles para cada proyecto.
 
 ### v1.5.31 (Marzo 2026)
 - **UI/UX: Migración al Design System (dgt-*) en Vista Panorámica.**
