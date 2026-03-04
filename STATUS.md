@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.33**
+**v1.5.34**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.34 (Marzo 2026)
+- **UI/UX: Corrección de espacio en blanco en Exportar y Nodos.**
+  - **Flexbox Optimization:** Se rediseñó la estructura de contenedores de las pestañas "Exportar" y "Nodos" para que ocupen todo el espacio disponible dentro del modal.
+  - **Eliminación de Gaps:** Se eliminaron las alturas fijas restrictivas en las listas de proyectos, permitiendo que la interfaz "respire" y se adapte al tamaño de la pantalla del usuario sin dejar grandes áreas vacías.
+  - **Modal Fix:** Se corrigió el contenedor central en `Modal.js` para asegurar que las pestañas hereden correctamente el comportamiento flexible del layout principal.
 
 ### v1.5.33 (Marzo 2026)
 - **Fix: Exportación de sub-proyectos sin nodos QUE/GRI propios.**

@@ -224,7 +224,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                 ),
 
                 // Content
-                React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
+                React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
 
                     // Pestaña Proyectos
                     activeTab === 'proyectos' && React.createElement(DiscourseGraphToolkit.ProjectsTab),

@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.33
- * Bundled build: 2026-03-04 16:33:58
+ * DISCOURSE GRAPH TOOLKIT v1.5.34
+ * Bundled build: 2026-03-04 17:06:39
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.33";
+    DiscourseGraphToolkit.VERSION = "1.5.34";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -7488,10 +7488,10 @@ DiscourseGraphToolkit.ExportTab = function () {
     const renderExportNodeContent = (node, depth) => null;
 
     // --- Render ---
-    return React.createElement('div', null,
+    return React.createElement('div', { className: 'dgt-container' },
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
-        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' } },
-            React.createElement('div', { style: { flex: 1 } },
+        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'stretch', flex: 1, minHeight: 0 } },
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
                 React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },
                     React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '1. Proyectos'),
                     projects.length > 0 && React.createElement('span', {
@@ -7499,7 +7499,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                         style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
-                React.createElement('div', { style: { height: '17.5rem', overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem', backgroundColor: '#fafafa' } },
+                React.createElement('div', { className: 'dgt-tree-container', style: { flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid #eee', padding: '0.625rem', backgroundColor: '#fafafa', maxHeight: 'none' } },
                     projects.length === 0 ? 'No hay proyectos.' :
                         React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
                             tree: projectTree,
@@ -7509,7 +7509,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                         })
                 )
             ),
-            React.createElement('div', { style: { flex: 1 } },
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
                 React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },
                     React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
                     React.createElement('span', {
@@ -7942,7 +7942,7 @@ DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
                 ),
 
                 // Content
-                React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
+                React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '1.25rem 1.25rem 3.125rem 1.25rem', minHeight: 0 } },
 
                     // Pestaña Proyectos
                     activeTab === 'proyectos' && React.createElement(DiscourseGraphToolkit.ProjectsTab),
