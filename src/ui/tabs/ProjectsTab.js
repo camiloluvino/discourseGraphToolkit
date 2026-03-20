@@ -33,6 +33,22 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         }));
     };
 
+    const handleExpandAll = () => {
+        setExpandedProjects({});
+    };
+
+    const handleCollapseAll = () => {
+        const newExpanded = {};
+        const traverse = (node) => {
+            if (Object.keys(node.children).length > 0) {
+                newExpanded[node.project] = false;
+                Object.values(node.children).forEach(traverse);
+            }
+        };
+        Object.values(projectTree).forEach(traverse);
+        setExpandedProjects(newExpanded);
+    };
+
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
         try {
@@ -216,10 +232,23 @@ DiscourseGraphToolkit.ProjectsTab = function () {
             },
                 // Expand/collapse toggle
                 hasChildren && React.createElement('span', {
-                    onClick: () => toggleProjectExpand(node.project),
-                    style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
+                    onClick: (e) => {
+                        e.stopPropagation();
+                        toggleProjectExpand(node.project);
+                    },
+                    style: { 
+                        cursor: 'pointer', 
+                        color: '#666', 
+                        fontSize: '0.75rem', 
+                        width: '1.5rem', 
+                        height: '1.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        userSelect: 'none'
+                    }
                 }, isExpanded ? '▼' : '▶'),
-                !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
+                !hasChildren && React.createElement('span', { style: { width: '1.5rem', height: '1.5rem', display: 'inline-block' } }),
                 // Checkbox para selección
                 React.createElement('input', {
                     type: 'checkbox',
@@ -293,14 +322,29 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         ),
 
         React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm' },
-            React.createElement('label', null,
-                React.createElement('input', {
-                    type: 'checkbox',
-                    checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
-                    onChange: toggleSelectAllProjects,
-                    className: 'dgt-mr-xs'
-                }),
-                'Seleccionar Todo'
+            React.createElement('div', { className: 'dgt-flex-row dgt-align-center', style: { gap: '1rem' } },
+                React.createElement('label', { style: { display: 'flex', alignItems: 'center', margin: 0 } },
+                    React.createElement('input', {
+                        type: 'checkbox',
+                        checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
+                        onChange: toggleSelectAllProjects,
+                        className: 'dgt-mr-xs',
+                        style: { margin: '0 0.375rem 0 0' }
+                    }),
+                    'Seleccionar Todo'
+                ),
+                React.createElement('div', { className: 'dgt-flex-row', style: { gap: '0.5rem' } },
+                    React.createElement('button', {
+                        onClick: handleExpandAll,
+                        className: 'dgt-btn',
+                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
+                    }, 'Expandir Todo'),
+                    React.createElement('button', {
+                        onClick: handleCollapseAll,
+                        className: 'dgt-btn',
+                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
+                    }, 'Colapsar Todo')
+                )
             ),
             React.createElement('button', {
                 onClick: handleBulkDeleteProjects,

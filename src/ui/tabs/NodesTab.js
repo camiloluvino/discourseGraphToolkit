@@ -9,27 +9,9 @@ DiscourseGraphToolkit.NodesTab = function () {
         isSearchingOrphans, setIsSearchingOrphans
     } = DiscourseGraphToolkit.useToolkit();
 
-    // --- Helpers ---
-    const parseMarkdownBold = (text) => {
-        if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, index) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return React.createElement('strong', { key: index }, part.slice(2, -2));
-            }
-            return part;
-        });
-    };
-
-    const handleNavigateToPage = (uid) => {
-        try {
-            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
-            DiscourseGraphToolkit.minimizeModal();
-        } catch (e) {
-            console.error("Error navigating to page:", e);
-            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
-        }
-    };
+    // --- Helpers (shared) ---
+    const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
 
     // --- Handlers ---
     const handleFindOrphans = async () => {

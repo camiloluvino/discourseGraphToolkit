@@ -1,6 +1,12 @@
 // ============================================================================
 // CORE: Content Processor
-// Ported from roamMap/core/content_processor.py
+// Extracción de contenido de bloques para uso dentro del plugin.
+//
+// ⚠️ DUPLICACIÓN INTENCIONAL: Este módulo replica la lógica de MarkdownCore
+// (markdownCore.js). MarkdownCore es una copia standalone que se inyecta en
+// los HTML exportados y NO puede depender de DiscourseGraphToolkit.
+// Si modificas la lógica de extracción aquí, asegúrate de replicar el cambio
+// en markdownCore.js y viceversa.
 // ============================================================================
 
 DiscourseGraphToolkit.ContentProcessor = {

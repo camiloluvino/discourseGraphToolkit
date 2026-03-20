@@ -7,6 +7,22 @@ DiscourseGraphToolkit.EpubGenerator = {
     // JSZip will be loaded dynamically
     JSZip: null,
 
+    // Shared helper: detect heading level from a markdown line
+    _getHeadingLevel: function (line) {
+        const match = line.match(/^(#{2,})\s/);
+        return match ? match[1].length : 0;
+    },
+
+    // Shared helper: increment counters and return hierarchy string (e.g., "1.2.3 ")
+    _getHierarchyPrefix: function (counters, level) {
+        const index = level - 1;
+        counters[index]++;
+        for (let i = index + 1; i < counters.length; i++) {
+            counters[i] = 0;
+        }
+        return counters.slice(1, index + 1).join('.') + ' ';
+    },
+
     // Load JSZip from CDN if not already loaded
     loadJSZip: async function () {
         if (this.JSZip) return this.JSZip;
@@ -84,20 +100,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
         let counters = new Array(12).fill(0);
 
-        const getHierarchyPrefix = (level) => {
-            const index = level - 1;
-            counters[index]++;
-            for (let i = index + 1; i < counters.length; i++) {
-                counters[i] = 0;
-            }
-            return counters.slice(1, index + 1).join('.') + ' ';
-        };
-
-        // Helper to detect heading level from a line
-        const getHeadingLevel = (line) => {
-            const match = line.match(/^(#{2,})\s/);
-            return match ? match[1].length : 0;
-        };
+        const getHierarchyPrefix = (level) => this._getHierarchyPrefix(counters, level);
+        const getHeadingLevel = this._getHeadingLevel;
 
         for (const line of lines) {
             // H1 is the main title, skip it
@@ -178,21 +182,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         let counters = new Array(12).fill(0);
         counters[1] = chapterNum;
 
-        // Helper to increment counters and get the hierarchy string
-        const getHierarchyPrefix = (level) => {
-            const index = level - 1;
-            counters[index]++;
-            for (let i = index + 1; i < counters.length; i++) {
-                counters[i] = 0;
-            }
-            return counters.slice(1, index + 1).join('.') + ' ';
-        };
-
-        // Helper to detect heading level from a line
-        const getHeadingLevel = (line) => {
-            const match = line.match(/^(#{2,})\s/);
-            return match ? match[1].length : 0;
-        };
+        const getHierarchyPrefix = (level) => this._getHierarchyPrefix(counters, level);
+        const getHeadingLevel = this._getHeadingLevel;
 
         for (const line of lines) {
             const trimmed = line.trim();

@@ -1,9 +1,8 @@
 // ============================================================================
-// 6. LÓGICA DE IMPORTACIÓN (CORE)
+// CORE: Importación
 // ============================================================================
 
 DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
-    console.log("🚀 STARTING IMPORT - VERSION 1.1.1 (FIXED)");
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
 
     report(`Leyendo archivo (${jsonContent.length} bytes)...`);
@@ -46,7 +45,7 @@ DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
         report(`Procesando página ${i + 1}/${data.length}: ${title}`);
 
         try {
-            await DiscourseGraphToolkit.importPage({ ...pageData, title, uid, children });
+            await this.importPage({ ...pageData, title, uid, children });
             createdPages++;
         } catch (e) {
             console.error(`Error importando página ${title}:`, e);
@@ -58,7 +57,7 @@ DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
     // 3. Log en Daily Note
     if (createdPages > 0) {
         const importedTitles = data.map(p => p.title || p[':node/title'] || p[':title']).filter(t => t);
-        await DiscourseGraphToolkit.logImportToDailyNote(importedTitles);
+        await this.logImportToDailyNote(importedTitles);
     }
 
     return { pages: createdPages, skipped: skippedPages, errors: errors };
@@ -128,7 +127,7 @@ DiscourseGraphToolkit.importPage = async function (pageData) {
 
     // 2. Importar hijos (Bloques)
     if (pageData.children && pageData.children.length > 0) {
-        await DiscourseGraphToolkit.importChildren(pageUid, pageData.children);
+        await this.importChildren(pageUid, pageData.children);
     }
 };
 

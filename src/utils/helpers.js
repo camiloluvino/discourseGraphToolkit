@@ -33,16 +33,7 @@ DiscourseGraphToolkit.downloadJSON = function (data, filename) {
         try { jsonStr = JSON.stringify(data); }
         catch (e2) { throw new Error("Archivo demasiado grande para exportar."); }
     }
-
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    this.downloadFile(filename, jsonStr, 'application/json');
 };
 
 DiscourseGraphToolkit.countBlocks = function (pageData) {
@@ -87,6 +78,35 @@ DiscourseGraphToolkit.getNodeType = function (title) {
     if (title.includes('[[CLM]]')) return 'CLM';
     if (title.includes('[[EVD]]')) return 'EVD';
     return null;
+};
+
+// Parse markdown bold (**text**) into React elements
+DiscourseGraphToolkit.parseMarkdownBold = function (text) {
+    if (!text) return null;
+    const React = window.React;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return React.createElement('strong', { key: index }, part.slice(2, -2));
+        }
+        return part;
+    });
+};
+
+// Navigate to a Roam page, with fallback to opening in browser
+DiscourseGraphToolkit.navigateToPage = function (uid) {
+    try {
+        window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+        this.minimizeModal();
+    } catch (e) {
+        console.error("Error navigating to page:", e);
+        window.open(`https://roamresearch.com/#/app/${this.getGraphName()}/page/${uid}`, '_blank');
+    }
+};
+
+// Format project name for export filenames (DG_proyecto_namespace)
+DiscourseGraphToolkit.formatExportProjectName = function (pName) {
+    return pName.split('/').map(part => this.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
 };
 
 

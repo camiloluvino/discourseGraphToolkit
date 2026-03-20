@@ -1,5 +1,5 @@
 // ============================================================================
-// 3. LÓGICA DE CREACIÓN DE NODOS (CORE)
+// CORE: Creación de Nodos
 // ============================================================================
 
 DiscourseGraphToolkit.parseTemplate = function (templateText) {

@@ -92,32 +92,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Contadores ---
     const counts = React.useMemo(() => ({
-        coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
+        coherent: bulkVerificationResults.filter(r => r.status === 'coherent' || r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
         missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
     }), [bulkVerificationResults]);
 
-    // --- Helpers ---
-    const parseMarkdownBold = (text) => {
-        if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, index) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return React.createElement('strong', { key: index }, part.slice(2, -2));
-            }
-            return part;
-        });
-    };
-
-    const handleNavigateToPage = (uid) => {
-        try {
-            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
-            DiscourseGraphToolkit.minimizeModal();
-        } catch (e) {
-            console.error("Error navigating to page:", e);
-            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
-        }
-    };
+    // --- Helpers (shared) ---
+    const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
 
     // --- Handlers ---
     const handleBulkVerifyAll = async () => {
@@ -151,7 +133,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }
 
             setBulkVerificationResults(results);
-            const coherent = results.filter(r => r.status === 'coherent').length;
+            const coherent = results.filter(r => r.status === 'coherent' || r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
             const statusMsg = `✅ ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
@@ -304,8 +286,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         gap: '0.75rem'
                     }
                 },
-                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
-                        result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
+                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' }, title: result.status },
+                        (result.status === 'coherent' || result.status === 'specialized') ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
                         React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
                             parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
@@ -400,7 +382,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
                     bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
                         bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
-                    }`
+                    }`,
+                title: 'Estatus'
             }, bulkVerifyStatus)
         ),
 
@@ -464,8 +447,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Resumen compacto
             React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
-                React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
-                    `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
+                React.createElement('span', { className: 'dgt-badge dgt-badge-success', title: 'Coherentes y Especializados' },
+                    `✅ ${selectedBulkQuestion.coherence.coherent.length + selectedBulkQuestion.coherence.specialized.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-error' },

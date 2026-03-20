@@ -1,5 +1,5 @@
 // ============================================================================
-// 5. INTERFAZ DE USUARIO (REACT) - Modal Principal
+// UI: Modal Principal
 // ============================================================================
 
 DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {

@@ -1,11 +1,12 @@
 // ============================================================================
 // CORE: Markdown Core
-// Funciones puras de generación de Markdown (sin dependencias del toolkit)
-// Este código se usa tanto en el plugin como en el HTML exportado
+// Funciones standalone de generación de Markdown.
+// Se inyecta en el HTML exportado — NO puede depender de DiscourseGraphToolkit.
+//
+// ⚠️ DUPLICACIÓN INTENCIONAL: extractBlockContent y extractNodeContent replican
+// la lógica de ContentProcessor (contentProcessor.js). Si modificas estos
+// métodos, asegúrate de replicar el cambio en contentProcessor.js y viceversa.
 // ============================================================================
-
-// NOTA: Este archivo es inyectado en htmlEmbeddedScript.js durante el build
-// NO puede depender de DiscourseGraphToolkit ni de ningún otro módulo
 
 var MarkdownCore = {
     MAX_RECURSION_DEPTH: 20,

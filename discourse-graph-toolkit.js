@@ -1,6 +1,6 @@
-﻿/**
+/**
  * DISCOURSE GRAPH TOOLKIT v1.5.34
- * Bundled build: 2026-03-04 17:06:39
+ * Bundled build: 2026-03-20 04:22:22
  */
 
 (function () {
@@ -12,12 +12,13 @@
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
 // CORE: Markdown Core
-// Funciones puras de generación de Markdown (sin dependencias del toolkit)
-// Este código se usa tanto en el plugin como en el HTML exportado
+// Funciones standalone de generación de Markdown.
+// Se inyecta en el HTML exportado — NO puede depender de DiscourseGraphToolkit.
+//
+// ⚠️ DUPLICACIÓN INTENCIONAL: extractBlockContent y extractNodeContent replican
+// la lógica de ContentProcessor (contentProcessor.js). Si modificas estos
+// métodos, asegúrate de replicar el cambio en contentProcessor.js y viceversa.
 // ============================================================================
-
-// NOTA: Este archivo es inyectado en htmlEmbeddedScript.js durante el build
-// NO puede depender de DiscourseGraphToolkit ni de ningún otro módulo
 
 var MarkdownCore = {
     MAX_RECURSION_DEPTH: 20,
@@ -542,7 +543,7 @@ function moveQuestionDown(id) {
 
 // --- MODULE: src/config.js ---
 // ============================================================================
-// 1. CONFIGURACIÓN Y CONSTANTES
+// CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
@@ -588,7 +589,8 @@ DiscourseGraphToolkit.ROAM = {
 DiscourseGraphToolkit.FILES = {
     BYTES_PER_MB: 1024 * 1024,
     MAX_SIZE_MB: 10,
-    MAX_DEPTH: 10
+    MAX_DEPTH: 10,
+    MAX_PANORAMIC_CACHE_NODES: 500
 };
 
 // Tipos de Nodos
@@ -725,16 +727,7 @@ DiscourseGraphToolkit.downloadJSON = function (data, filename) {
         try { jsonStr = JSON.stringify(data); }
         catch (e2) { throw new Error("Archivo demasiado grande para exportar."); }
     }
-
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    this.downloadFile(filename, jsonStr, 'application/json');
 };
 
 DiscourseGraphToolkit.countBlocks = function (pageData) {
@@ -779,6 +772,35 @@ DiscourseGraphToolkit.getNodeType = function (title) {
     if (title.includes('[[CLM]]')) return 'CLM';
     if (title.includes('[[EVD]]')) return 'EVD';
     return null;
+};
+
+// Parse markdown bold (**text**) into React elements
+DiscourseGraphToolkit.parseMarkdownBold = function (text) {
+    if (!text) return null;
+    const React = window.React;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return React.createElement('strong', { key: index }, part.slice(2, -2));
+        }
+        return part;
+    });
+};
+
+// Navigate to a Roam page, with fallback to opening in browser
+DiscourseGraphToolkit.navigateToPage = function (uid) {
+    try {
+        window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
+        this.minimizeModal();
+    } catch (e) {
+        console.error("Error navigating to page:", e);
+        window.open(`https://roamresearch.com/#/app/${this.getGraphName()}/page/${uid}`, '_blank');
+    }
+};
+
+// Format project name for export filenames (DG_proyecto_namespace)
+DiscourseGraphToolkit.formatExportProjectName = function (pName) {
+    return pName.split('/').map(part => this.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
 };
 
 
@@ -1009,7 +1031,7 @@ DiscourseGraphToolkit.countLeafProjects = function (node) {
 
 // --- MODULE: src/state.js ---
 // ============================================================================
-// 2. GESTIÓN DE ALMACENAMIENTO (STORAGE)
+// GESTIÓN DE ALMACENAMIENTO (STORAGE)
 // ============================================================================
 
 // --- Configuración General ---
@@ -1031,7 +1053,7 @@ DiscourseGraphToolkit.saveConfig = function (config) {
 DiscourseGraphToolkit.getTemplates = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.TEMPLATES));
     if (stored) {
-        try { return JSON.parse(stored); } catch (e) { }
+        try { return JSON.parse(stored); } catch (e) { console.warn("Error parsing templates", e); }
     }
     return { ...this.DEFAULT_TEMPLATES };
 };
@@ -1178,7 +1200,7 @@ DiscourseGraphToolkit.getVerificationCache = function () {
     if (stored) {
         try {
             return JSON.parse(stored);
-        } catch (e) { }
+        } catch (e) { console.warn("Error parsing verification cache", e); }
     }
     return null;
 };
@@ -1225,11 +1247,18 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
 
 // --- Cache de Vista Panorámica ---
 DiscourseGraphToolkit.savePanoramicCache = function (panoramicData) {
+    // Limitar tamaño del cache para evitar exceder localStorage
+    const maxNodes = this.FILES.MAX_PANORAMIC_CACHE_NODES || 500;
+    const nodeEntries = Object.entries(panoramicData.allNodes);
+    const limitedNodes = nodeEntries.length > maxNodes
+        ? Object.fromEntries(nodeEntries.slice(0, maxNodes))
+        : panoramicData.allNodes;
+
     // Crear copia limpia sin referencias circulares (node.data = node)
     const cleanData = {
         questions: panoramicData.questions.map(({ data, ...q }) => q),
         allNodes: Object.fromEntries(
-            Object.entries(panoramicData.allNodes).map(([uid, node]) => {
+            Object.entries(limitedNodes).map(([uid, node]) => {
                 const { data, ...clean } = node;
                 return [uid, clean];
             })
@@ -2302,7 +2331,7 @@ DiscourseGraphToolkit.fixQueStructure = async function (questionUid) {
 
 // --- MODULE: src/core/nodes.js ---
 // ============================================================================
-// 3. LÓGICA DE CREACIÓN DE NODOS (CORE)
+// CORE: Creación de Nodos
 // ============================================================================
 
 DiscourseGraphToolkit.parseTemplate = function (templateText) {
@@ -2506,7 +2535,7 @@ DiscourseGraphToolkit.ProjectManager = {
 // --- MODULE: src/core/export.js ---
 
 // ============================================================================
-// 4. LÓGICA DE EXPORTACIÓN (CORE ROBUSTO)
+// CORE: Exportación
 // ============================================================================
 
 
@@ -2606,11 +2635,10 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 
 // --- MODULE: src/core/import.js ---
 // ============================================================================
-// 6. LÓGICA DE IMPORTACIÓN (CORE)
+// CORE: Importación
 // ============================================================================
 
 DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
-    console.log("🚀 STARTING IMPORT - VERSION 1.1.1 (FIXED)");
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
 
     report(`Leyendo archivo (${jsonContent.length} bytes)...`);
@@ -2653,7 +2681,7 @@ DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
         report(`Procesando página ${i + 1}/${data.length}: ${title}`);
 
         try {
-            await DiscourseGraphToolkit.importPage({ ...pageData, title, uid, children });
+            await this.importPage({ ...pageData, title, uid, children });
             createdPages++;
         } catch (e) {
             console.error(`Error importando página ${title}:`, e);
@@ -2665,7 +2693,7 @@ DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
     // 3. Log en Daily Note
     if (createdPages > 0) {
         const importedTitles = data.map(p => p.title || p[':node/title'] || p[':title']).filter(t => t);
-        await DiscourseGraphToolkit.logImportToDailyNote(importedTitles);
+        await this.logImportToDailyNote(importedTitles);
     }
 
     return { pages: createdPages, skipped: skippedPages, errors: errors };
@@ -2735,7 +2763,7 @@ DiscourseGraphToolkit.importPage = async function (pageData) {
 
     // 2. Importar hijos (Bloques)
     if (pageData.children && pageData.children.length > 0) {
-        await DiscourseGraphToolkit.importChildren(pageUid, pageData.children);
+        await this.importChildren(pageUid, pageData.children);
     }
 };
 
@@ -2788,7 +2816,13 @@ DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order)
 // --- MODULE: src/core/contentProcessor.js ---
 // ============================================================================
 // CORE: Content Processor
-// Ported from roamMap/core/content_processor.py
+// Extracción de contenido de bloques para uso dentro del plugin.
+//
+// ⚠️ DUPLICACIÓN INTENCIONAL: Este módulo replica la lógica de MarkdownCore
+// (markdownCore.js). MarkdownCore es una copia standalone que se inyecta en
+// los HTML exportados y NO puede depender de DiscourseGraphToolkit.
+// Si modificas la lógica de extracción aquí, asegúrate de replicar el cambio
+// en markdownCore.js y viceversa.
 // ============================================================================
 
 DiscourseGraphToolkit.ContentProcessor = {
@@ -3477,12 +3511,13 @@ DiscourseGraphToolkit.RelationshipMapper = {
 // --- MODULE: src/core/markdownCore.js ---
 // ============================================================================
 // CORE: Markdown Core
-// Funciones puras de generación de Markdown (sin dependencias del toolkit)
-// Este código se usa tanto en el plugin como en el HTML exportado
+// Funciones standalone de generación de Markdown.
+// Se inyecta en el HTML exportado — NO puede depender de DiscourseGraphToolkit.
+//
+// ⚠️ DUPLICACIÓN INTENCIONAL: extractBlockContent y extractNodeContent replican
+// la lógica de ContentProcessor (contentProcessor.js). Si modificas estos
+// métodos, asegúrate de replicar el cambio en contentProcessor.js y viceversa.
 // ============================================================================
-
-// NOTA: Este archivo es inyectado en htmlEmbeddedScript.js durante el build
-// NO puede depender de DiscourseGraphToolkit ni de ningún otro módulo
 
 var MarkdownCore = {
     MAX_RECURSION_DEPTH: 20,
@@ -4574,6 +4609,7 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
         const css = DiscourseGraphToolkit.HtmlStyles.getCSS();
         const js = this._getJS();
+        const safeTitle = DiscourseGraphToolkit.EpubGenerator.escapeHtml(title);
 
         // Header del documento
         let html = `<!DOCTYPE html>
@@ -4581,11 +4617,11 @@ DiscourseGraphToolkit.HtmlGenerator = {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>${safeTitle}</title>
     ${css}
 </head>
 <body>
-    <h1>${title}</h1>
+    <h1>${safeTitle}</h1>
     
     <div class="controls">
         <button id="expandAll" class="btn">Expandir Todo</button>
@@ -4698,6 +4734,22 @@ DiscourseGraphToolkit.EpubGenerator = {
     // JSZip will be loaded dynamically
     JSZip: null,
 
+    // Shared helper: detect heading level from a markdown line
+    _getHeadingLevel: function (line) {
+        const match = line.match(/^(#{2,})\s/);
+        return match ? match[1].length : 0;
+    },
+
+    // Shared helper: increment counters and return hierarchy string (e.g., "1.2.3 ")
+    _getHierarchyPrefix: function (counters, level) {
+        const index = level - 1;
+        counters[index]++;
+        for (let i = index + 1; i < counters.length; i++) {
+            counters[i] = 0;
+        }
+        return counters.slice(1, index + 1).join('.') + ' ';
+    },
+
     // Load JSZip from CDN if not already loaded
     loadJSZip: async function () {
         if (this.JSZip) return this.JSZip;
@@ -4775,20 +4827,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
         let counters = new Array(12).fill(0);
 
-        const getHierarchyPrefix = (level) => {
-            const index = level - 1;
-            counters[index]++;
-            for (let i = index + 1; i < counters.length; i++) {
-                counters[i] = 0;
-            }
-            return counters.slice(1, index + 1).join('.') + ' ';
-        };
-
-        // Helper to detect heading level from a line
-        const getHeadingLevel = (line) => {
-            const match = line.match(/^(#{2,})\s/);
-            return match ? match[1].length : 0;
-        };
+        const getHierarchyPrefix = (level) => this._getHierarchyPrefix(counters, level);
+        const getHeadingLevel = this._getHeadingLevel;
 
         for (const line of lines) {
             // H1 is the main title, skip it
@@ -4869,21 +4909,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         let counters = new Array(12).fill(0);
         counters[1] = chapterNum;
 
-        // Helper to increment counters and get the hierarchy string
-        const getHierarchyPrefix = (level) => {
-            const index = level - 1;
-            counters[index]++;
-            for (let i = index + 1; i < counters.length; i++) {
-                counters[i] = 0;
-            }
-            return counters.slice(1, index + 1).join('.') + ' ';
-        };
-
-        // Helper to detect heading level from a line
-        const getHeadingLevel = (line) => {
-            const match = line.match(/^(#{2,})\s/);
-            return match ? match[1].length : 0;
-        };
+        const getHierarchyPrefix = (level) => this._getHierarchyPrefix(counters, level);
+        const getHeadingLevel = this._getHeadingLevel;
 
         for (const line of lines) {
             const trimmed = line.trim();
@@ -5266,6 +5293,22 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         }));
     };
 
+    const handleExpandAll = () => {
+        setExpandedProjects({});
+    };
+
+    const handleCollapseAll = () => {
+        const newExpanded = {};
+        const traverse = (node) => {
+            if (Object.keys(node.children).length > 0) {
+                newExpanded[node.project] = false;
+                Object.values(node.children).forEach(traverse);
+            }
+        };
+        Object.values(projectTree).forEach(traverse);
+        setExpandedProjects(newExpanded);
+    };
+
     // --- Handlers Config ---
     const handleSaveConfig = async () => {
         try {
@@ -5449,10 +5492,23 @@ DiscourseGraphToolkit.ProjectsTab = function () {
             },
                 // Expand/collapse toggle
                 hasChildren && React.createElement('span', {
-                    onClick: () => toggleProjectExpand(node.project),
-                    style: { cursor: 'pointer', color: '#666', fontSize: '0.6875rem', width: '0.75rem' }
+                    onClick: (e) => {
+                        e.stopPropagation();
+                        toggleProjectExpand(node.project);
+                    },
+                    style: { 
+                        cursor: 'pointer', 
+                        color: '#666', 
+                        fontSize: '0.75rem', 
+                        width: '1.5rem', 
+                        height: '1.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        userSelect: 'none'
+                    }
                 }, isExpanded ? '▼' : '▶'),
-                !hasChildren && React.createElement('span', { style: { width: '0.75rem' } }),
+                !hasChildren && React.createElement('span', { style: { width: '1.5rem', height: '1.5rem', display: 'inline-block' } }),
                 // Checkbox para selección
                 React.createElement('input', {
                     type: 'checkbox',
@@ -5526,14 +5582,29 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         ),
 
         React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm' },
-            React.createElement('label', null,
-                React.createElement('input', {
-                    type: 'checkbox',
-                    checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
-                    onChange: toggleSelectAllProjects,
-                    className: 'dgt-mr-xs'
-                }),
-                'Seleccionar Todo'
+            React.createElement('div', { className: 'dgt-flex-row dgt-align-center', style: { gap: '1rem' } },
+                React.createElement('label', { style: { display: 'flex', alignItems: 'center', margin: 0 } },
+                    React.createElement('input', {
+                        type: 'checkbox',
+                        checked: projects.length > 0 && projects.every(p => selectedProjectsForDelete[p]),
+                        onChange: toggleSelectAllProjects,
+                        className: 'dgt-mr-xs',
+                        style: { margin: '0 0.375rem 0 0' }
+                    }),
+                    'Seleccionar Todo'
+                ),
+                React.createElement('div', { className: 'dgt-flex-row', style: { gap: '0.5rem' } },
+                    React.createElement('button', {
+                        onClick: handleExpandAll,
+                        className: 'dgt-btn',
+                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
+                    }, 'Expandir Todo'),
+                    React.createElement('button', {
+                        onClick: handleCollapseAll,
+                        className: 'dgt-btn',
+                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
+                    }, 'Colapsar Todo')
+                )
             ),
             React.createElement('button', {
                 onClick: handleBulkDeleteProjects,
@@ -5650,32 +5721,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Contadores ---
     const counts = React.useMemo(() => ({
-        coherent: bulkVerificationResults.filter(r => r.status === 'coherent').length,
+        coherent: bulkVerificationResults.filter(r => r.status === 'coherent' || r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
         missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
     }), [bulkVerificationResults]);
 
-    // --- Helpers ---
-    const parseMarkdownBold = (text) => {
-        if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, index) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return React.createElement('strong', { key: index }, part.slice(2, -2));
-            }
-            return part;
-        });
-    };
-
-    const handleNavigateToPage = (uid) => {
-        try {
-            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
-            DiscourseGraphToolkit.minimizeModal();
-        } catch (e) {
-            console.error("Error navigating to page:", e);
-            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
-        }
-    };
+    // --- Helpers (shared) ---
+    const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
 
     // --- Handlers ---
     const handleBulkVerifyAll = async () => {
@@ -5709,7 +5762,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }
 
             setBulkVerificationResults(results);
-            const coherent = results.filter(r => r.status === 'coherent').length;
+            const coherent = results.filter(r => r.status === 'coherent' || r.status === 'specialized').length;
             const different = results.filter(r => r.status === 'different').length;
             const missing = results.filter(r => r.status === 'missing').length;
             const statusMsg = `✅ ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
@@ -5862,8 +5915,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         gap: '0.75rem'
                     }
                 },
-                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' } },
-                        result.status === 'coherent' ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
+                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' }, title: result.status },
+                        (result.status === 'coherent' || result.status === 'specialized') ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
                     React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
                         React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
                             parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
@@ -5958,7 +6011,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
                     bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
                         bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
-                    }`
+                    }`,
+                title: 'Estatus'
             }, bulkVerifyStatus)
         ),
 
@@ -6022,8 +6076,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Resumen compacto
             React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
-                React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
-                    `✅ ${selectedBulkQuestion.coherence.coherent.length}`),
+                React.createElement('span', { className: 'dgt-badge dgt-badge-success', title: 'Coherentes y Especializados' },
+                    `✅ ${selectedBulkQuestion.coherence.coherent.length + selectedBulkQuestion.coherence.specialized.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
                     `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
                 React.createElement('span', { className: 'dgt-badge dgt-badge-error' },
@@ -6084,27 +6138,9 @@ DiscourseGraphToolkit.NodesTab = function () {
         isSearchingOrphans, setIsSearchingOrphans
     } = DiscourseGraphToolkit.useToolkit();
 
-    // --- Helpers ---
-    const parseMarkdownBold = (text) => {
-        if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, index) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return React.createElement('strong', { key: index }, part.slice(2, -2));
-            }
-            return part;
-        });
-    };
-
-    const handleNavigateToPage = (uid) => {
-        try {
-            window.roamAlphaAPI.ui.mainWindow.openPage({ page: { uid: uid } });
-            DiscourseGraphToolkit.minimizeModal();
-        } catch (e) {
-            console.error("Error navigating to page:", e);
-            window.open(`https://roamresearch.com/#/app/${DiscourseGraphToolkit.getGraphName()}/page/${uid}`, '_blank');
-        }
-    };
+    // --- Helpers (shared) ---
+    const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
 
     // --- Handlers ---
     const handleFindOrphans = async () => {
@@ -6207,24 +6243,51 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // Estado local para el orden de preguntas
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
 
+    // Estados para Drag & Drop
+    const [dragItemIndex, setDragItemIndex] = React.useState(null);
+    const [dragOverItemIndex, setDragOverItemIndex] = React.useState(null);
+
     // Estado para tracking del timestamp del cache
     const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
 
-    // --- Helpers de Reordenamiento ---
-    const moveQuestionUp = (index) => {
-        if (index === 0 || !selectedProject) return;
-        const newOrder = [...orderedQuestionUIDs];
-        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-        setOrderedQuestionUIDs(newOrder);
-        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    // --- Helpers de Reordenamiento (Drag & Drop) ---
+    const handleDragStart = (e, index) => {
+        setDragItemIndex(index);
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+        }
     };
 
-    const moveQuestionDown = (index) => {
-        if (index === orderedQuestionUIDs.length - 1 || !selectedProject) return;
-        const newOrder = [...orderedQuestionUIDs];
-        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-        setOrderedQuestionUIDs(newOrder);
-        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    const handleDragEnter = (e, index) => {
+        e.preventDefault();
+        // Evitar triggers extras si ya es el mismo
+        if (index !== dragOverItemIndex) setDragOverItemIndex(index);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault(); // Necesario para permitir el drop
+    };
+
+    const handleDragEnd = () => {
+        setDragItemIndex(null);
+        setDragOverItemIndex(null);
+    };
+
+    const handleDrop = (e, dropIndex) => {
+        e.preventDefault();
+        if (dragItemIndex === null || dropIndex === null || !selectedProject) return;
+        
+        if (dragItemIndex !== dropIndex) {
+            const newOrder = [...orderedQuestionUIDs];
+            const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
+            newOrder.splice(dropIndex, 0, draggedItem);
+            
+            setOrderedQuestionUIDs(newOrder);
+            DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+        }
+        
+        setDragItemIndex(null);
+        setDragOverItemIndex(null);
     };
 
     // Efecto para cargar/sincronizar orden cuando cambia el proyecto o los datos
@@ -6638,9 +6701,20 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
+        const qIndex = orderedQuestionUIDs.indexOf(question.uid);
+        const isDragging = dragItemIndex === qIndex;
+        const isDragOver = dragOverItemIndex === qIndex;
+
         return React.createElement('div', {
             key: question.uid,
-            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()}`
+            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
+            draggable: selectedProject ? true : false,
+            onDragStart: selectedProject ? (e) => handleDragStart(e, qIndex) : undefined,
+            onDragEnter: selectedProject ? (e) => handleDragEnter(e, qIndex) : undefined,
+            onDragOver: selectedProject ? handleDragOver : undefined,
+            onDragEnd: selectedProject ? handleDragEnd : undefined,
+            onDrop: selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
+            style: { opacity: isDragging ? 0.4 : 1 }
         },
             // Header del nodo raíz
             React.createElement('div', {
@@ -6648,24 +6722,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 className: 'dgt-panoramic-node-row',
                 style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
-                // Botones de reordenamiento (solo si hay proyecto seleccionado)
+                // Drag handle (solo si hay proyecto seleccionado)
                 selectedProject && React.createElement('div', {
-                    className: 'dgt-flex-column dgt-mr-xs',
+                    className: 'dgt-drag-handle dgt-mr-xs',
+                    title: 'Mantén presionado y arrastra para reordenar',
                     onClick: (e) => e.stopPropagation()
-                },
-                    React.createElement('button', {
-                        onClick: () => moveQuestionUp(orderedQuestionUIDs.indexOf(question.uid)),
-                        disabled: orderedQuestionUIDs.indexOf(question.uid) === 0,
-                        className: 'dgt-btn-ghost dgt-text-xs',
-                        style: { padding: 0, lineHeight: 1, marginBottom: '2px', opacity: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 0.3 : 1 }
-                    }, '▲'),
-                    React.createElement('button', {
-                        onClick: () => moveQuestionDown(orderedQuestionUIDs.indexOf(question.uid)),
-                        disabled: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1,
-                        className: 'dgt-btn-ghost dgt-text-xs',
-                        style: { padding: 0, lineHeight: 1, opacity: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 0.3 : 1 }
-                    }, '▼')
-                ),
+                }, '⋮⋮'),
                 React.createElement('span', {
                     className: 'dgt-text-muted dgt-text-xs',
                     style: { marginTop: '4px', width: '12px', textAlign: 'center' }
@@ -7255,11 +7317,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
         const commonProject = getProjectKey(pNames);
-        // Formatear el nombre del archivo para que mantenga la estructura DG_proyecto_namespace
-        const formatProjectName = (pName) => {
-            return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
-        };
-        const sanitizedNames = formatProjectName(commonProject);
+        const sanitizedNames = DiscourseGraphToolkit.formatExportProjectName(commonProject);
         const filename = `DG_${sanitizedNames}`;
 
         // Retornar preguntas YA ordenadas para el export
@@ -7280,10 +7338,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
             const commonProject = getProjectKey(pNames);
-            const formatProjectName = (pName) => {
-                return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
-            };
-            const sanitizedNames = formatProjectName(commonProject);
+            const sanitizedNames = DiscourseGraphToolkit.formatExportProjectName(commonProject);
             const filename = `DG_${sanitizedNames}.json`;
 
             const anyContent = Object.values(contentConfig).some(x => x);
@@ -7717,7 +7772,7 @@ DiscourseGraphToolkit.useToolkit = function () {
 
 // --- MODULE: src/ui/modal.js ---
 // ============================================================================
-// 5. INTERFAZ DE USUARIO (REACT) - Modal Principal
+// UI: Modal Principal
 // ============================================================================
 
 DiscourseGraphToolkit.ToolkitModal = function ({ onClose, onMinimize }) {
@@ -8103,7 +8158,7 @@ DiscourseGraphToolkit.minimizeModal = function () {
 
 // --- MODULE: src/index.js ---
 // ============================================================================
-// 6. INICIALIZACIÓN
+// INICIALIZACIÓN
 // ============================================================================
 
 if (window.roamAlphaAPI) {

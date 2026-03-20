@@ -21,24 +21,51 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // Estado local para el orden de preguntas
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
 
+    // Estados para Drag & Drop
+    const [dragItemIndex, setDragItemIndex] = React.useState(null);
+    const [dragOverItemIndex, setDragOverItemIndex] = React.useState(null);
+
     // Estado para tracking del timestamp del cache
     const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
 
-    // --- Helpers de Reordenamiento ---
-    const moveQuestionUp = (index) => {
-        if (index === 0 || !selectedProject) return;
-        const newOrder = [...orderedQuestionUIDs];
-        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-        setOrderedQuestionUIDs(newOrder);
-        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    // --- Helpers de Reordenamiento (Drag & Drop) ---
+    const handleDragStart = (e, index) => {
+        setDragItemIndex(index);
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+        }
     };
 
-    const moveQuestionDown = (index) => {
-        if (index === orderedQuestionUIDs.length - 1 || !selectedProject) return;
-        const newOrder = [...orderedQuestionUIDs];
-        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-        setOrderedQuestionUIDs(newOrder);
-        DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+    const handleDragEnter = (e, index) => {
+        e.preventDefault();
+        // Evitar triggers extras si ya es el mismo
+        if (index !== dragOverItemIndex) setDragOverItemIndex(index);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault(); // Necesario para permitir el drop
+    };
+
+    const handleDragEnd = () => {
+        setDragItemIndex(null);
+        setDragOverItemIndex(null);
+    };
+
+    const handleDrop = (e, dropIndex) => {
+        e.preventDefault();
+        if (dragItemIndex === null || dropIndex === null || !selectedProject) return;
+        
+        if (dragItemIndex !== dropIndex) {
+            const newOrder = [...orderedQuestionUIDs];
+            const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
+            newOrder.splice(dropIndex, 0, draggedItem);
+            
+            setOrderedQuestionUIDs(newOrder);
+            DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
+        }
+        
+        setDragItemIndex(null);
+        setDragOverItemIndex(null);
     };
 
     // Efecto para cargar/sincronizar orden cuando cambia el proyecto o los datos
@@ -452,9 +479,20 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
+        const qIndex = orderedQuestionUIDs.indexOf(question.uid);
+        const isDragging = dragItemIndex === qIndex;
+        const isDragOver = dragOverItemIndex === qIndex;
+
         return React.createElement('div', {
             key: question.uid,
-            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()}`
+            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
+            draggable: selectedProject ? true : false,
+            onDragStart: selectedProject ? (e) => handleDragStart(e, qIndex) : undefined,
+            onDragEnter: selectedProject ? (e) => handleDragEnter(e, qIndex) : undefined,
+            onDragOver: selectedProject ? handleDragOver : undefined,
+            onDragEnd: selectedProject ? handleDragEnd : undefined,
+            onDrop: selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
+            style: { opacity: isDragging ? 0.4 : 1 }
         },
             // Header del nodo raíz
             React.createElement('div', {
@@ -462,24 +500,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 className: 'dgt-panoramic-node-row',
                 style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
-                // Botones de reordenamiento (solo si hay proyecto seleccionado)
+                // Drag handle (solo si hay proyecto seleccionado)
                 selectedProject && React.createElement('div', {
-                    className: 'dgt-flex-column dgt-mr-xs',
+                    className: 'dgt-drag-handle dgt-mr-xs',
+                    title: 'Mantén presionado y arrastra para reordenar',
                     onClick: (e) => e.stopPropagation()
-                },
-                    React.createElement('button', {
-                        onClick: () => moveQuestionUp(orderedQuestionUIDs.indexOf(question.uid)),
-                        disabled: orderedQuestionUIDs.indexOf(question.uid) === 0,
-                        className: 'dgt-btn-ghost dgt-text-xs',
-                        style: { padding: 0, lineHeight: 1, marginBottom: '2px', opacity: orderedQuestionUIDs.indexOf(question.uid) === 0 ? 0.3 : 1 }
-                    }, '▲'),
-                    React.createElement('button', {
-                        onClick: () => moveQuestionDown(orderedQuestionUIDs.indexOf(question.uid)),
-                        disabled: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1,
-                        className: 'dgt-btn-ghost dgt-text-xs',
-                        style: { padding: 0, lineHeight: 1, opacity: orderedQuestionUIDs.indexOf(question.uid) === orderedQuestionUIDs.length - 1 ? 0.3 : 1 }
-                    }, '▼')
-                ),
+                }, '⋮⋮'),
                 React.createElement('span', {
                     className: 'dgt-text-muted dgt-text-xs',
                     style: { marginTop: '4px', width: '12px', textAlign: 'center' }

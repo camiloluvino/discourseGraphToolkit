@@ -1,5 +1,5 @@
 // ============================================================================
-// 1. CONFIGURACIÓN Y CONSTANTES
+// CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
 
 window.DiscourseGraphToolkit = window.DiscourseGraphToolkit || {};
@@ -45,7 +45,8 @@ DiscourseGraphToolkit.ROAM = {
 DiscourseGraphToolkit.FILES = {
     BYTES_PER_MB: 1024 * 1024,
     MAX_SIZE_MB: 10,
-    MAX_DEPTH: 10
+    MAX_DEPTH: 10,
+    MAX_PANORAMIC_CACHE_NODES: 500
 };
 
 // Tipos de Nodos

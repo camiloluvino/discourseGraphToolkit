@@ -1,5 +1,5 @@
 // ============================================================================
-// 2. GESTIÓN DE ALMACENAMIENTO (STORAGE)
+// GESTIÓN DE ALMACENAMIENTO (STORAGE)
 // ============================================================================
 
 // --- Configuración General ---
@@ -21,7 +21,7 @@ DiscourseGraphToolkit.saveConfig = function (config) {
 DiscourseGraphToolkit.getTemplates = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.TEMPLATES));
     if (stored) {
-        try { return JSON.parse(stored); } catch (e) { }
+        try { return JSON.parse(stored); } catch (e) { console.warn("Error parsing templates", e); }
     }
     return { ...this.DEFAULT_TEMPLATES };
 };
@@ -168,7 +168,7 @@ DiscourseGraphToolkit.getVerificationCache = function () {
     if (stored) {
         try {
             return JSON.parse(stored);
-        } catch (e) { }
+        } catch (e) { console.warn("Error parsing verification cache", e); }
     }
     return null;
 };
@@ -215,11 +215,18 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
 
 // --- Cache de Vista Panorámica ---
 DiscourseGraphToolkit.savePanoramicCache = function (panoramicData) {
+    // Limitar tamaño del cache para evitar exceder localStorage
+    const maxNodes = this.FILES.MAX_PANORAMIC_CACHE_NODES || 500;
+    const nodeEntries = Object.entries(panoramicData.allNodes);
+    const limitedNodes = nodeEntries.length > maxNodes
+        ? Object.fromEntries(nodeEntries.slice(0, maxNodes))
+        : panoramicData.allNodes;
+
     // Crear copia limpia sin referencias circulares (node.data = node)
     const cleanData = {
         questions: panoramicData.questions.map(({ data, ...q }) => q),
         allNodes: Object.fromEntries(
-            Object.entries(panoramicData.allNodes).map(([uid, node]) => {
+            Object.entries(limitedNodes).map(([uid, node]) => {
                 const { data, ...clean } = node;
                 return [uid, clean];
             })

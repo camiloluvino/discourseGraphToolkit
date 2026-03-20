@@ -368,11 +368,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
         const commonProject = getProjectKey(pNames);
-        // Formatear el nombre del archivo para que mantenga la estructura DG_proyecto_namespace
-        const formatProjectName = (pName) => {
-            return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
-        };
-        const sanitizedNames = formatProjectName(commonProject);
+        const sanitizedNames = DiscourseGraphToolkit.formatExportProjectName(commonProject);
         const filename = `DG_${sanitizedNames}`;
 
         // Retornar preguntas YA ordenadas para el export
@@ -393,10 +389,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             // Calcular el nombre del proyecto usando el ancestro común (getProjectKey)
             const commonProject = getProjectKey(pNames);
-            const formatProjectName = (pName) => {
-                return pName.split('/').map(part => DiscourseGraphToolkit.sanitizeFilename(part).replace(/^dg_/i, '')).join('_');
-            };
-            const sanitizedNames = formatProjectName(commonProject);
+            const sanitizedNames = DiscourseGraphToolkit.formatExportProjectName(commonProject);
             const filename = `DG_${sanitizedNames}.json`;
 
             const anyContent = Object.values(contentConfig).some(x => x);
