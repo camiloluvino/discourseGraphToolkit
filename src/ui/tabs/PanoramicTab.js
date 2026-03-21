@@ -6,14 +6,14 @@
 DiscourseGraphToolkit.PanoramicTab = function () {
     const React = window.React;
 
-    // Desestructurar del contexto (algunos nombres difieren de los props originales)
+    // Desestructurar de los contextos específicos
+    const { projects } = DiscourseGraphToolkit.useProjects();
     const {
-        projects,
         panoramicData, setPanoramicData,
         panoramicExpandedQuestions: expandedQuestions, setPanoramicExpandedQuestions: setExpandedQuestions,
         panoramicLoadStatus: loadStatus, setPanoramicLoadStatus: setLoadStatus,
         panoramicSelectedProject: selectedProject, setPanoramicSelectedProject: setSelectedProject
-    } = DiscourseGraphToolkit.useToolkit();
+    } = DiscourseGraphToolkit.usePanoramic();
 
     // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);

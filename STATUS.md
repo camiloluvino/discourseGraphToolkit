@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.34**
+**v1.5.35**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,15 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.35 (Marzo 2026)
+- **Refactor: Arquitectura de Estado Basada en Dominios (Desacoplamiento Crítico).**
+  - **Eliminación del God Object:** Se refactorizó completamente `modal.js` para eliminar 30 `useState` hooks que centralizaban todo el estado del plugin.
+  - **Múltiples Contextos de Dominio:** Implementación de 5 nuevos contextos React independientes (`NavContext`, `ProjectsContext`, `BranchesContext`, `ExportContext`, `PanoramicContext`).
+  - **Eliminación de Re-renders Masivos:** Las pestañas ahora solo se suscriben a los datos que necesitan. Se eliminaron cientos de re-renders innecesarios en paneles complejos como Panorámica y Ramas.
+  - **Estado Local Puro:** Las pestañas de "Nodos" e "Importar" migran a `useState` local, desacoplándose totalmente del ciclo de vida de otros componentes.
+  - **Fix: Contaminación de Status:** Se separó el estado `exportStatus` en múltiples estados locales, evitando que el progreso de una pestaña se muestre en otra.
+  - **Build Optimizado:** Actualizado el script de ensamblaje para gestionar la inyección de contextos en el orden de dependencia correcto.
 
 ### v1.5.34 (Marzo 2026)
 - **UI/UX: Corrección de espacio en blanco en Exportar y Nodos.**

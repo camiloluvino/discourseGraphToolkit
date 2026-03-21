@@ -11,7 +11,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
         isPropagating, setIsPropagating
-    } = DiscourseGraphToolkit.useToolkit();
+    } = DiscourseGraphToolkit.useBranches();
 
     // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null

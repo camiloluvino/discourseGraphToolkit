@@ -4,10 +4,10 @@
 
 DiscourseGraphToolkit.NodesTab = function () {
     const React = window.React;
-    const {
-        orphanResults, setOrphanResults,
-        isSearchingOrphans, setIsSearchingOrphans
-    } = DiscourseGraphToolkit.useToolkit();
+
+    // Estado local — este tab no necesita compartir estado con otros tabs
+    const [orphanResults, setOrphanResults] = React.useState([]);
+    const [isSearchingOrphans, setIsSearchingOrphans] = React.useState(false);
 
     // --- Helpers (shared) ---
     const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;

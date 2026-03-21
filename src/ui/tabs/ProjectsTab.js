@@ -10,11 +10,13 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         suggestions, setSuggestions,
         isScanning, setIsScanning,
         selectedProjectsForDelete, setSelectedProjectsForDelete,
-        exportStatus, setExportStatus,
         config, setConfig,
         templates, setTemplates,
         newProject, setNewProject
-    } = DiscourseGraphToolkit.useToolkit();
+    } = DiscourseGraphToolkit.useProjects();
+
+    // Estado local para status de operaciones de proyectos (no compartido con ExportTab)
+    const [projectsStatus, setProjectsStatus] = React.useState('');
 
     // --- Estado local para vista de árbol de proyectos ---
     const [expandedProjects, setExpandedProjects] = React.useState({});

@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.34  
+**Versión:** 1.5.35  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -149,6 +149,7 @@ discourseGraphToolkit/
 │   │   └── epubGenerator.js       # Generador EPUB
 │   ├── ui/
 │   │   ├── modal.js           # Modal principal (React)
+│   │   ├── contexts/          # Contextos de dominio (Nav, Projects, Branches, etc.)
 │   │   ├── components/        # Componentes reutilizables
 │   │   └── tabs/              # Pestañas del modal (Proyectos, Ramas, Nodos, etc.)
 │   └── utils/

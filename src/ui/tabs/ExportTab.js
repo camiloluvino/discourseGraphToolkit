@@ -4,8 +4,8 @@
 
 DiscourseGraphToolkit.ExportTab = function () {
     const React = window.React;
+    const { projects } = DiscourseGraphToolkit.useProjects();
     const {
-        projects,
         selectedProjects, setSelectedProjects,
         selectedTypes, setSelectedTypes,
         contentConfig, setContentConfig,
@@ -14,7 +14,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
-    } = DiscourseGraphToolkit.useToolkit();
+    } = DiscourseGraphToolkit.useExport();
 
     // --- Limpiar preview cuando cambian los proyectos seleccionados ---
     React.useEffect(() => {

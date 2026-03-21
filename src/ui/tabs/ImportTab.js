@@ -4,7 +4,9 @@
 
 DiscourseGraphToolkit.ImportTab = function () {
     const React = window.React;
-    const { exportStatus, setExportStatus } = DiscourseGraphToolkit.useToolkit();
+
+    // Estado local — este tab no necesita compartir estado con otros tabs
+    const [importStatus, setImportStatus] = React.useState('');
 
     // --- Render ---
     return React.createElement('div', null,
@@ -22,9 +24,9 @@ DiscourseGraphToolkit.ImportTab = function () {
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = async (event) => {
-                            setExportStatus("Importando...");
+                            setImportStatus("Importando...");
                             try {
-                                const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setExportStatus(msg));
+                                const result = await DiscourseGraphToolkit.importGraph(event.target.result, (msg) => setImportStatus(msg));
 
                                 let statusMsg = `✅ Importación finalizada. Páginas: ${result.pages}. Saltados: ${result.skipped}.`;
                                 if (result.errors && result.errors.length > 0) {
@@ -33,11 +35,11 @@ DiscourseGraphToolkit.ImportTab = function () {
                                 } else {
                                     DiscourseGraphToolkit.showToast(`Importación exitosa: ${result.pages} páginas.`, 'success');
                                 }
-                                setExportStatus(statusMsg);
+                                setImportStatus(statusMsg);
 
                             } catch (err) {
                                 console.error(err);
-                                setExportStatus(`❌ Error fatal: ${err.message}`);
+                                setImportStatus(`❌ Error fatal: ${err.message}`);
                                 DiscourseGraphToolkit.showToast("Error en importación.", "error");
                             }
                         };
@@ -53,6 +55,6 @@ DiscourseGraphToolkit.ImportTab = function () {
                 }
             }, 'Seleccionar Archivo JSON')
         ),
-        exportStatus && React.createElement('div', { style: { marginTop: '1.25rem', padding: '0.625rem', backgroundColor: '#f5f5f5', borderRadius: '0.25rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap' } }, exportStatus)
+        importStatus && React.createElement('div', { style: { marginTop: '1.25rem', padding: '0.625rem', backgroundColor: '#f5f5f5', borderRadius: '0.25rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap' } }, importStatus)
     );
 };
