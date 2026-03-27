@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.35  
+**Versión:** 1.5.36  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -40,9 +40,9 @@ Verifica la consistencia de tus ramas de investigación:
   - Nodos con sub-namespace son marcados como "🔀 Especializados" (coherentes pero con proyecto más específico).
   - Detecta "generalizaciones" cuando un hijo tiene proyecto menos específico que su padre.
 - **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
-- **Propagación inteligente con dos botones:**
-  - `🔄 Propagar raíz` — Aplica el proyecto del QUE a nodos sin proyecto o con proyecto diferente.
-  - `⬆️ Heredar de padres` — Corrige generalizaciones aplicando el proyecto del padre directo a cada nodo.
+- **Propagación inteligente unificada:**
+  - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
+- **UI Limpia:** Secciones colapsables por tipo de error y detalles técnicos accesibles vía hover (tooltips).
 
 ### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:

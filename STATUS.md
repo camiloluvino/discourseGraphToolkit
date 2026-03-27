@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-03-04
+**Última actualización:** 2026-03-26
 
 ## Versión Actual
 
-**v1.5.35**
+**v1.5.36**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,21 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Soporta filtros rápidos e indicadores visuales de error |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación y rediseño de panel de detalles |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda, escaneo de proyectos en todos los niveles y filtrado selectivo de ramas |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.36 (Marzo 2026)
+- **UI/UX: Rediseño y Unificación de Coherencia de Ramas.**
+  - **Unificación de Botones:** Se fusionaron "Propagar raíz" y "Heredar de padres" en un único botón inteligente **"🔄 Propagar"**. El sistema ahora determina automáticamente si aplicar el proyecto raíz (para diferencias y omisiones) o el proyecto del padre directo (para generalizaciones).
+  - **Rediseño del Panel de Detalles:** Se eliminaron badges redundantes y se implementó un layout horizontal más compacto.
+  - **Secciones Colapsables:** Los nodos problemáticos ahora se agrupan en acordeones (`details`) separados por tipo de error ("Diferencias" vs "Sin proyecto"), reduciendo la carga cognitiva.
+  - **Tooltips Contextuales:** Se movió la información técnica ("Debería heredar: X | Tiene: Y") a tooltips tipo hover, limpiando la lista visual de nodos.
+  - **Refactor de Handlers:** Optimización de la lógica de negocio en `BranchesTab.js` para manejar la propagación atómica de múltiples tipos de inconsistencias.
 
 ### v1.5.35 (Marzo 2026)
 - **Refactor: Arquitectura de Estado Basada en Dominios (Desacoplamiento Crítico).**

@@ -154,55 +154,49 @@ DiscourseGraphToolkit.BranchesTab = function () {
         setEditableProject(result.coherence.rootProject || '');
     };
 
-    const handleBulkPropagateProject = async () => {
+    const handlePropagate = async () => {
         if (!selectedBulkQuestion || !editableProject.trim()) {
             return;
         }
 
-        const nodesToUpdate = [
+        const exactChanges = [
             ...selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization'),
             ...selectedBulkQuestion.coherence.missing
         ];
-        if (nodesToUpdate.length === 0) return;
-
-        setIsPropagating(true);
-        setBulkVerifyStatus(`⏳ Propagando "${editableProject}" a ${nodesToUpdate.length} nodos...`);
-
-        try {
-            const result = await DiscourseGraphToolkit.propagateProjectToBranch(
-                selectedBulkQuestion.question.pageUid,
-                editableProject.trim(),
-                nodesToUpdate
-            );
-
-            if (result.success) {
-                await refreshSelectedQuestion();
-            } else {
-                setBulkVerifyStatus(`⚠️ Propagación con errores.`);
-            }
-        } catch (e) {
-            setBulkVerifyStatus('❌ Error: ' + e.message);
-        } finally {
-            setIsPropagating(false);
-        }
-    };
-
-    const handlePropagateFromParents = async () => {
-        if (!selectedBulkQuestion) return;
-
+        
         const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
-        if (generalizations.length === 0) return;
+        
+        const totalNodes = exactChanges.length + generalizations.length;
+        if (totalNodes === 0) return;
 
         setIsPropagating(true);
-        setBulkVerifyStatus(`⏳ Heredando proyectos de padres para ${generalizations.length} nodos...`);
+        setBulkVerifyStatus(`⏳ Propagando proyecto a ${totalNodes} nodos...`);
 
         try {
-            const result = await DiscourseGraphToolkit.propagateFromParents(generalizations);
+            let success = true;
+            
+            // 1. Propagar proyecto raíz a diferentes exactos y faltantes
+            if (exactChanges.length > 0) {
+                const resultExact = await DiscourseGraphToolkit.propagateProjectToBranch(
+                    selectedBulkQuestion.question.pageUid,
+                    editableProject.trim(),
+                    exactChanges
+                );
+                if (!resultExact.success) success = false;
+            }
+            
+            // 2. Heredar proyecto del padre directo para generalizaciones
+            if (generalizations.length > 0) {
+                const resultGen = await DiscourseGraphToolkit.propagateFromParents(generalizations);
+                if (!resultGen.success) success = false;
+            }
 
-            if (result.success) {
+            if (success) {
                 await refreshSelectedQuestion();
             } else {
                 setBulkVerifyStatus(`⚠️ Propagación con errores.`);
+                // Forzar refresco para ver lo que se arregló
+                await refreshSelectedQuestion();
             }
         } catch (e) {
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -406,89 +400,79 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('h4', { className: 'dgt-mb-sm', style: { margin: 0, fontSize: '0.875rem', lineHeight: '1.4' } },
                 parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
 
-            // Proyecto editable y botones de propagación
-            React.createElement('div', { className: 'dgt-form-group' },
-                React.createElement('span', { className: 'dgt-form-label' }, 'Proyecto:'),
+            // Proyecto editable y botón de propagar unificado
+            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-md', style: { alignItems: 'center', marginTop: '0.5rem' } },
+                React.createElement('span', { className: 'dgt-text-sm dgt-text-bold', style: { flexShrink: 0 } }, 'Proyecto:'),
                 React.createElement('input', {
                     type: 'text',
                     value: editableProject,
                     onChange: (e) => setEditableProject(e.target.value),
                     className: 'dgt-input',
-                    style: { flex: 1, minWidth: '10rem' }
-                })
-            ),
-
-            // Botones de propagación (separados por tipo de error)
-            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-flex-wrap dgt-mb-sm' },
-                // Botón 1: Propagar raíz
+                    style: { flex: 1, minWidth: '10rem', padding: '6px 10px', fontSize: '0.875rem' }
+                }),
                 (() => {
-                    const nonGeneralizations = selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization');
-                    const count = nonGeneralizations.length + selectedBulkQuestion.coherence.missing.length;
-                    return count > 0 && React.createElement('button', {
-                        onClick: handleBulkPropagateProject,
+                    const totalProblematic = selectedBulkQuestion.coherence.different.length + selectedBulkQuestion.coherence.missing.length;
+                    return totalProblematic > 0 && React.createElement('button', {
+                        onClick: handlePropagate,
                         disabled: isPropagating || !editableProject.trim(),
                         className: 'dgt-btn dgt-btn-primary',
+                        title: 'Aplica el proyecto de los padres y corrige ramas sin proyecto automáticamente.',
                         style: {
-                            backgroundColor: (isPropagating || !editableProject.trim()) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)'
+                            backgroundColor: (isPropagating || !editableProject.trim()) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                            flexShrink: 0,
+                            padding: '6px 12px'
                         }
-                    }, isPropagating ? '⏳...' : `🔄 Propagar raíz (${count})`);
-                })(),
-
-                // Botón 2: Heredar de padres
-                (() => {
-                    const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
-                    return generalizations.length > 0 && React.createElement('button', {
-                        onClick: handlePropagateFromParents,
-                        disabled: isPropagating,
-                        className: 'dgt-btn dgt-btn-secondary'
-                    }, isPropagating ? '⏳...' : `⬆️ Heredar de padres (${generalizations.length})`);
+                    }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar (${totalProblematic})`);
                 })()
             ),
 
-            // Resumen compacto
-            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-sm dgt-flex-wrap' },
-                React.createElement('span', { className: 'dgt-badge dgt-badge-success', title: 'Coherentes y Especializados' },
-                    `✅ ${selectedBulkQuestion.coherence.coherent.length + selectedBulkQuestion.coherence.specialized.length}`),
-                React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
-                    `⚠️ ${selectedBulkQuestion.coherence.different.length}`),
-                React.createElement('span', { className: 'dgt-badge dgt-badge-error' },
-                    `❌ ${selectedBulkQuestion.coherence.missing.length}`)
-            ),
-
-            // Lista de nodos problemáticos
+            // Lista de nodos problemáticos con layout mejorado
             (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-            React.createElement('div', { className: 'dgt-list-container dgt-scrollable dgt-p-sm' },
-                selectedBulkQuestion.coherence.different.map(node =>
-                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                        React.createElement('span', { className: 'dgt-text-warning dgt-text-sm', style: { flexShrink: 0 } }, '⚠️'),
-                        React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.type),
-                            React.createElement('div', { className: 'dgt-text-xs dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            React.createElement('div', { className: 'dgt-text-secondary dgt-mt-sm', style: { fontSize: '0.625rem' } },
-                                React.createElement('span', null, `Debería heredar: ${node.parentProject}`),
-                                React.createElement('span', { style: { marginLeft: '0.5rem' } }, `Tiene: ${node.project}`)
+            React.createElement('div', { className: 'dgt-list-container dgt-scrollable', style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)' } },
+                // Sección: Proyecto Diferente
+                selectedBulkQuestion.coherence.different.length > 0 && React.createElement('details', { open: true, style: { borderBottom: selectedBulkQuestion.coherence.missing.length > 0 ? '1px solid var(--dgt-border-color)' : 'none' } },
+                    React.createElement('summary', { className: 'dgt-p-sm dgt-bg-secondary dgt-text-sm', style: { cursor: 'pointer', userSelect: 'none', fontWeight: '500' } }, 
+                        `⚠️ Diferencias de proyecto (${selectedBulkQuestion.coherence.different.length})`
+                    ),
+                    React.createElement('div', { className: 'dgt-p-0' },
+                        selectedBulkQuestion.coherence.different.map((node, i, arr) =>
+                            React.createElement('div', { 
+                                key: node.uid, 
+                                className: 'dgt-flex-row dgt-p-xs dgt-popover-item', 
+                                style: { alignItems: 'center', gap: '0.5rem', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' },
+                                title: `Debería heredar: ${node.parentProject}\nTiene: ${node.project}`
+                            },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0, fontSize: '0.65rem' } }, node.type),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-truncate', style: { flex: 1, paddingRight: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                                React.createElement('button', {
+                                    onClick: () => handleNavigateToPage(node.uid),
+                                    className: 'dgt-btn dgt-btn-ghost dgt-text-xs', style: { padding: '2px 8px', flexShrink: 0, border: '1px solid var(--dgt-border-color)' }
+                                }, '→ Ir')
                             )
-                        ),
-                        React.createElement('button', {
-                            onClick: () => handleNavigateToPage(node.uid),
-                            className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }
-                        }, '→ Ir')
+                        )
                     )
                 ),
-                selectedBulkQuestion.coherence.missing.map(node =>
-                    React.createElement('div', { key: node.uid, className: 'dgt-popover-item' },
-                        React.createElement('span', { className: 'dgt-text-error dgt-text-sm', style: { flexShrink: 0 } }, '❌'),
-                        React.createElement('div', { style: { flex: 1, lineHeight: '1.3' } },
-                            React.createElement('span', { className: 'dgt-badge dgt-badge-error dgt-mr-xs' }, node.type),
-                            React.createElement('div', { className: 'dgt-text-xs dgt-text-primary' }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                            node.parentProject && React.createElement('div', { className: 'dgt-text-secondary dgt-mt-sm', style: { fontSize: '0.625rem' } },
-                                `Debería heredar: ${node.parentProject}`
+                // Sección: Sin Proyecto
+                selectedBulkQuestion.coherence.missing.length > 0 && React.createElement('details', { open: true },
+                    React.createElement('summary', { className: 'dgt-p-sm dgt-bg-secondary dgt-text-sm', style: { cursor: 'pointer', userSelect: 'none', fontWeight: '500' } }, 
+                        `❌ Sin proyecto (${selectedBulkQuestion.coherence.missing.length})`
+                    ),
+                    React.createElement('div', { className: 'dgt-p-0' },
+                        selectedBulkQuestion.coherence.missing.map((node, i, arr) =>
+                            React.createElement('div', { 
+                                key: node.uid, 
+                                className: 'dgt-flex-row dgt-p-xs dgt-popover-item', 
+                                style: { alignItems: 'center', gap: '0.5rem', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' },
+                                title: node.parentProject ? `Debería heredar: ${node.parentProject}` : ''
+                            },
+                                React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0, fontSize: '0.65rem' } }, node.type),
+                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-truncate', style: { flex: 1, paddingRight: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
+                                React.createElement('button', {
+                                    onClick: () => handleNavigateToPage(node.uid),
+                                    className: 'dgt-btn dgt-btn-ghost dgt-text-xs', style: { padding: '2px 8px', flexShrink: 0, border: '1px solid var(--dgt-border-color)' }
+                                }, '→ Ir')
                             )
-                        ),
-                        React.createElement('button', {
-                            onClick: () => handleNavigateToPage(node.uid),
-                            className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }
-                        }, '→ Ir')
+                        )
                     )
                 )
             )
