@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.35
- * Bundled build: 2026-03-26 23:39:00
+ * Bundled build: 2026-03-27 00:50:15
  */
 
 (function () {
@@ -1684,8 +1684,8 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
 };
 
 /**
- * Helper: Extrae TODAS las referencias de nodos discourse del contenido de un nodo
- * Busca en #RespondedBy, #SupportedBy, #RelatedTo
+ * Helper: Extrae las referencias jerárquicas de nodos discourse del contenido de un nodo
+ * Busca en #RespondedBy, #SupportedBy, #Contains (ignora #RelatedTo)
  */
 DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
     const references = new Set();
@@ -1699,23 +1699,30 @@ DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
 
         const str = block.string || "";
 
-        // Si es un bloque de relación, extraer referencias
-        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#RelatedTo") || str.includes("#Contains")) {
-            // Extraer refs del bloque actual
-            self._extractRefsFromBlock(block, references);
+        // Si es un bloque de relación, extraer referencias (omitimos #RelatedTo por ser relacional/horizontal, no jerárquico)
+        if (str.includes("#RespondedBy") || str.includes("#SupportedBy") || str.includes("#Contains")) {
+            
+            // Función recursiva para extraer referencias de forma segura explorando la rama del bloque
+            const extractSafe = (nodeBlock) => {
+                if (!nodeBlock) return;
+                
+                const nodeStr = nodeBlock.string || "";
+                // Si encontramos un #RelatedTo anidado explícitamente, abortamos la extracción por ese sub-árbol
+                if (nodeStr.includes("#RelatedTo")) return;
 
-            // Extraer refs de los hijos del bloque
-            if (block.children) {
-                for (const child of block.children) {
-                    self._extractRefsFromBlock(child, references);
-                    // También procesar sub-hijos (para estructuras más profundas)
-                    if (child.children) {
-                        for (const subChild of child.children) {
-                            self._extractRefsFromBlock(subChild, references);
-                        }
+                // Extraemos cualquier referencia en la línea actual
+                self._extractRefsFromBlock(nodeBlock, references);
+
+                // Continuamos procesando los hijos recursivamente sin limitación de profundidad (o hasta toparnos con #RelatedTo)
+                if (nodeBlock.children) {
+                    for (const c of nodeBlock.children) {
+                        extractSafe(c);
                     }
                 }
-            }
+            };
+
+            // Iniciar la extracción segura desde el bloque relación
+            extractSafe(block);
         }
     };
 
@@ -1888,8 +1895,9 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                 // MENOS específico que el padre (generalización - ERROR)
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'generalization' });
             } else {
-                // Proyecto completamente diferente
-                different.push({ ...node, project: nodeProject, parentProject, reason: 'different' });
+                // Proyecto completamente diferente (referencia cruzada legítima)
+                // Lo enviamos a coherent para no levantar falsos errores ni sobrescribirlos por accidente
+                coherent.push({ ...node, project: nodeProject, parentProject, reason: 'cross_project' });
             }
         }
 

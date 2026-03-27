@@ -125,13 +125,14 @@ Proyecto Asociado:: [[tesis/marco/metodología]]
 | `tesis` | `tesis/marco` | 🔀 Especializado |
 | `tesis/marco` | `tesis` | ⚠️ Generalización (error) |
 
-**Regla jerárquica:** Un nodo debe tener un proyecto **igual o más específico** que su **padre directo** en la rama, no solo que el QUE raíz.
+**Regla jerárquica:** Un nodo debe tener un proyecto **igual o más específico** que su **padre directo** en la rama, a menos que tenga un proyecto completamente diferente (lo cual se interpreta como una **referencia cruzada legítima** y se ignora para la validación de coherencia).
 
 Ejemplo:
 ```
 QUE: tesis/metodología
   └── CLM-A: tesis/metodología/muestra     ← 🔀 OK (especializa)
-      └── CLM-B: tesis/metodología         ← ⚠️ ERROR (generaliza al padre CLM-A)
+  └── CLM-B: tesis/teoría/dialéctica       ← ✅ OK (referencia cruzada inter-proyecto)
+  └── CLM-C: tesis/metodología             ← ⚠️ ERROR (generaliza al padre CLM-A)
 ```
 
 ---

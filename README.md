@@ -35,10 +35,9 @@ Organiza tu investigación en proyectos separados:
 Verifica la consistencia de tus ramas de investigación:
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado.
-- **Verificación jerárquica padre-hijo:** Cada nodo debe ser igual o más específico que su padre directo.
+- **Verificación jerárquica inteligente:** Cada nodo debe ser igual o más específico que su padre directo, **salvo en referencias inter-proyectos explícitas**. El sistema detecta automáticamente cuando un nodo pertenece legítimamente a otro proyecto y lo trata como una referencia cruzada válida en lugar de marcarlo como un error de coherencia.
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
-  - Nodos con sub-namespace son marcados como "🔀 Especializados" (coherentes pero con proyecto más específico).
-  - Detecta "generalizaciones" cuando un hijo tiene proyecto menos específico que su padre.
+- **Exclusión de relaciones horizontales:** Las conexiones vía `#RelatedTo` son ignoradas por el validador de ramas para evitar ruidos de coherencia en enlaces laterales.
 - **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
 - **Propagación inteligente unificada:**
   - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
