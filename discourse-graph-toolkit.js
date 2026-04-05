@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.35
- * Bundled build: 2026-03-27 00:50:15
+ * Bundled build: 2026-04-05 02:17:33
  */
 
 (function () {
@@ -5226,6 +5226,30 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
         }));
     };
 
+    const handleExpandAll = () => {
+        const newExpanded = {};
+        const traverse = (node) => {
+            if (Object.keys(node.children || {}).length > 0) {
+                newExpanded[node.project || node.project === null ? node.project : '(sin proyecto)'] = true;
+                Object.values(node.children).forEach(traverse);
+            }
+        };
+        Object.values(tree).forEach(traverse);
+        setExpandedNodes(newExpanded);
+    };
+
+    const handleCollapseAll = () => {
+        const newExpanded = {};
+        const traverse = (node) => {
+            if (Object.keys(node.children || {}).length > 0) {
+                newExpanded[node.project || node.project === null ? node.project : '(sin proyecto)'] = false;
+                Object.values(node.children).forEach(traverse);
+            }
+        };
+        Object.values(tree).forEach(traverse);
+        setExpandedNodes(newExpanded);
+    };
+
     // --- Determinar si un nodo está expandido ---
     const isNodeExpanded = (nodePath) => {
         return expandedNodes[nodePath] === undefined ? defaultExpanded : expandedNodes[nodePath];
@@ -5257,6 +5281,18 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
 
     // --- Render principal ---
     return React.createElement('div', null,
+        Object.keys(tree).length > 0 && React.createElement('div', { className: 'dgt-flex-row dgt-mb-xs', style: { justifyContent: 'flex-end', gap: '0.375rem', paddingBottom: '0.25rem' } },
+            React.createElement('button', {
+                onClick: handleExpandAll,
+                className: 'dgt-btn dgt-btn-secondary dgt-text-xs',
+                style: { padding: '2px 6px', fontSize: '0.6875rem' }
+            }, '➕ Expandir Todo'),
+            React.createElement('button', {
+                onClick: handleCollapseAll,
+                className: 'dgt-btn dgt-btn-secondary dgt-text-xs',
+                style: { padding: '2px 6px', fontSize: '0.6875rem' }
+            }, '➖ Colapsar Todo')
+        ),
         Object.keys(tree).sort().map(projectKey =>
             renderNode(tree[projectKey], projectKey, 0)
         )
@@ -5606,14 +5642,14 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 React.createElement('div', { className: 'dgt-flex-row', style: { gap: '0.5rem' } },
                     React.createElement('button', {
                         onClick: handleExpandAll,
-                        className: 'dgt-btn',
-                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
-                    }, 'Expandir Todo'),
+                        className: 'dgt-btn dgt-btn-secondary',
+                        style: { padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' }
+                    }, '➕ Expandir Todo'),
                     React.createElement('button', {
                         onClick: handleCollapseAll,
-                        className: 'dgt-btn',
-                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
-                    }, 'Colapsar Todo')
+                        className: 'dgt-btn dgt-btn-secondary',
+                        style: { padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' }
+                    }, '➖ Colapsar Todo')
                 )
             ),
             React.createElement('button', {

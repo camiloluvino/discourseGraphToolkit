@@ -338,14 +338,14 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                 React.createElement('div', { className: 'dgt-flex-row', style: { gap: '0.5rem' } },
                     React.createElement('button', {
                         onClick: handleExpandAll,
-                        className: 'dgt-btn',
-                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
-                    }, 'Expandir Todo'),
+                        className: 'dgt-btn dgt-btn-secondary',
+                        style: { padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' }
+                    }, '➕ Expandir Todo'),
                     React.createElement('button', {
                         onClick: handleCollapseAll,
-                        className: 'dgt-btn',
-                        style: { padding: '0.125rem 0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--dgt-border-color)', color: 'var(--dgt-text-muted)', cursor: 'pointer', borderRadius: '4px' }
-                    }, 'Colapsar Todo')
+                        className: 'dgt-btn dgt-btn-secondary',
+                        style: { padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' }
+                    }, '➖ Colapsar Todo')
                 )
             ),
             React.createElement('button', {
