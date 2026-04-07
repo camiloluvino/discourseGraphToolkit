@@ -20,6 +20,7 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
     const [isScanning, setIsScanning] = React.useState(false);
     const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
     const [newProjectsAlert, setNewProjectsAlert] = React.useState([]);
+    const [dismissedProjects, setDismissedProjects] = React.useState([]);
 
     // --- Inicialización ---
     React.useEffect(() => {
@@ -29,6 +30,7 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
             setConfig(DiscourseGraphToolkit.getConfig());
             setTemplates(DiscourseGraphToolkit.getTemplates());
             setProjects(DiscourseGraphToolkit.getProjects());
+            setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
 
             const projs = DiscourseGraphToolkit.getProjects();
             if (projs.length > 0) {
@@ -40,7 +42,8 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
             try {
                 const discovered = await DiscourseGraphToolkit.discoverProjectsInGraph();
                 const current = DiscourseGraphToolkit.getProjects();
-                const newProjects = discovered.filter(p => !current.includes(p));
+                const dismissed = DiscourseGraphToolkit.getDismissedProjects();
+                const newProjects = discovered.filter(p => !current.includes(p) && !dismissed.includes(p));
                 if (newProjects.length > 0) {
                     setNewProjectsAlert(newProjects);
                 }
@@ -60,8 +63,9 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
         suggestions, setSuggestions,
         isScanning, setIsScanning,
         selectedProjectsForDelete, setSelectedProjectsForDelete,
-        newProjectsAlert, setNewProjectsAlert
-    }), [config, templates, projects, newProject, validation, suggestions, isScanning, selectedProjectsForDelete, newProjectsAlert]);
+        newProjectsAlert, setNewProjectsAlert,
+        dismissedProjects, setDismissedProjects
+    }), [config, templates, projects, newProject, validation, suggestions, isScanning, selectedProjectsForDelete, newProjectsAlert, dismissedProjects]);
 
     return React.createElement(DiscourseGraphToolkit.ProjectsContext.Provider, { value }, children);
 };

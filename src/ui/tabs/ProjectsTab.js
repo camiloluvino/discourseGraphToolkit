@@ -12,7 +12,8 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         selectedProjectsForDelete, setSelectedProjectsForDelete,
         config, setConfig,
         templates, setTemplates,
-        newProject, setNewProject
+        newProject, setNewProject,
+        dismissedProjects, setDismissedProjects
     } = DiscourseGraphToolkit.useProjects();
 
     // Estado local para status de operaciones de proyectos (no compartido con ExportTab)
@@ -182,6 +183,13 @@ DiscourseGraphToolkit.ProjectsTab = function () {
             const updated = [...projects, proj].sort();
             setProjects(updated);
             setSuggestions(suggestions.filter(s => s !== proj));
+            
+            // Si estaba en ignorados, lo sacamos
+            if (dismissedProjects.includes(proj)) {
+                DiscourseGraphToolkit.removeFromDismissedProjects(proj);
+                setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+            }
+
             DiscourseGraphToolkit.saveProjects(updated);
             await DiscourseGraphToolkit.syncProjectsToRoam(updated);
         }
@@ -194,6 +202,14 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         const updated = [...new Set([...projects, ...toAdd])].sort();
         setProjects(updated);
         setSuggestions([]);
+        
+        // Limpiar de ignorados los añadidos
+        const newlyAdded = toAdd.filter(p => dismissedProjects.includes(p));
+        if (newlyAdded.length > 0) {
+            newlyAdded.forEach(p => DiscourseGraphToolkit.removeFromDismissedProjects(p));
+            setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+        }
+
         DiscourseGraphToolkit.saveProjects(updated);
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
         DiscourseGraphToolkit.showToast(`Se añadieron ${toAdd.length} proyectos.`, 'success');
@@ -318,6 +334,36 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                     React.createElement('div', { key: s, className: 'dgt-flex-between dgt-p-sm', style: { borderBottom: '1px solid var(--dgt-border-color)' } },
                         React.createElement('span', null, s),
                         React.createElement('button', { onClick: () => handleAddSuggestion(s), className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '4px 8px', backgroundColor: 'var(--dgt-accent-green)' } }, '+ Añadir')
+                    )
+                )
+            )
+        ),
+
+        // Sección de Proyectos Ignorados
+        dismissedProjects.length > 0 && React.createElement('div', { className: 'dgt-card dgt-card-body dgt-mb-md', style: { borderColor: 'var(--dgt-border-color)', backgroundColor: 'var(--dgt-bg-secondary)' } },
+            React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm' },
+                React.createElement('strong', { className: 'dgt-text-neutral' }, `Ocultos de la alerta automática (${dismissedProjects.length}):`),
+                React.createElement('button', {
+                    onClick: () => {
+                        DiscourseGraphToolkit.clearDismissedProjects();
+                        setDismissedProjects([]);
+                        DiscourseGraphToolkit.showToast('Lista de ignorados limpiada.', 'info');
+                    },
+                    style: { padding: '4px 10px', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--dgt-text-neutral)' }
+                }, `🧹 Limpiar Todos`)
+            ),
+            React.createElement('div', { className: 'dgt-list-container', style: { maxHeight: '12.5rem', overflowY: 'auto', paddingRight: '0.5rem' } },
+                dismissedProjects.map(s =>
+                    React.createElement('div', { key: s, className: 'dgt-flex-between dgt-p-sm', style: { borderBottom: '1px dotted var(--dgt-border-color)' } },
+                        React.createElement('span', { style: { color: 'var(--dgt-text-neutral)', fontStyle: 'italic', fontSize: '0.8125rem' } }, s),
+                        React.createElement('button', {
+                            onClick: () => {
+                                DiscourseGraphToolkit.removeFromDismissedProjects(s);
+                                setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+                                DiscourseGraphToolkit.showToast('Proyecto restaurado y en vigilancia de nuevo.', 'success');
+                            },
+                            style: { padding: '2px 6px', backgroundColor: 'transparent', border: '1px solid var(--dgt-accent-green)', color: 'var(--dgt-accent-green)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }
+                        }, 'Restaurar')
                     )
                 )
             )

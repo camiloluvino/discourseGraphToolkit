@@ -10,6 +10,7 @@ DiscourseGraphToolkit.STORAGE = {
     CONFIG: "discourseGraphToolkit_config",
     TEMPLATES: "discourseGraphToolkit_templates",
     PROJECTS: "discourseGraphToolkit_projects",
+    DISMISSED_PROJECTS: "discourseGraphToolkit_dismissed_projects",
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
     HISTORY_EXPORT: "discourseGraphToolkit_history_export",
     QUESTION_ORDER: "discourseGraphToolkit_question_order",

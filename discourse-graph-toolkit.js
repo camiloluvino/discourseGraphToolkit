@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.35
- * Bundled build: 2026-04-05 02:17:33
+ * DISCOURSE GRAPH TOOLKIT v1.5.36
+ * Bundled build: 2026-04-07 16:56:22
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.35";
+    DiscourseGraphToolkit.VERSION = "1.5.36";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -554,6 +554,7 @@ DiscourseGraphToolkit.STORAGE = {
     CONFIG: "discourseGraphToolkit_config",
     TEMPLATES: "discourseGraphToolkit_templates",
     PROJECTS: "discourseGraphToolkit_projects",
+    DISMISSED_PROJECTS: "discourseGraphToolkit_dismissed_projects",
     HISTORY_NODES: "discourseGraphToolkit_history_nodes",
     HISTORY_EXPORT: "discourseGraphToolkit_history_export",
     QUESTION_ORDER: "discourseGraphToolkit_question_order",
@@ -1122,6 +1123,35 @@ DiscourseGraphToolkit.getProjects = function () {
 
 DiscourseGraphToolkit.saveProjects = function (projects) {
     localStorage.setItem(this.getStorageKey(this.STORAGE.PROJECTS), JSON.stringify(projects));
+};
+
+// --- Proyectos Excluidos (Dismissed) ---
+DiscourseGraphToolkit.getDismissedProjects = function () {
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.DISMISSED_PROJECTS));
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing dismissed projects", e); }
+    }
+    return [];
+};
+
+DiscourseGraphToolkit.saveDismissedProjects = function (dismissed) {
+    localStorage.setItem(this.getStorageKey(this.STORAGE.DISMISSED_PROJECTS), JSON.stringify(dismissed));
+};
+
+DiscourseGraphToolkit.addToDismissedProjects = function (projectNames) {
+    const current = this.getDismissedProjects();
+    const merged = [...new Set([...current, ...projectNames])].sort();
+    this.saveDismissedProjects(merged);
+};
+
+DiscourseGraphToolkit.removeFromDismissedProjects = function (projectName) {
+    const current = this.getDismissedProjects();
+    const updated = current.filter(p => p !== projectName);
+    this.saveDismissedProjects(updated);
+};
+
+DiscourseGraphToolkit.clearDismissedProjects = function () {
+    this.saveDismissedProjects([]);
 };
 
 // --- Historial de Nodos ---
@@ -5316,7 +5346,8 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         selectedProjectsForDelete, setSelectedProjectsForDelete,
         config, setConfig,
         templates, setTemplates,
-        newProject, setNewProject
+        newProject, setNewProject,
+        dismissedProjects, setDismissedProjects
     } = DiscourseGraphToolkit.useProjects();
 
     // Estado local para status de operaciones de proyectos (no compartido con ExportTab)
@@ -5486,6 +5517,13 @@ DiscourseGraphToolkit.ProjectsTab = function () {
             const updated = [...projects, proj].sort();
             setProjects(updated);
             setSuggestions(suggestions.filter(s => s !== proj));
+            
+            // Si estaba en ignorados, lo sacamos
+            if (dismissedProjects.includes(proj)) {
+                DiscourseGraphToolkit.removeFromDismissedProjects(proj);
+                setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+            }
+
             DiscourseGraphToolkit.saveProjects(updated);
             await DiscourseGraphToolkit.syncProjectsToRoam(updated);
         }
@@ -5498,6 +5536,14 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         const updated = [...new Set([...projects, ...toAdd])].sort();
         setProjects(updated);
         setSuggestions([]);
+        
+        // Limpiar de ignorados los añadidos
+        const newlyAdded = toAdd.filter(p => dismissedProjects.includes(p));
+        if (newlyAdded.length > 0) {
+            newlyAdded.forEach(p => DiscourseGraphToolkit.removeFromDismissedProjects(p));
+            setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+        }
+
         DiscourseGraphToolkit.saveProjects(updated);
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
         DiscourseGraphToolkit.showToast(`Se añadieron ${toAdd.length} proyectos.`, 'success');
@@ -5622,6 +5668,36 @@ DiscourseGraphToolkit.ProjectsTab = function () {
                     React.createElement('div', { key: s, className: 'dgt-flex-between dgt-p-sm', style: { borderBottom: '1px solid var(--dgt-border-color)' } },
                         React.createElement('span', null, s),
                         React.createElement('button', { onClick: () => handleAddSuggestion(s), className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '4px 8px', backgroundColor: 'var(--dgt-accent-green)' } }, '+ Añadir')
+                    )
+                )
+            )
+        ),
+
+        // Sección de Proyectos Ignorados
+        dismissedProjects.length > 0 && React.createElement('div', { className: 'dgt-card dgt-card-body dgt-mb-md', style: { borderColor: 'var(--dgt-border-color)', backgroundColor: 'var(--dgt-bg-secondary)' } },
+            React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm' },
+                React.createElement('strong', { className: 'dgt-text-neutral' }, `Ocultos de la alerta automática (${dismissedProjects.length}):`),
+                React.createElement('button', {
+                    onClick: () => {
+                        DiscourseGraphToolkit.clearDismissedProjects();
+                        setDismissedProjects([]);
+                        DiscourseGraphToolkit.showToast('Lista de ignorados limpiada.', 'info');
+                    },
+                    style: { padding: '4px 10px', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--dgt-text-neutral)' }
+                }, `🧹 Limpiar Todos`)
+            ),
+            React.createElement('div', { className: 'dgt-list-container', style: { maxHeight: '12.5rem', overflowY: 'auto', paddingRight: '0.5rem' } },
+                dismissedProjects.map(s =>
+                    React.createElement('div', { key: s, className: 'dgt-flex-between dgt-p-sm', style: { borderBottom: '1px dotted var(--dgt-border-color)' } },
+                        React.createElement('span', { style: { color: 'var(--dgt-text-neutral)', fontStyle: 'italic', fontSize: '0.8125rem' } }, s),
+                        React.createElement('button', {
+                            onClick: () => {
+                                DiscourseGraphToolkit.removeFromDismissedProjects(s);
+                                setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+                                DiscourseGraphToolkit.showToast('Proyecto restaurado y en vigilancia de nuevo.', 'success');
+                            },
+                            style: { padding: '2px 6px', backgroundColor: 'transparent', border: '1px solid var(--dgt-accent-green)', color: 'var(--dgt-accent-green)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }
+                        }, 'Restaurar')
                     )
                 )
             )
@@ -7832,6 +7908,7 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
     const [isScanning, setIsScanning] = React.useState(false);
     const [selectedProjectsForDelete, setSelectedProjectsForDelete] = React.useState({});
     const [newProjectsAlert, setNewProjectsAlert] = React.useState([]);
+    const [dismissedProjects, setDismissedProjects] = React.useState([]);
 
     // --- Inicialización ---
     React.useEffect(() => {
@@ -7841,6 +7918,7 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
             setConfig(DiscourseGraphToolkit.getConfig());
             setTemplates(DiscourseGraphToolkit.getTemplates());
             setProjects(DiscourseGraphToolkit.getProjects());
+            setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
 
             const projs = DiscourseGraphToolkit.getProjects();
             if (projs.length > 0) {
@@ -7852,7 +7930,8 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
             try {
                 const discovered = await DiscourseGraphToolkit.discoverProjectsInGraph();
                 const current = DiscourseGraphToolkit.getProjects();
-                const newProjects = discovered.filter(p => !current.includes(p));
+                const dismissed = DiscourseGraphToolkit.getDismissedProjects();
+                const newProjects = discovered.filter(p => !current.includes(p) && !dismissed.includes(p));
                 if (newProjects.length > 0) {
                     setNewProjectsAlert(newProjects);
                 }
@@ -7872,8 +7951,9 @@ DiscourseGraphToolkit.ProjectsProvider = function ({ children }) {
         suggestions, setSuggestions,
         isScanning, setIsScanning,
         selectedProjectsForDelete, setSelectedProjectsForDelete,
-        newProjectsAlert, setNewProjectsAlert
-    }), [config, templates, projects, newProject, validation, suggestions, isScanning, selectedProjectsForDelete, newProjectsAlert]);
+        newProjectsAlert, setNewProjectsAlert,
+        dismissedProjects, setDismissedProjects
+    }), [config, templates, projects, newProject, validation, suggestions, isScanning, selectedProjectsForDelete, newProjectsAlert, dismissedProjects]);
 
     return React.createElement(DiscourseGraphToolkit.ProjectsContext.Provider, { value }, children);
 };
@@ -8046,7 +8126,7 @@ DiscourseGraphToolkit.useToolkit = function () {
 DiscourseGraphToolkit._ModalInner = function ({ onClose, onMinimize }) {
     const React = window.React;
     const { activeTab, setActiveTab } = DiscourseGraphToolkit.useNav();
-    const { projects, setProjects, newProjectsAlert, setNewProjectsAlert } = DiscourseGraphToolkit.useProjects();
+    const { projects, setProjects, newProjectsAlert, setNewProjectsAlert, dismissedProjects, setDismissedProjects } = DiscourseGraphToolkit.useProjects();
 
     // --- Helpers ---
     const tabStyle = React.useCallback((id) => ({
@@ -8131,7 +8211,13 @@ DiscourseGraphToolkit._ModalInner = function ({ onClose, onMinimize }) {
                     }
                 }, 'Agregar todos'),
                 React.createElement('button', {
-                    onClick: () => setNewProjectsAlert([]),
+                    title: 'Ignorar permanentemente de la alerta automática',
+                    onClick: () => {
+                        DiscourseGraphToolkit.addToDismissedProjects(newProjectsAlert);
+                        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+                        setNewProjectsAlert([]);
+                        DiscourseGraphToolkit.showToast('Proyectos ignorados (puedes restaurarlos más tarde)', 'info');
+                    },
                     style: {
                         padding: '0.25rem 0.5rem',
                         backgroundColor: 'transparent',

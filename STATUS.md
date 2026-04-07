@@ -23,7 +23,14 @@
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
-### v1.5.36 (Marzo 2026)
+### v1.5.36 (Abril 2026)
+- **Feature: Control de Proyectos No Registrados (Lista de Ignorados).**
+  - **Persistencia de Descarte:** Al presionar "X" en la alerta de proyectos no registrados, los proyectos se guardan en una lista de exclusión local (`dismissed_projects`).
+  - **Silencio Inteligente:** El auto-descubrimiento ahora filtra los proyectos ignorados, evitando alertas recurrentes por bloques "huérfanos" en el grafo.
+  - **Panel de Control:** Nueva sección en la pestaña "Proyectos" para visualizar y restaurar proyectos ignorados.
+  - **Sincronización Reforzada:** El merge de proyectos ahora respeta la lista de ignorados, evitando que se re-introduzcan proyectos eliminados si la sincronización con Roam está desfasada.
+  - **Limpieza Automática:** Al añadir un proyecto manualmente (o mediante sugerencias), el sistema lo remueve automáticamente de la lista de ignorados.
+
 - **UI/UX: Rediseño y Unificación de Coherencia de Ramas.**
   - **Unificación de Botones:** Se fusionaron "Propagar raíz" y "Heredar de padres" en un único botón inteligente **"🔄 Propagar"**. El sistema ahora determina automáticamente si aplicar el proyecto raíz (para diferencias y omisiones) o el proyecto del padre directo (para generalizaciones).
   - **Rediseño del Panel de Detalles:** Se eliminaron badges redundantes y se implementó un layout horizontal más compacto.

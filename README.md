@@ -29,6 +29,7 @@ Organiza tu investigación en proyectos separados:
 - Sincroniza proyectos con una página dedicada en Roam.
 - Descubre proyectos existentes en el grafo con "Buscar Sugerencias".
 - **Auto-descubrimiento:** Al abrir el Toolkit, detecta proyectos no registrados y muestra una alerta para agregarlos con un clic.
+- **Ignorar alertas:** Permite descartar permanentemente proyectos de la alerta automática (Lista de Ignorados), con opción de restaurarlos desde la pestaña Proyectos.
 - **Match jerárquico:** Al exportar, seleccionar un proyecto padre automáticamente incluye todos sus sub-proyectos (ej. `tesis/marco` incluye `tesis/marco/epistemología`).
 
 ### 3. Verificación de Coherencia (Ramas)

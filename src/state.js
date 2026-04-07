@@ -92,6 +92,35 @@ DiscourseGraphToolkit.saveProjects = function (projects) {
     localStorage.setItem(this.getStorageKey(this.STORAGE.PROJECTS), JSON.stringify(projects));
 };
 
+// --- Proyectos Excluidos (Dismissed) ---
+DiscourseGraphToolkit.getDismissedProjects = function () {
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.DISMISSED_PROJECTS));
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing dismissed projects", e); }
+    }
+    return [];
+};
+
+DiscourseGraphToolkit.saveDismissedProjects = function (dismissed) {
+    localStorage.setItem(this.getStorageKey(this.STORAGE.DISMISSED_PROJECTS), JSON.stringify(dismissed));
+};
+
+DiscourseGraphToolkit.addToDismissedProjects = function (projectNames) {
+    const current = this.getDismissedProjects();
+    const merged = [...new Set([...current, ...projectNames])].sort();
+    this.saveDismissedProjects(merged);
+};
+
+DiscourseGraphToolkit.removeFromDismissedProjects = function (projectName) {
+    const current = this.getDismissedProjects();
+    const updated = current.filter(p => p !== projectName);
+    this.saveDismissedProjects(updated);
+};
+
+DiscourseGraphToolkit.clearDismissedProjects = function () {
+    this.saveDismissedProjects([]);
+};
+
 // --- Historial de Nodos ---
 DiscourseGraphToolkit.getNodeHistory = function () {
     const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.HISTORY_NODES));

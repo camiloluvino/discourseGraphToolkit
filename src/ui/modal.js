@@ -6,7 +6,7 @@
 DiscourseGraphToolkit._ModalInner = function ({ onClose, onMinimize }) {
     const React = window.React;
     const { activeTab, setActiveTab } = DiscourseGraphToolkit.useNav();
-    const { projects, setProjects, newProjectsAlert, setNewProjectsAlert } = DiscourseGraphToolkit.useProjects();
+    const { projects, setProjects, newProjectsAlert, setNewProjectsAlert, dismissedProjects, setDismissedProjects } = DiscourseGraphToolkit.useProjects();
 
     // --- Helpers ---
     const tabStyle = React.useCallback((id) => ({
@@ -91,7 +91,13 @@ DiscourseGraphToolkit._ModalInner = function ({ onClose, onMinimize }) {
                     }
                 }, 'Agregar todos'),
                 React.createElement('button', {
-                    onClick: () => setNewProjectsAlert([]),
+                    title: 'Ignorar permanentemente de la alerta automática',
+                    onClick: () => {
+                        DiscourseGraphToolkit.addToDismissedProjects(newProjectsAlert);
+                        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+                        setNewProjectsAlert([]);
+                        DiscourseGraphToolkit.showToast('Proyectos ignorados (puedes restaurarlos más tarde)', 'info');
+                    },
                     style: {
                         padding: '0.25rem 0.5rem',
                         backgroundColor: 'transparent',
