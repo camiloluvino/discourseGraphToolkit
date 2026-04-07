@@ -1,6 +1,6 @@
-/**
+﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.36
- * Bundled build: 2026-04-07 16:56:22
+ * Bundled build: 2026-04-07 17:04:53
  */
 
 (function () {
@@ -1925,9 +1925,10 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                 // MENOS específico que el padre (generalización - ERROR)
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'generalization' });
             } else {
-                // Proyecto completamente diferente (referencia cruzada legítima)
-                // Lo enviamos a coherent para no levantar falsos errores ni sobrescribirlos por accidente
-                coherent.push({ ...node, project: nodeProject, parentProject, reason: 'cross_project' });
+                // Proyecto completamente diferente al padre (error de coherencia)
+                // Los nodos bajo #RelatedTo ya están excluidos del recorrido,
+                // así que todo nodo aquí es parte jerárquica de la rama.
+                different.push({ ...node, project: nodeProject, parentProject, reason: 'cross_project' });
             }
         }
 
