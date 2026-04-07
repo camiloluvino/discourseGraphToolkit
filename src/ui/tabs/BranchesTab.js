@@ -10,17 +10,102 @@ DiscourseGraphToolkit.BranchesTab = function () {
         bulkVerifyStatus, setBulkVerifyStatus,
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
-        isPropagating, setIsPropagating
+        isPropagating, setIsPropagating,
+        selectedProjects, setSelectedProjects,
+        verificationProgress, setVerificationProgress
     } = DiscourseGraphToolkit.useBranches();
 
     // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
+    const [showProjectFilter, setShowProjectFilter] = React.useState(false);
+
+    const allProjects = React.useMemo(() => DiscourseGraphToolkit.getProjects(), []);
+    
+    // Función para alternar la selección de un proyecto individual y sus subproyectos
+    const handleToggleProjectSelect = (project, isSelected) => {
+        const newSelected = new Set(selectedProjects);
+        const toggleRecursive = (proj, select) => {
+            if (select) newSelected.add(proj);
+            else newSelected.delete(proj);
+            
+            // Alternar también todos los subproyectos
+            const prefix = proj + '/';
+            for (const p of allProjects) {
+                if (p.startsWith(prefix)) {
+                    if (select) newSelected.add(p);
+                    else newSelected.delete(p);
+                }
+            }
+        };
+
+        toggleRecursive(project, isSelected);
+        setSelectedProjects(newSelected);
+    };
+
+    const handleToggleSelectAll = () => {
+        if (selectedProjects.size >= allProjects.length + 1) { 
+            setSelectedProjects(new Set());
+        } else {
+            setSelectedProjects(new Set(['(sin proyecto)', ...allProjects]));
+        }
+    };
 
     // --- Árbol jerárquico (calculado y filtrado) ---
     const projectTree = React.useMemo(() => {
-        if (bulkVerificationResults.length === 0) return {};
-        const baseTree = DiscourseGraphToolkit.buildProjectTree(bulkVerificationResults);
+        const baseTree = {};
+        const noProject = { project: null, questions: [], children: {}, aggregatedStatus: 'missing', issueCount: 0 };
+        
+        // 1. Inicializar estructura con todos los proyectos disponibles
+        for (const project of allProjects) {
+            const parts = project.split('/');
+            let currentLevel = baseTree;
+            let currentPath = '';
+
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                currentPath = currentPath ? currentPath + '/' + part : part;
+
+                if (!currentLevel[part]) {
+                    currentLevel[part] = {
+                        project: currentPath,
+                        questions: [],
+                        children: {},
+                        aggregatedStatus: 'coherent',
+                        issueCount: 0
+                    };
+                }
+                currentLevel = currentLevel[part].children;
+            }
+        }
+        
+        baseTree['(sin proyecto)'] = noProject;
+        
+        // 2. Insertar resultados
+        for (const result of bulkVerificationResults) {
+            const project = result.coherence.rootProject;
+
+            if (!project) {
+                if (baseTree['(sin proyecto)']) baseTree['(sin proyecto)'].questions.push(result);
+                continue;
+            }
+
+            const parts = project.split('/');
+            let currentLevel = baseTree;
+            
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                if (currentLevel[part]) {
+                    if (i === parts.length - 1) {
+                        currentLevel[part].questions.push(result);
+                    }
+                    currentLevel = currentLevel[part].children;
+                }
+            }
+        }
+        
+        // 3. Recalcular contadores
+        DiscourseGraphToolkit._calculateAggregatedStatus(baseTree);
 
         // Función auxiliar para verificar si un nodo o sus hijos tienen un error específico
         const nodeHasErrorStatus = (node, targetStatus) => {
@@ -37,7 +122,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             return false;
         };
 
-        // Función para filtrar el árbol manteniendo la estructura
+        // Función para filtrar el árbol manteniendo la estructura según los filtros activos de estatus (diferente, missing)
         const filterTreeRecursive = (treeNodes) => {
             const filtered = {};
             for (const key in treeNodes) {
@@ -45,14 +130,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 const hasError = nodeHasErrorStatus(node, activeFilter);
 
                 if (hasError) {
-                    // Si este nodo tiene el error, debemos incluirlo
                     filtered[key] = { ...node };
-                    // Filtrar recursivamente sus hijos
                     if (node.children) {
                         const filteredChildren = filterTreeRecursive(node.children);
-                        // Si los hijos no tienen el error, pero el padre sí (por una pregunta directa del padre), 
-                        // mantenemos los hijos vacíos o lo que devuelva el filtro. En este caso, solo nos quedamos 
-                        // con lo estrictamente necesario.
                         filtered[key].children = Object.keys(filteredChildren).length > 0 ? filteredChildren : {};
                     }
                 }
@@ -66,7 +146,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         return filterTreeRecursive(baseTree);
 
-    }, [bulkVerificationResults, activeFilter]);
+    }, [bulkVerificationResults, activeFilter, allProjects]);
 
     // Calcular estatus globales de un nodo (para el encabezado de carpetas)
     const getProjectErrorCounts = React.useCallback((node) => {
@@ -107,14 +187,66 @@ DiscourseGraphToolkit.BranchesTab = function () {
         setBulkVerifyStatus('⏳ Cargando ramas y preguntas...');
         setBulkVerificationResults([]);
         setSelectedBulkQuestion(null);
+        setVerificationProgress({ current: 0, total: 0, currentQuestion: '' });
 
         try {
-            const questions = await DiscourseGraphToolkit.getAllRootNodes();
+            const allQuestions = await DiscourseGraphToolkit.getAllRootNodes();
             const results = [];
 
-            for (let i = 0; i < questions.length; i++) {
-                const q = questions[i];
-                setBulkVerifyStatus(`⏳ Verificando ${i + 1}/${questions.length}...`);
+            // Filtrar preguntas por proyectos seleccionados de manera eficiente
+            // Primero obtenemos los proyectos de todas las preguntas en una sola consulta
+            const PM = DiscourseGraphToolkit.ProjectManager;
+            const escapedPattern = PM.getEscapedFieldPattern();
+            const allUids = allQuestions.map(q => q.pageUid);
+            const query = `[:find ?page-uid ?string
+                       :in $ [?page-uid ...]
+                       :where 
+                       [?page :block/uid ?page-uid]
+                       [?block :block/page ?page]
+                       [?block :block/string ?string]
+                       [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+            
+            const rawProjectResults = await window.roamAlphaAPI.data.async.q(query, allUids);
+            const projectMap = new Map();
+            const regex = PM.getFieldRegex();
+            const fieldPattern = PM.getFieldPattern();
+            
+            if (rawProjectResults) {
+                rawProjectResults.forEach(r => {
+                    const pageUid = r[0];
+                    const blockString = r[1];
+                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
+                        const match = blockString.match(regex);
+                        if (match) {
+                            projectMap.set(pageUid, match[1].trim());
+                        }
+                    }
+                });
+            }
+
+            // Aplicar el filtro
+            const filteredQuestions = allQuestions.filter(q => {
+                const proj = projectMap.get(q.pageUid) || '(sin proyecto)';
+                return selectedProjects.has(proj);
+            });
+
+            if (filteredQuestions.length === 0) {
+                setBulkVerifyStatus('⚠️ No hay preguntas en los proyectos seleccionados.');
+                setIsBulkVerifying(false);
+                return;
+            }
+
+            setVerificationProgress({ current: 0, total: filteredQuestions.length, currentQuestion: '' });
+
+            for (let i = 0; i < filteredQuestions.length; i++) {
+                // Cedemos control brevemente para permitir que el frontend repinte la UI
+                await new Promise(r => setTimeout(r, 10));
+
+                const q = filteredQuestions[i];
+                const cleanTitle = q.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                
+                setVerificationProgress({ current: i, total: filteredQuestions.length, currentQuestion: cleanTitle });
+                setBulkVerifyStatus(`⏳ Verificando ${i + 1}/${filteredQuestions.length}...`);
 
                 const branchNodes = await DiscourseGraphToolkit.getBranchNodes(q.pageUid);
                 const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(q.pageUid, branchNodes);
@@ -131,6 +263,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     status
                 });
             }
+
+            setVerificationProgress({ current: filteredQuestions.length, total: filteredQuestions.length, currentQuestion: '¡Completado!' });
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent' || r.status === 'specialized').length;
@@ -245,6 +379,17 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
             React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem', alignItems: 'center' } },
+                // Checkbox de selección (solo hasta nivel 1)
+                (depth <= 1) && React.createElement('input', {
+                    type: 'checkbox',
+                    checked: selectedProjects.has(node.project || '(sin proyecto)'),
+                    onChange: (e) => {
+                        e.stopPropagation();
+                        handleToggleProjectSelect(node.project || '(sin proyecto)', e.target.checked);
+                    },
+                    onClick: (e) => e.stopPropagation(),
+                    style: { cursor: 'pointer', margin: 0 }
+                }),
                 React.createElement('span', { title: node.project },
                     node.project ? node.project.split('/').pop() : '(sin proyecto)'
                 ),
@@ -317,8 +462,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 onClick: handleBulkVerifyAll,
                 title: 'Procesar y verificar coherencia de todas las ramas',
                 disabled: isBulkVerifying,
+                style: { minWidth: '120px' },
                 className: 'dgt-btn dgt-btn-primary'
-            }, isBulkVerifying ? '⏳...' : '🔄 Procesar')
+            }, isBulkVerifying ? (verificationProgress.total > 0 ? `⏳ (${verificationProgress.current}/${verificationProgress.total})` : '⏳ Iniciando...') : '🔄 Procesar')
         ),
 
         // Barra de resumen con badges y status
@@ -381,8 +527,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }, bulkVerifyStatus)
         ),
 
-        // Vista de árbol jerárquico por proyectos (más altura)
-        bulkVerificationResults.length > 0 && React.createElement('div', { className: 'dgt-mb-sm', style: { flex: 1, minHeight: 0 } },
+        // Vista de árbol jerárquico por proyectos (siempre visible para poder filtrar)
+        React.createElement('div', { className: 'dgt-mb-sm', style: { flex: 1, minHeight: 0 } },
             React.createElement('div', {
                 className: 'dgt-tree-container'
             },

@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.36**
+**v1.5.37**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,14 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.37 (Abril 2026)
+- **UI/UX: Optimización de Coherencia y Filtrado de Proyectos.**
+  - **Filtro Integrado en el Árbol:** Se eliminó el panel de filtros externo. Ahora la selección de proyectos se realiza mediante checkboxes directamente en los encabezados de las carpetas del árbol.
+  - **Limitación de Profundidad:** Los checkboxes de selección masiva solo se muestran hasta el segundo nivel (depth <= 1) para simplificar la gestión.
+  - **Propagación Controlada:** Se corrigió la propagación de eventos para que al marcar un checkbox no se colapse/expanda accidentalmente la carpeta del proyecto.
+  - **Indicador de Progreso en Botón:** Se reemplazó la barra de progreso visual por un contador discreto dentro del botón "Procesar" (`⏳ (x/y)`), optimizando el espacio.
+  - **Fluidez de UI:** Se implementó una pequeña pausa (yield) en el bucle de procesamiento para asegurar que el navegador pueda actualizar la interfaz en tiempo real sin congelarse.
 
 ### v1.5.36 (Abril 2026)
 - **Feature: Control de Proyectos No Registrados (Lista de Ignorados).**

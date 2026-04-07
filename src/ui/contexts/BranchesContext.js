@@ -15,6 +15,10 @@ DiscourseGraphToolkit.BranchesProvider = function ({ children }) {
     const [selectedBulkQuestion, setSelectedBulkQuestion] = React.useState(null);
     const [editableProject, setEditableProject] = React.useState('');
     const [isPropagating, setIsPropagating] = React.useState(false);
+    
+    // --- Nuevos Estados para Mejoras ---
+    const [selectedProjects, setSelectedProjects] = React.useState(new Set());
+    const [verificationProgress, setVerificationProgress] = React.useState({ current: 0, total: 0, currentQuestion: '' });
 
     // --- Restaurar cache de verificación al montar ---
     React.useEffect(() => {
@@ -23,6 +27,10 @@ DiscourseGraphToolkit.BranchesProvider = function ({ children }) {
             setBulkVerificationResults(verificationCache.results);
             setBulkVerifyStatus(verificationCache.status || '📋 Resultados cargados del cache.');
         }
+        
+        // Inicializar proyectos seleccionados con todos los disponibles
+        const allProjects = DiscourseGraphToolkit.getProjects();
+        setSelectedProjects(new Set(['(sin proyecto)', ...allProjects]));
     }, []);
 
     const value = React.useMemo(() => ({
@@ -31,8 +39,10 @@ DiscourseGraphToolkit.BranchesProvider = function ({ children }) {
         bulkVerifyStatus, setBulkVerifyStatus,
         selectedBulkQuestion, setSelectedBulkQuestion,
         editableProject, setEditableProject,
-        isPropagating, setIsPropagating
-    }), [bulkVerificationResults, isBulkVerifying, bulkVerifyStatus, selectedBulkQuestion, editableProject, isPropagating]);
+        isPropagating, setIsPropagating,
+        selectedProjects, setSelectedProjects,
+        verificationProgress, setVerificationProgress
+    }), [bulkVerificationResults, isBulkVerifying, bulkVerifyStatus, selectedBulkQuestion, editableProject, isPropagating, selectedProjects, verificationProgress]);
 
     return React.createElement(DiscourseGraphToolkit.BranchesContext.Provider, { value }, children);
 };
