@@ -24,12 +24,10 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ### v1.5.37 (Abril 2026)
-- **UI/UX: Optimización de Coherencia y Filtrado de Proyectos.**
-  - **Filtro Integrado en el Árbol:** Se eliminó el panel de filtros externo. Ahora la selección de proyectos se realiza mediante checkboxes directamente en los encabezados de las carpetas del árbol.
-  - **Limitación de Profundidad:** Los checkboxes de selección masiva solo se muestran hasta el segundo nivel (depth <= 1) para simplificar la gestión.
-  - **Propagación Controlada:** Se corrigió la propagación de eventos para que al marcar un checkbox no se colapse/expanda accidentalmente la carpeta del proyecto.
-  - **Indicador de Progreso en Botón:** Se reemplazó la barra de progreso visual por un contador discreto dentro del botón "Procesar" (`⏳ (x/y)`), optimizando el espacio.
-  - **Fluidez de UI:** Se implementó una pequeña pausa (yield) en el bucle de procesamiento para asegurar que el navegador pueda actualizar la interfaz en tiempo real sin congelarse.
+- **Fix: Prevención de Re-aparición de Proyectos Eliminados.**
+  - **Filtrado en Sincronización Inicial:** Se modificó `initializeProjectsSync` para que ignore los proyectos en la "Lista de Ignorados" al realizar la unión con los datos de Roam. Esto evita que proyectos borrados localmente resuciten si la página de Roam aún no se ha actualizado.
+  - **Auto-clasificación como Ignorado:** Al eliminar un proyecto (ya sea individualmente o en bloque), el sistema ahora lo agrega automáticamente a la lista de ignorados.
+  - **Sincronización Atómica:** Mejora en el flujo de borrado para asegurar que la decisión del usuario prevalezca sobre los datos persistidos en el grafo durante el arranque del plugin.
 
 ### v1.5.36 (Abril 2026)
 - **Feature: Control de Proyectos No Registrados (Lista de Ignorados).**
