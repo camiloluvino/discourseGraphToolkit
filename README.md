@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.37  
+**Versión:** 1.5.38  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -40,6 +40,7 @@ Verifica la consistencia de tus ramas de investigación:
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
 - **Exclusión de relaciones horizontales:** Las conexiones vía `#RelatedTo` son ignoradas por el validador de ramas para evitar ruidos de coherencia en enlaces laterales.
 - **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
+- **Selector Maestro:** Incluye un checkbox "Seleccionar Todos" para habilitar o deshabilitar auditorías masivas de proyectos con un solo clic.
 - **Propagación inteligente unificada:**
   - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
 - **UI Limpia:** Secciones colapsables por tipo de error y detalles técnicos accesibles vía hover (tooltips).

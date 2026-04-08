@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-03-26
+**Última actualización:** 2026-04-07
 
 ## Versión Actual
 
-**v1.5.37**
+**v1.5.38**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,19 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación y rediseño de panel de detalles |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación, soporte para selección masiva y rediseño |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda, escaneo de proyectos en todos los niveles y filtrado selectivo de ramas |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.38 (Abril 2026)
+- **Feature: Selector Maestro en Coherencia de Ramas.**
+  - **Checkbox "Seleccionar Todos":** Se añadió un control global en la pestaña "Ramas" para marcar o desmarcar todos los proyectos de una vez.
+  - **Lógica Jerárquica Reforzada:** El sistema ahora reconoce y selecciona automáticamente todas las rutas intermedias de los proyectos (ej. si existe `tesis/marco/analisis`, el sistema asegura que `tesis` y `tesis/marco` también estén en el set de selección). Esto soluciona bugs visuales donde carpetas automáticas aparecían desmarcadas a pesar de tener hijos seleccionados.
+  - **Carga Predeterminada:** Al iniciar el Toolkit, todos los proyectos (incluyendo carpetas raíz y nodos sin proyecto) vienen seleccionados por defecto para facilitar una auditoría inmediata.
 
 ### v1.5.37 (Abril 2026)
 - **Fix: Prevención de Re-aparición de Proyectos Eliminados.**

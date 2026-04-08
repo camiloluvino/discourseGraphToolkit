@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.37
- * Bundled build: 2026-04-07 20:56:57
+ * DISCOURSE GRAPH TOOLKIT v1.5.38
+ * Bundled build: 2026-04-07 21:35:52
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.37";
+    DiscourseGraphToolkit.VERSION = "1.5.38";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -5785,6 +5785,20 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     const allProjects = React.useMemo(() => DiscourseGraphToolkit.getProjects(), []);
     
+    // Generar caché de todos los paths (incluyendo intermedios) para selecciones correctas
+    const allProjectsPathsSet = React.useMemo(() => {
+        const paths = new Set(['(sin proyecto)']);
+        for (const proj of allProjects) {
+            const parts = proj.split('/');
+            let currentPath = '';
+            for (const part of parts) {
+                currentPath = currentPath ? currentPath + '/' + part : part;
+                paths.add(currentPath);
+            }
+        }
+        return paths;
+    }, [allProjects]);
+    
     // Función para alternar la selección de un proyecto individual y sus subproyectos
     const handleToggleProjectSelect = (project, isSelected) => {
         const newSelected = new Set(selectedProjects);
@@ -5792,9 +5806,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
             if (select) newSelected.add(proj);
             else newSelected.delete(proj);
             
-            // Alternar también todos los subproyectos
+            // Alternar también todos los subproyectos e intermedios
             const prefix = proj + '/';
-            for (const p of allProjects) {
+            for (const p of allProjectsPathsSet) {
                 if (p.startsWith(prefix)) {
                     if (select) newSelected.add(p);
                     else newSelected.delete(p);
@@ -5807,10 +5821,10 @@ DiscourseGraphToolkit.BranchesTab = function () {
     };
 
     const handleToggleSelectAll = () => {
-        if (selectedProjects.size >= allProjects.length + 1) { 
+        if (selectedProjects.size >= allProjectsPathsSet.size) { 
             setSelectedProjects(new Set());
         } else {
-            setSelectedProjects(new Set(['(sin proyecto)', ...allProjects]));
+            setSelectedProjects(new Set(allProjectsPathsSet));
         }
     };
 
@@ -6291,9 +6305,21 @@ DiscourseGraphToolkit.BranchesTab = function () {
         ),
 
         // Vista de árbol jerárquico por proyectos (siempre visible para poder filtrar)
-        React.createElement('div', { className: 'dgt-mb-sm', style: { flex: 1, minHeight: 0 } },
+        React.createElement('div', { className: 'dgt-mb-sm dgt-flex-column', style: { flex: 1, minHeight: 0, border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)', overflow: 'hidden' } },
+            // Checkbox "Seleccionar todos"
+            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm', style: { alignItems: 'center', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--dgt-border-color)', backgroundColor: 'var(--dgt-bg-secondary)' } },
+                React.createElement('input', {
+                    type: 'checkbox',
+                    id: 'selectAllProjectsBranches',
+                    checked: selectedProjects.size >= allProjectsPathsSet.size,
+                    onChange: handleToggleSelectAll,
+                    style: { margin: 0, cursor: 'pointer' }
+                }),
+                React.createElement('label', { htmlFor: 'selectAllProjectsBranches', style: { cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, margin: 0, userSelect: 'none', color: 'var(--dgt-text-primary)' } }, 'Seleccionar / Deseleccionar todos los proyectos')
+            ),
             React.createElement('div', {
-                className: 'dgt-tree-container'
+                className: 'dgt-tree-container',
+                style: { border: 'none', borderRadius: 0, flex: 1 }
             },
                 React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
                     tree: projectTree,
@@ -8158,7 +8184,16 @@ DiscourseGraphToolkit.BranchesProvider = function ({ children }) {
         
         // Inicializar proyectos seleccionados con todos los disponibles
         const allProjects = DiscourseGraphToolkit.getProjects();
-        setSelectedProjects(new Set(['(sin proyecto)', ...allProjects]));
+        const initialPaths = new Set(['(sin proyecto)']);
+        for (const proj of allProjects) {
+            const parts = proj.split('/');
+            let currentPath = '';
+            for (const part of parts) {
+                currentPath = currentPath ? currentPath + '/' + part : part;
+                initialPaths.add(currentPath);
+            }
+        }
+        setSelectedProjects(initialPaths);
     }, []);
 
     const value = React.useMemo(() => ({

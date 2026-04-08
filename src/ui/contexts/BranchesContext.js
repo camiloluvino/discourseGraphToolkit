@@ -30,7 +30,16 @@ DiscourseGraphToolkit.BranchesProvider = function ({ children }) {
         
         // Inicializar proyectos seleccionados con todos los disponibles
         const allProjects = DiscourseGraphToolkit.getProjects();
-        setSelectedProjects(new Set(['(sin proyecto)', ...allProjects]));
+        const initialPaths = new Set(['(sin proyecto)']);
+        for (const proj of allProjects) {
+            const parts = proj.split('/');
+            let currentPath = '';
+            for (const part of parts) {
+                currentPath = currentPath ? currentPath + '/' + part : part;
+                initialPaths.add(currentPath);
+            }
+        }
+        setSelectedProjects(initialPaths);
     }, []);
 
     const value = React.useMemo(() => ({
