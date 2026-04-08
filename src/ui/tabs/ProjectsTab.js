@@ -118,6 +118,11 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         const updated = projects.filter(x => x !== p);
         setProjects(updated);
         DiscourseGraphToolkit.saveProjects(updated);
+
+        // Agregar a ignorados para que initializeProjectsSync no lo re-agregue
+        DiscourseGraphToolkit.addToDismissedProjects([p]);
+        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
     };
 
@@ -129,6 +134,11 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         setProjects(updated);
         setSelectedProjectsForDelete({});
         DiscourseGraphToolkit.saveProjects(updated);
+
+        // Agregar a ignorados para que initializeProjectsSync no los re-agregue
+        DiscourseGraphToolkit.addToDismissedProjects(toDelete);
+        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
     };
 

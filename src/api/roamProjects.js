@@ -90,12 +90,13 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
             }
         }
 
-        const merged = [...new Set([...local, ...roam])].sort();
+        const dismissed = this.getDismissedProjects();
+        const merged = [...new Set([...local, ...roam])].filter(p => !dismissed.includes(p)).sort();
 
         if (merged.length > 0) {
             this.saveProjects(merged);
             await this.syncProjectsToRoam(merged);
-            console.log(`Proyectos sincronizados: ${merged.length}`);
+            console.log(`Proyectos sincronizados: ${merged.length} (${dismissed.length} ignorados)`);
         }
     } catch (e) {
         console.error("Error initializing projects sync:", e);

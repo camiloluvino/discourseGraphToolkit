@@ -1,6 +1,6 @@
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.37
- * Bundled build: 2026-04-07 17:50:00
+ * Bundled build: 2026-04-07 20:56:57
  */
 
 (function () {
@@ -1445,12 +1445,13 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
             }
         }
 
-        const merged = [...new Set([...local, ...roam])].sort();
+        const dismissed = this.getDismissedProjects();
+        const merged = [...new Set([...local, ...roam])].filter(p => !dismissed.includes(p)).sort();
 
         if (merged.length > 0) {
             this.saveProjects(merged);
             await this.syncProjectsToRoam(merged);
-            console.log(`Proyectos sincronizados: ${merged.length}`);
+            console.log(`Proyectos sincronizados: ${merged.length} (${dismissed.length} ignorados)`);
         }
     } catch (e) {
         console.error("Error initializing projects sync:", e);
@@ -5453,6 +5454,11 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         const updated = projects.filter(x => x !== p);
         setProjects(updated);
         DiscourseGraphToolkit.saveProjects(updated);
+
+        // Agregar a ignorados para que initializeProjectsSync no lo re-agregue
+        DiscourseGraphToolkit.addToDismissedProjects([p]);
+        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
     };
 
@@ -5464,6 +5470,11 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         setProjects(updated);
         setSelectedProjectsForDelete({});
         DiscourseGraphToolkit.saveProjects(updated);
+
+        // Agregar a ignorados para que initializeProjectsSync no los re-agregue
+        DiscourseGraphToolkit.addToDismissedProjects(toDelete);
+        setDismissedProjects(DiscourseGraphToolkit.getDismissedProjects());
+
         await DiscourseGraphToolkit.syncProjectsToRoam(updated);
     };
 
