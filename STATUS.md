@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.38**
+**v1.5.39**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.39 (Abril 2026)
+- **Vista Panorámica: Simplificación de UI y Etiquetas.**
+  - **Eliminación de Redundancia:** Las etiquetas de proyecto en los nodos ahora ocultan el prefijo del proyecto seleccionado. Si el nodo pertenece exactamente al proyecto activo, la etiqueta desaparece, logrando una vista más limpia.
+  - **Limpieza de Información:** Se eliminó el badge de conteo de ramas ("N RAMAS") por considerarse información redundante dado el contexto visual, reduciendo el ruido cognitivo.
+  - **Bundling:** Generación de un nuevo build verificado de `discourse-graph-toolkit.js`.
 
 ### v1.5.38 (Abril 2026)
 - **UI/UX: Rediseño del Selector de Proyectos en Vista Panorámica.**

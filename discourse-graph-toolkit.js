@@ -1,19 +1,13 @@
-<<<<<<< HEAD
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.38
- * Bundled build: 2026-04-07 21:35:52
-=======
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.38
- * Bundled build: 2026-04-11 23:44:36
->>>>>>> ccbc348 (UI/UX: Rediseño de selector de proyectos en Panorámica y refinamiento de Drag & Drop (v1.5.38))
+ * DISCOURSE GRAPH TOOLKIT v1.5.39
+ * Bundled build: 2026-04-11 23:55:46
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.38";
+    DiscourseGraphToolkit.VERSION = "1.5.39";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -7027,6 +7021,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const isDragging = dragItemIndex === qIndex;
         const isDragOver = dragOverItemIndex === qIndex;
 
+        let displayProject = question.project;
+        if (selectedProject && question.project && question.project.startsWith(selectedProject)) {
+            displayProject = question.project.substring(selectedProject.length).replace(/^\//, '');
+        }
+
         return React.createElement('div', {
             key: question.uid,
             className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
@@ -7064,14 +7063,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     style: { fontSize: '0.8125rem', flex: 1, wordBreak: 'break-word' },
                     title: question.title
                 }, renderMarkdownTitle(cleanTitle(question.title, nodeType))),
-                React.createElement('span', {
-                    className: 'dgt-badge dgt-badge-neutral',
-                    style: { fontSize: '0.625rem' }
-                }, `${totalBranches} rama${totalBranches !== 1 ? 's' : ''}`),
-                question.project && React.createElement('span', {
+                displayProject && React.createElement('span', {
                     className: 'dgt-badge dgt-badge-neutral',
                     style: { fontSize: '0.625rem', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)' }
-                }, `${question.project}`)
+                }, displayProject)
             ),
 
             // Ramas (expandidas)

@@ -509,6 +509,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const isDragging = dragItemIndex === qIndex;
         const isDragOver = dragOverItemIndex === qIndex;
 
+        let displayProject = question.project;
+        if (selectedProject && question.project && question.project.startsWith(selectedProject)) {
+            displayProject = question.project.substring(selectedProject.length).replace(/^\//, '');
+        }
+
         return React.createElement('div', {
             key: question.uid,
             className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
@@ -546,14 +551,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     style: { fontSize: '0.8125rem', flex: 1, wordBreak: 'break-word' },
                     title: question.title
                 }, renderMarkdownTitle(cleanTitle(question.title, nodeType))),
-                React.createElement('span', {
-                    className: 'dgt-badge dgt-badge-neutral',
-                    style: { fontSize: '0.625rem' }
-                }, `${totalBranches} rama${totalBranches !== 1 ? 's' : ''}`),
-                question.project && React.createElement('span', {
+                displayProject && React.createElement('span', {
                     className: 'dgt-badge dgt-badge-neutral',
                     style: { fontSize: '0.625rem', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)' }
-                }, `${question.project}`)
+                }, displayProject)
             ),
 
             // Ramas (expandidas)
