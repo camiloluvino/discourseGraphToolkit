@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-04-07
+**Última actualización:** 2026-04-12
 
 ## Versión Actual
 
@@ -17,13 +17,19 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación, soporte para selección masiva y rediseño |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Muy Mejorado | Soporta anidación profunda, escaneo de proyectos en todos los niveles y filtrado selectivo de ramas |
+| **Vista Panorámica** | ✅ Muy Mejorado | Rediseño de selector de proyectos (colapsable) y lógica de arrastre refinada |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ### v1.5.38 (Abril 2026)
+- **UI/UX: Rediseño del Selector de Proyectos en Vista Panorámica.**
+  - **Selector Colapsable Custom:** Se reemplazó el `select` nativo por un componente jerárquico a medida que permite expandir/colapsar carpetas de proyectos.
+  - **Navegación Intuitiva:** Los proyectos se muestran colapsados por defecto, facilitando la búsqueda en grafos con muchos namespaces.
+  - **Corrección de UX en Drag & Drop:** Se ajustó el cálculo del índice al soltar un nodo. Ahora, al arrastrar hacia abajo, el nodo "destino" se desplaza correctamente hacia abajo en lugar de saltar hacia arriba.
+  - **Bundling:** Generación de un nuevo build verificado de `discourse-graph-toolkit.js`.
+
 - **Feature: Selector Maestro en Coherencia de Ramas.**
   - **Checkbox "Seleccionar Todos":** Se añadió un control global en la pestaña "Ramas" para marcar o desmarcar todos los proyectos de una vez.
   - **Lógica Jerárquica Reforzada:** El sistema ahora reconoce y selecciona automáticamente todas las rutas intermedias de los proyectos (ej. si existe `tesis/marco/analisis`, el sistema asegura que `tesis` y `tesis/marco` también estén en el set de selección). Esto soluciona bugs visuales donde carpetas automáticas aparecían desmarcadas a pesar de tener hijos seleccionados.
@@ -170,7 +176,7 @@
 - **UX:** Botón "Eliminar No Encontrados" reemplazado por "☑️ Seleccionar No Encontrados" — ahora solo marca los checkboxes de los proyectos no encontrados para que el usuario pueda revisarlos antes de confirmar la eliminación con "Eliminar Seleccionados".
 
 ### v1.5.16 (Febrero 2026)
-- **UI:** Rediseño completo de la Vista Panorámica. Implementado diseño tipo "tarjetas" (cards) para encapsular cada pregunta y sus ramas, separándolas visualmente del resto.
+- **UI:** Rediseño completa de la Vista Panorámica. Implementado diseño tipo "tarjetas" (cards) para encapsular cada pregunta y sus ramas, separándolas visualmente del resto.
 - **UI:** Reemplazada la antigua visualización de ramas (líneas basadas en texto `├─`, `└─`) por un sistema de indentación limpio y jerárquico que utiliza márgenes y bloques con bordes de color (verde para CLM, naranja para EVD).
 - **UI:** Mejorado el Header de la pestaña Panorámica para evitar abarrotamiento (cluttering) de los controles, reubicando los indicadores de nodo y agrupando acciones.
 - **UI:** Añadidas viñetas indicativas (`•`) a las opciones indentadas en los selectores jerárquicos de proyectos (Panorámica).
@@ -257,7 +263,6 @@
 - **UI:** Filtrado por proyecto
 - **UI:** Estadísticas de nodos (preguntas, afirmaciones, evidencias)
 - **UI:** Click en cualquier nodo navega a Roam
-- **Fix:** Corregida lógica de botones "Expandir Todo" / "Colapsar Todo"
 
 ### v1.4.2 (Enero 2026)
 - **Feature:** Vista de árbol jerárquico en pestaña Proyectos — organiza proyectos por namespace

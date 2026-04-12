@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 /**
  * DISCOURSE GRAPH TOOLKIT v1.5.38
  * Bundled build: 2026-04-07 21:35:52
+=======
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.38
+ * Bundled build: 2026-04-11 23:44:36
+>>>>>>> ccbc348 (UI/UX: Rediseño de selector de proyectos en Panorámica y refinamiento de Drag & Drop (v1.5.38))
  */
 
 (function () {
@@ -6530,6 +6536,21 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);
 
+    // Estados para selector de proyectos colapsable
+    const [isProjectDropdownOpen, setIsProjectDropdownOpen] = React.useState(false);
+    const [expandedProjectFolders, setExpandedProjectFolders] = React.useState({});
+    const projectDropdownRef = React.useRef(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
+                setIsProjectDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     // Estado local para el orden de preguntas
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
 
@@ -6570,7 +6591,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (dragItemIndex !== dropIndex) {
             const newOrder = [...orderedQuestionUIDs];
             const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
-            newOrder.splice(dropIndex, 0, draggedItem);
+            
+            // Si arrastramos hacia abajo (índice mayor), el elemento que estaba en dropIndex
+            // se ha recorrido una posición hacia arriba por el empuje de 'splice'.
+            // Para asegurar que el nodo sobre el que soltamos se desplace "hacia abajo",
+            // debemos insertarlo en la posición actual de ese nodo (dropIndex - 1).
+            let insertIndex = dropIndex;
+            if (dragItemIndex < dropIndex) {
+                insertIndex = dropIndex - 1;
+            }
+            if (insertIndex < 0) insertIndex = 0;
+            
+            newOrder.splice(insertIndex, 0, draggedItem);
             
             setOrderedQuestionUIDs(newOrder);
             DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
@@ -7129,23 +7161,72 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         disabled: isLoading,
                         className: 'dgt-btn dgt-btn-primary'
                     }, isLoading ? '⏳...' : '🔄 Cargar'),
-                    // Filtro de proyecto (jerárquico)
-                    panoramicData && hierarchicalProjects.length > 0 && React.createElement('select', {
-                        value: selectedProject,
-                        onChange: (e) => setSelectedProject(e.target.value),
-                        className: 'dgt-input dgt-text-xs',
-                        style: { padding: '4px 6px', maxWidth: '250px' }
+                    // Filtro de proyecto (jerárquico custom)
+                    panoramicData && hierarchicalProjects.length > 0 && React.createElement('div', {
+                        ref: projectDropdownRef,
+                        style: { position: 'relative', minWidth: '220px', maxWidth: '300px' }
                     },
-                        React.createElement('option', { value: '' }, `Todos (${panoramicData.questions.length})`),
-                        hierarchicalProjects.map(p => {
-                            const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(p.depth);
-                            const icon = '';
-                            const label = p.prefix.split('/').pop(); // Solo mostrar el último segmento
-                            return React.createElement('option', {
-                                key: p.prefix,
-                                value: p.prefix
-                            }, `${indent}${icon} ${label} (${p.count})`);
-                        })
+                        // Botón Principal
+                        React.createElement('div', {
+                            className: 'dgt-input dgt-text-xs',
+                            onClick: () => setIsProjectDropdownOpen(!isProjectDropdownOpen),
+                            style: { cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', userSelect: 'none', backgroundColor: 'var(--dgt-bg-primary, #ffffff)' }
+                        },
+                            React.createElement('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '500' } },
+                                selectedProject ? selectedProject.split('/').pop() : `Todos (${panoramicData.questions.length})`
+                            ),
+                            React.createElement('span', { style: { fontSize: '0.6rem', opacity: 0.6, marginLeft: '8px' } }, isProjectDropdownOpen ? '▲' : '▼')
+                        ),
+                        
+                        // Menú Desplegable
+                        isProjectDropdownOpen && React.createElement('div', {
+                            style: { position: 'absolute', top: '100%', right: 0, minWidth: '100%', width: 'max-content', maxHeight: '400px', overflowY: 'auto', backgroundColor: 'var(--dgt-bg-primary, white)', border: '1px solid var(--dgt-border-focus, #b5b3ad)', borderRadius: 'var(--dgt-radius-sm, 6px)', zIndex: 1000, boxShadow: 'var(--dgt-shadow-md, 0 4px 12px rgba(0,0,0,0.1))', marginTop: '4px', padding: '4px 0' }
+                        },
+                            // Opción "Todos"
+                            React.createElement('div', {
+                                className: 'dgt-text-xs',
+                                onClick: () => { setSelectedProject(''); setIsProjectDropdownOpen(false); },
+                                style: { display: 'flex', padding: '6px 12px', cursor: 'pointer', backgroundColor: selectedProject === '' ? 'var(--dgt-bg-secondary, #f0f0f0)' : 'transparent', fontWeight: selectedProject === '' ? 'bold' : 'normal', userSelect: 'none' }
+                            }, `Todos (${panoramicData.questions.length})`),
+                            
+                            // Lista Jerárquica de Opciones
+                            hierarchicalProjects.map((p, index) => {
+                                const parts = p.prefix.split('/');
+                                let isVisible = true;
+                                // Sólo mostrar si todos los padres están expandidos
+                                for(let i = 1; i < parts.length; i++) {
+                                    const parentPrefix = parts.slice(0, i).join('/');
+                                    if (!expandedProjectFolders[parentPrefix]) isVisible = false;
+                                }
+                                if (!isVisible) return null;
+                                
+                                const nextp = hierarchicalProjects[index + 1];
+                                const hasChildren = nextp && nextp.prefix.startsWith(p.prefix + '/');
+                                const isExpanded = !!expandedProjectFolders[p.prefix];
+                                const indent = p.depth * 14;
+                                
+                                return React.createElement('div', {
+                                    key: p.prefix,
+                                    className: 'dgt-text-xs',
+                                    style: { display: 'flex', alignItems: 'center', padding: `4px 12px 4px ${12 + indent}px`, cursor: 'pointer', backgroundColor: selectedProject === p.prefix ? 'var(--dgt-bg-secondary, #f0f0f0)' : 'transparent', fontWeight: selectedProject === p.prefix ? 'bold' : 'normal', userSelect: 'none' }
+                                },
+                                    // Flecha Toggle o Espaciador
+                                    React.createElement('div', {
+                                        style: { width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: hasChildren ? 'pointer' : 'default', opacity: hasChildren ? 0.6 : 0, transition: 'transform 0.2s' },
+                                        onClick: hasChildren ? (e) => {
+                                            e.stopPropagation();
+                                            setExpandedProjectFolders(prev => ({ ...prev, [p.prefix]: !prev[p.prefix] }));
+                                        } : undefined
+                                    }, hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
+                                    
+                                    // Etiqueta del Proyecto
+                                    React.createElement('div', {
+                                        style: { marginLeft: '4px', whiteSpace: 'nowrap', flex: 1 },
+                                        onClick: () => { setSelectedProject(p.prefix); setIsProjectDropdownOpen(false); }
+                                    }, p.prefix.split('/').pop(), React.createElement('span', { style: { opacity: 0.6, marginLeft: '4px' } }, `(${p.count})`))
+                                );
+                            })
+                        )
                     )
                 ),
                 // Fila 2: Botones expandir/colapsar
