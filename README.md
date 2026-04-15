@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.38  
+**Versión:** 1.5.40  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -59,7 +59,21 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
 - **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.
 
-### 5. Importación
+### 5. Vista Panorámica Inteligente (Agrupación Hierárquica)
+Gestiona la estructura global de tu investigación con una interfaz orientada a bloques:
+- **Agrupación Automática:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan automáticamente en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
+- **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre.
+- **Herencia de Orden:** Al expandir un bloque de sub-proyecto, los nodos internos respetan el orden definido en ese nivel específico.
+- **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto y gestionar sus nodos individualmente.
+- **Modo Individual:** En proyectos "hoja" (sin sub-proyectos), el sistema permite el reordenamiento granular de nodos individuales.
+
+### 6. Optimizaciones de Rendimiento (v1.5.40)
+Se han implementado mejoras significativas en el motor del toolkit para manejar grafos de gran escala con mayor fluidez:
+- **Batching de Consultas (API):** La verificación de ramas ahora utiliza `pull_many` para procesar múltiples nodos en una sola llamada de red, reduciendo drásticamente el tiempo de carga en grafos complejos.
+- **Memoización de UI:** La jerarquía de proyectos en la pestaña Panorámica ha sido optimizada mediante un sistema de conteo en un solo pase (O(N)) y memoización de React, eliminando recálculos innecesarios durante la navegación.
+- **Cache de Motores:** Se ha implementado un sistema de cache para expresiones regulares y patrones de búsqueda frecuentemente utilizados, acelerando las auditorías masivas de coherencia.
+
+### 7. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.
 
 ## Instalación

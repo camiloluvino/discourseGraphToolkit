@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-04-12
+**Última actualización:** 2026-04-15
 
 ## Versión Actual
 
-**v1.5.39**
+**v1.5.40**
 
 ## Estado de Funcionalidades
 
@@ -17,13 +17,21 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación, soporte para selección masiva y rediseño |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Muy Mejorado | Rediseño de selector de proyectos (colapsable) y lógica de arrastre refinada |
+| **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con bloques draggables |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
-### v1.5.39 (Abril 2026)
+### v1.5.40 (Abril 2026)
++- **Vista Panorámica: Agrupación Jerárquica por Sub-Proyecto.**
++  - **Bloques Draggables:** Cuando el proyecto tiene sub-proyectos, los nodos se agrupan en bloques inteligentes que pueden moverse como unidades, facilitando la organización a macro-nivel.
++  - **Herencia de Orden:** Los bloques respetan internamente el orden definido en el sub-proyecto correspondiente.
++  - **Expansión Inline:** Los bloques funcionan como acordeones para visualizar el contenido sin perder el contexto general.
++  - **Navegación Directa:** Botón para saltar al sub-proyecto y gestionar su orden granular.
++  - **Optimización de Persistencia:** Nuevo sistema `GROUP_ORDER` para guardar el orden de los bloques sin interferir con el orden individual de los nodos.
++
++### v1.5.39 (Abril 2026)
 - **Vista Panorámica: Simplificación de UI y Etiquetas.**
   - **Eliminación de Redundancia:** Las etiquetas de proyecto en los nodos ahora ocultan el prefijo del proyecto seleccionado. Si el nodo pertenece exactamente al proyecto activo, la etiqueta desaparece, logrando una vista más limpia.
   - **Limpieza de Información:** Se eliminó el badge de conteo de ramas ("N RAMAS") por considerarse información redundante dado el contexto visual, reduciendo el ruido cognitivo.

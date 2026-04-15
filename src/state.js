@@ -242,6 +242,33 @@ DiscourseGraphToolkit.loadQuestionOrder = function (projectKey) {
     return allOrders[projectKey] || null;
 };
 
+// --- Persistencia del Orden de Grupos de Sub-Proyectos ---
+DiscourseGraphToolkit.saveGroupOrder = function (projectKey, groupKeys) {
+    if (!projectKey) return;
+    const allGroupOrders = this.loadAllGroupOrders();
+    allGroupOrders[projectKey] = groupKeys;
+    localStorage.setItem(
+        this.getStorageKey(this.STORAGE.GROUP_ORDER),
+        JSON.stringify(allGroupOrders)
+    );
+};
+
+DiscourseGraphToolkit.loadAllGroupOrders = function () {
+    const stored = localStorage.getItem(
+        this.getStorageKey(this.STORAGE.GROUP_ORDER)
+    );
+    if (stored) {
+        try { return JSON.parse(stored); } catch (e) { console.error("Error parsing group orders", e); }
+    }
+    return {};
+};
+
+DiscourseGraphToolkit.loadGroupOrder = function (projectKey) {
+    if (!projectKey) return null;
+    const allGroupOrders = this.loadAllGroupOrders();
+    return allGroupOrders[projectKey] || null;
+};
+
 // --- Cache de Vista Panorámica ---
 DiscourseGraphToolkit.savePanoramicCache = function (panoramicData) {
     // Limitar tamaño del cache para evitar exceder localStorage

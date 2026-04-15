@@ -33,8 +33,11 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Estado local para el orden de preguntas
+    // Estado local para el orden de preguntas (modo individual)
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
+
+    // Estado local para el orden de grupos (modo agrupado)
+    const [orderedGroupKeys, setOrderedGroupKeys] = React.useState([]);
 
     // Estados para Drag & Drop
     const [dragItemIndex, setDragItemIndex] = React.useState(null);
@@ -42,6 +45,29 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     // Estado para tracking del timestamp del cache
     const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
+
+    // --- Computar sub-proyectos inmediatos y modo agrupado ---
+    const immediateSubProjects = React.useMemo(() => {
+        if (!panoramicData || !selectedProject) return [];
+        // Buscar sub-proyectos directos (profundidad = selectedProject.depth + 1)
+        const selectedDepth = selectedProject.split('/').length;
+        const subProjects = new Set();
+
+        Object.values(panoramicData.allNodes).forEach(node => {
+            if (node.project && node.project.startsWith(selectedProject + '/')) {
+                // Extraer el sub-proyecto inmediato
+                const parts = node.project.split('/');
+                if (parts.length > selectedDepth) {
+                    const immediateChild = parts.slice(0, selectedDepth + 1).join('/');
+                    subProjects.add(immediateChild);
+                }
+            }
+        });
+
+        return Array.from(subProjects).sort();
+    }, [panoramicData, selectedProject]);
+
+    const isGroupedMode = selectedProject && immediateSubProjects.length > 0;
 
     // --- Helpers de Reordenamiento (Drag & Drop) ---
     const handleDragStart = (e, index) => {
@@ -71,23 +97,31 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (dragItemIndex === null || dropIndex === null || !selectedProject) return;
         
         if (dragItemIndex !== dropIndex) {
-            const newOrder = [...orderedQuestionUIDs];
-            const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
-            
-            // Si arrastramos hacia abajo (índice mayor), el elemento que estaba en dropIndex
-            // se ha recorrido una posición hacia arriba por el empuje de 'splice'.
-            // Para asegurar que el nodo sobre el que soltamos se desplace "hacia abajo",
-            // debemos insertarlo en la posición actual de ese nodo (dropIndex - 1).
-            let insertIndex = dropIndex;
-            if (dragItemIndex < dropIndex) {
-                insertIndex = dropIndex - 1;
+            if (isGroupedMode) {
+                // Modo agrupado: reordenar grupos
+                const newOrder = [...orderedGroupKeys];
+                const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
+                let insertIndex = dropIndex;
+                if (dragItemIndex < dropIndex) {
+                    insertIndex = dropIndex - 1;
+                }
+                if (insertIndex < 0) insertIndex = 0;
+                newOrder.splice(insertIndex, 0, draggedItem);
+                setOrderedGroupKeys(newOrder);
+                DiscourseGraphToolkit.saveGroupOrder(selectedProject, newOrder);
+            } else {
+                // Modo individual: reordenar nodos
+                const newOrder = [...orderedQuestionUIDs];
+                const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
+                let insertIndex = dropIndex;
+                if (dragItemIndex < dropIndex) {
+                    insertIndex = dropIndex - 1;
+                }
+                if (insertIndex < 0) insertIndex = 0;
+                newOrder.splice(insertIndex, 0, draggedItem);
+                setOrderedQuestionUIDs(newOrder);
+                DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
             }
-            if (insertIndex < 0) insertIndex = 0;
-            
-            newOrder.splice(insertIndex, 0, draggedItem);
-            
-            setOrderedQuestionUIDs(newOrder);
-            DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
         }
         
         setDragItemIndex(null);
@@ -98,24 +132,39 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     React.useEffect(() => {
         if (!panoramicData || !selectedProject) {
             setOrderedQuestionUIDs([]);
+            setOrderedGroupKeys([]);
             return;
         }
-        // Obtener preguntas filtradas por proyecto
-        const projectQuestions = panoramicData.questions.filter(q => {
-            if (!q.project) return false;
-            return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
-        });
-        // Cargar orden guardado
-        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(selectedProject);
-        if (savedOrder && savedOrder.length > 0) {
-            // Ordenar según guardado, agregar nuevas al final
-            const orderedUIDs = savedOrder.filter(uid => projectQuestions.some(q => q.uid === uid));
-            const newUIDs = projectQuestions.filter(q => !savedOrder.includes(q.uid)).map(q => q.uid);
-            setOrderedQuestionUIDs([...orderedUIDs, ...newUIDs]);
+
+        if (isGroupedMode) {
+            // Modo agrupado: cargar orden de grupos
+            const savedGroupOrder = DiscourseGraphToolkit.loadGroupOrder(selectedProject);
+            if (savedGroupOrder && savedGroupOrder.length > 0) {
+                // Filtrar grupos que ya no existen, agregar nuevos al final
+                const validGroups = savedGroupOrder.filter(g => immediateSubProjects.includes(g));
+                const newGroups = immediateSubProjects.filter(g => !savedGroupOrder.includes(g));
+                setOrderedGroupKeys([...validGroups, ...newGroups]);
+            } else {
+                setOrderedGroupKeys([...immediateSubProjects]);
+            }
+            setOrderedQuestionUIDs([]);
         } else {
-            setOrderedQuestionUIDs(projectQuestions.map(q => q.uid));
+            // Modo individual: cargar orden de nodos (comportamiento original)
+            const projectQuestions = panoramicData.questions.filter(q => {
+                if (!q.project) return false;
+                return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
+            });
+            const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(selectedProject);
+            if (savedOrder && savedOrder.length > 0) {
+                const orderedUIDs = savedOrder.filter(uid => projectQuestions.some(q => q.uid === uid));
+                const newUIDs = projectQuestions.filter(q => !savedOrder.includes(q.uid)).map(q => q.uid);
+                setOrderedQuestionUIDs([...orderedUIDs, ...newUIDs]);
+            } else {
+                setOrderedQuestionUIDs(projectQuestions.map(q => q.uid));
+            }
+            setOrderedGroupKeys([]);
         }
-    }, [panoramicData, selectedProject]);
+    }, [panoramicData, selectedProject, isGroupedMode, immediateSubProjects.length]);
 
 
     // --- Helpers ---
@@ -479,7 +528,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     };
 
     // --- Renderizar un nodo raíz (QUE o GRI) con sus ramas ---
-    const renderQuestion = (question, allNodes) => {
+    // showDragHandle: controla si se muestra el drag handle (false en modo agrupado, los nodos dentro de un grupo no se arrastran)
+    const renderQuestion = (question, allNodes, showDragHandle = true, qIndex = -1) => {
         const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
         const isExpanded = expandedQuestions[question.uid] === true; // Colapsado por defecto
 
@@ -505,9 +555,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
-        const qIndex = orderedQuestionUIDs.indexOf(question.uid);
-        const isDragging = dragItemIndex === qIndex;
-        const isDragOver = dragOverItemIndex === qIndex;
+        const isDragging = showDragHandle && dragItemIndex === qIndex;
+        const isDragOver = showDragHandle && dragOverItemIndex === qIndex;
 
         let displayProject = question.project;
         if (selectedProject && question.project && question.project.startsWith(selectedProject)) {
@@ -517,12 +566,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return React.createElement('div', {
             key: question.uid,
             className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
-            draggable: selectedProject ? true : false,
-            onDragStart: selectedProject ? (e) => handleDragStart(e, qIndex) : undefined,
-            onDragEnter: selectedProject ? (e) => handleDragEnter(e, qIndex) : undefined,
-            onDragOver: selectedProject ? handleDragOver : undefined,
-            onDragEnd: selectedProject ? handleDragEnd : undefined,
-            onDrop: selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
+            draggable: showDragHandle && selectedProject ? true : false,
+            onDragStart: showDragHandle && selectedProject ? (e) => handleDragStart(e, qIndex) : undefined,
+            onDragEnter: showDragHandle && selectedProject ? (e) => handleDragEnter(e, qIndex) : undefined,
+            onDragOver: showDragHandle && selectedProject ? handleDragOver : undefined,
+            onDragEnd: showDragHandle && selectedProject ? handleDragEnd : undefined,
+            onDrop: showDragHandle && selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
             style: { opacity: isDragging ? 0.4 : 1 }
         },
             // Header del nodo raíz
@@ -531,8 +580,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 className: 'dgt-panoramic-node-row',
                 style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
-                // Drag handle (solo si hay proyecto seleccionado)
-                selectedProject && React.createElement('div', {
+                // Drag handle (solo si showDragHandle y hay proyecto seleccionado)
+                showDragHandle && selectedProject && React.createElement('div', {
                     className: 'dgt-drag-handle dgt-mr-xs',
                     title: 'Mantén presionado y arrastra para reordenar',
                     onClick: (e) => e.stopPropagation()
@@ -577,7 +626,110 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         );
     };
 
-    // --- Filtrar preguntas por proyecto (respetando orden) ---
+    // --- Obtener nodos ordenados para un sub-proyecto específico ---
+    const getOrderedNodesForGroup = (groupKey) => {
+        if (!panoramicData) return [];
+        // Obtener nodos que pertenecen a este grupo (o a sus sub-sub-proyectos)
+        const groupNodes = panoramicData.questions.filter(q => {
+            if (!q.project) return false;
+            return q.project === groupKey || q.project.startsWith(groupKey + '/');
+        });
+        
+        // Intentar cargar el orden guardado para este sub-proyecto
+        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(groupKey);
+        if (savedOrder && savedOrder.length > 0) {
+            const orderedNodes = savedOrder
+                .map(uid => groupNodes.find(q => q.uid === uid))
+                .filter(Boolean);
+            const newNodes = groupNodes.filter(q => !savedOrder.includes(q.uid));
+            return [...orderedNodes, ...newNodes];
+        }
+        return groupNodes;
+    };
+
+    // --- Renderizar un grupo de sub-proyecto ---
+    const renderSubProjectGroup = (groupKey, groupIndex) => {
+        const groupNodes = getOrderedNodesForGroup(groupKey);
+        const groupLabel = groupKey.split('/').pop();
+        const isExpanded = expandedQuestions[`group:${groupKey}`] === true;
+        const isDragging = dragItemIndex === groupIndex;
+        const isDragOver = dragOverItemIndex === groupIndex;
+
+        return React.createElement('div', {
+            key: groupKey,
+            className: `dgt-panoramic-group ${isDragOver ? 'dgt-drag-over' : ''}`,
+            draggable: true,
+            onDragStart: (e) => handleDragStart(e, groupIndex),
+            onDragEnter: (e) => handleDragEnter(e, groupIndex),
+            onDragOver: handleDragOver,
+            onDragEnd: handleDragEnd,
+            onDrop: (e) => handleDrop(e, groupIndex),
+            style: { opacity: isDragging ? 0.4 : 1 }
+        },
+            // Header del grupo
+            React.createElement('div', {
+                className: 'dgt-panoramic-group-header',
+                onClick: () => {
+                    setExpandedQuestions(prev => {
+                        const key = `group:${groupKey}`;
+                        const newState = { ...prev, [key]: !prev[key] };
+                        DiscourseGraphToolkit.savePanoramicExpandedQuestions(newState);
+                        return newState;
+                    });
+                }
+            },
+                // Drag handle
+                React.createElement('div', {
+                    className: 'dgt-drag-handle',
+                    title: 'Mantén presionado y arrastra para reordenar este grupo',
+                    onClick: (e) => e.stopPropagation(),
+                    style: { cursor: 'grab', fontSize: '0.875rem', color: 'var(--dgt-text-muted)', flexShrink: 0 }
+                }, '⋮⋮'),
+
+                // Flecha de expandir/colapsar
+                React.createElement('span', {
+                    className: 'dgt-text-muted',
+                    style: { fontSize: '0.6rem', width: '0.75rem', display: 'flex', alignItems: 'center', flexShrink: 0 }
+                }, isExpanded ? '▼' : '▶'),
+
+                // Nombre del grupo
+                React.createElement('span', {
+                    className: 'dgt-text-primary dgt-text-bold',
+                    style: { fontSize: '0.875rem', flex: 1, textTransform: 'uppercase', letterSpacing: '0.03em' }
+                }, groupLabel),
+
+                // Contador de nodos
+                React.createElement('span', {
+                    className: 'dgt-badge dgt-badge-neutral',
+                    style: { fontSize: '0.625rem' }
+                }, `${groupNodes.length} nodo${groupNodes.length !== 1 ? 's' : ''}`),
+
+                // Botón de navegación al sub-proyecto
+                React.createElement('button', {
+                    className: 'dgt-panoramic-group-nav',
+                    title: `Ir a ${groupKey}`,
+                    onClick: (e) => {
+                        e.stopPropagation();
+                        setSelectedProject(groupKey);
+                    }
+                }, '→')
+            ),
+
+            // Cuerpo expandible con los nodos del grupo
+            isExpanded && React.createElement('div', {
+                className: 'dgt-panoramic-group-body'
+            },
+                groupNodes.length > 0
+                    ? groupNodes.map(q => renderQuestion(q, panoramicData.allNodes, false))
+                    : React.createElement('span', {
+                        className: 'dgt-text-muted dgt-text-xs',
+                        style: { fontStyle: 'italic', padding: '8px' }
+                    }, 'Sin nodos en este sub-proyecto')
+            )
+        );
+    };
+
+    // --- Filtrar preguntas por proyecto (respetando orden) — para modo INDIVIDUAL ---
     const getFilteredQuestions = () => {
         if (!panoramicData) return [];
         if (!selectedProject) return panoramicData.questions;
@@ -591,21 +743,25 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return panoramicData.questions.filter(q => isNodeRelevant(q.uid, panoramicData.allNodes, selectedProject));
     };
 
-    // --- Obtener lista jerárquica de proyectos (incluyendo prefijos intermedios) ---
-    const getHierarchicalProjects = () => {
+    // --- Obtener lista jerárquica de proyectos (memoizada, un solo pase) ---
+    const hierarchicalProjects = React.useMemo(() => {
         if (!panoramicData) return [];
         const allPrefixes = new Set();
         const leafProjects = new Set();
+        // Pre-compute counts in a single pass: O(N) instead of O(prefixes × N)
+        const countMap = new Map();
 
         Object.values(panoramicData.allNodes).forEach(node => {
             if (node.project) {
                 // Agregar la rama completa (es una hoja)
                 leafProjects.add(node.project);
                 allPrefixes.add(node.project);
-                // Agregar todos los prefijos intermedios
+                // Agregar todos los prefijos intermedios e incrementar contadores
                 const parts = node.project.split('/');
-                for (let i = 1; i < parts.length; i++) {
-                    allPrefixes.add(parts.slice(0, i).join('/'));
+                for (let i = 1; i <= parts.length; i++) {
+                    const prefix = parts.slice(0, i).join('/');
+                    allPrefixes.add(prefix);
+                    countMap.set(prefix, (countMap.get(prefix) || 0) + 1);
                 }
             }
         });
@@ -614,16 +770,13 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const sorted = Array.from(allPrefixes).sort();
         return sorted.map(prefix => {
             const isLeaf = leafProjects.has(prefix);
-            const count = Object.values(panoramicData.allNodes).filter(node =>
-                node.project && (node.project === prefix || node.project.startsWith(prefix + '/'))
-            ).length;
+            const count = countMap.get(prefix) || 0;
             const depth = prefix.split('/').length - 1;
             return { prefix, isLeaf, count, depth };
         });
-    };
+    }, [panoramicData]);
 
-    const filteredQuestions = getFilteredQuestions();
-    const hierarchicalProjects = getHierarchicalProjects();
+    const filteredQuestions = isGroupedMode ? [] : getFilteredQuestions();
 
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
@@ -719,6 +872,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                             const allExpanded = {};
                             // Expandir raíces
                             filteredQuestions.forEach(q => allExpanded[q.uid] = true);
+                            // Expandir grupos si modo agrupado
+                            if (isGroupedMode) {
+                                orderedGroupKeys.forEach(gk => allExpanded[`group:${gk}`] = true);
+                                // También expandir nodos dentro de los grupos
+                                orderedGroupKeys.forEach(gk => {
+                                    getOrderedNodesForGroup(gk).forEach(q => allExpanded[q.uid] = true);
+                                });
+                            }
                             // Expandir todos los nodos internos que tengan hijos
                             Object.values(panoramicData.allNodes).forEach(node => {
                                 const nType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
@@ -744,24 +905,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
                     }, '➖ Colapsar')
                 ),
-                // Fila 3: Cache info (si existe)
-                cacheTimestamp && !isLoading && React.createElement('div', {
-                    className: 'dgt-flex-row dgt-text-warning dgt-gap-xs',
-                    style: { fontSize: '0.625rem' }
-                },
-                    React.createElement('span', null, `📦 ${formatTimeAgo(cacheTimestamp)}`),
-                    React.createElement('button', {
-                        onClick: handleLoadPanoramic,
-                        className: 'dgt-btn-ghost dgt-text-xs',
-                        style: { padding: '2px 4px' }
-                    }, '🔄')
-                ),
-                // Fila 4: Estadísticas compactas
+                // Fila 3: Estadísticas compactas
                 panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                        `QUE: ${filteredQuestions.filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
+                        `QUE: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                        `GRI: ${filteredQuestions.filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
+                        `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
                         `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
@@ -776,12 +925,27 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             style: { backgroundColor: 'var(--dgt-bg-secondary)', borderRadius: 'var(--dgt-radius-sm)' }
         }, loadStatus),
 
-        // Lista de preguntas con sus ramas
+        // Indicador de modo agrupado
+        isGroupedMode && React.createElement('div', {
+            className: 'dgt-p-sm dgt-mb-sm dgt-text-xs',
+            style: { backgroundColor: 'rgba(108, 92, 153, 0.06)', borderRadius: 'var(--dgt-radius-sm)', border: '1px solid rgba(108, 92, 153, 0.15)', color: 'var(--dgt-accent-purple)' }
+        }, `📦 Vista agrupada: ${orderedGroupKeys.length} sub-proyecto${orderedGroupKeys.length !== 1 ? 's' : ''}. Arrastra los bloques para reordenar.`),
+
+        // Lista de contenido principal
         panoramicData && React.createElement('div', { className: 'dgt-list-container dgt-p-sm' },
-            filteredQuestions.length > 0
-                ? filteredQuestions.map(q => renderQuestion(q, panoramicData.allNodes))
-                : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
-                    'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
+            isGroupedMode
+                // Modo agrupado: renderizar grupos de sub-proyectos
+                ? (orderedGroupKeys.length > 0
+                    ? orderedGroupKeys.map((gk, index) => renderSubProjectGroup(gk, index))
+                    : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
+                        'No hay sub-proyectos para mostrar.')
+                )
+                // Modo individual: renderizar nodos planos (comportamiento original)
+                : (filteredQuestions.length > 0
+                    ? filteredQuestions.map((q, index) => renderQuestion(q, panoramicData.allNodes, true, index))
+                    : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
+                        'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
+                )
         ),
 
         // Mensaje inicial

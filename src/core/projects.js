@@ -31,13 +31,21 @@ DiscourseGraphToolkit.ProjectManager = {
     /**
      * Gets a regex to extract project name from a block string.
      * Matches pattern: FieldName:: [[ProjectName]]
+     * Caches the compiled regex; only recompiles if the field name changes.
      * @returns {RegExp} Regex with capture group for project name
      */
+    _cachedRegex: null,
+    _cachedRegexFieldName: null,
     getFieldRegex: function () {
         const fieldName = this.getFieldName();
+        if (this._cachedRegex && this._cachedRegexFieldName === fieldName) {
+            return this._cachedRegex;
+        }
         // Escape special regex characters in field name
         const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(escaped + "::\\s*\\[\\[([^\\]]+)\\]\\]");
+        this._cachedRegex = new RegExp(escaped + "::\\s*\\[\\[([^\\]]+)\\]\\]");
+        this._cachedRegexFieldName = fieldName;
+        return this._cachedRegex;
     },
 
     /**

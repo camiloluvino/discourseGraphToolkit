@@ -12,48 +12,67 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
     try {
         const allNodes = new Map(); // uid -> {uid, title, type, parentUid}
         const visited = new Set();
+        const enqueued = new Set(); // O(1) dedup for pending queue
         // Cola de procesamiento: {uid, parentUid}
         const toProcess = [{ uid: questionUid, parentUid: null }];
+        enqueued.add(questionUid);
 
-        // Procesar iterativamente para evitar stack overflow en ramas muy profundas
+        // Procesar en rondas por lotes para reducir llamadas API
         while (toProcess.length > 0) {
-            const { uid: currentUid, parentUid: currentParentUid } = toProcess.shift();
+            // Extraer todo el lote pendiente de una vez
+            const batch = toProcess.splice(0, toProcess.length);
+            // Filtrar ya visitados
+            const pendingBatch = batch.filter(item => !visited.has(item.uid));
+            if (pendingBatch.length === 0) continue;
 
-            if (visited.has(currentUid)) continue;
-            visited.add(currentUid);
+            // Marcar como visitados
+            pendingBatch.forEach(item => visited.add(item.uid));
 
-            // Obtener datos del nodo actual
-            const rawData = await window.roamAlphaAPI.data.async.pull(
+            // Construir EIDs para pull_many
+            const eids = pendingBatch.map(item => [':block/uid', item.uid]);
+
+            // Obtener datos de todos los nodos del lote en una sola llamada
+            const rawResults = await window.roamAlphaAPI.data.async.pull_many(
                 this.ROAM_PULL_PATTERN,
-                [':block/uid', currentUid]
+                eids
             );
 
-            if (!rawData) continue;
+            if (!rawResults) continue;
 
-            // Transformar a formato usable
-            const nodeData = this.transformToNativeFormat(rawData, 0, new Set(), true);
-            if (!nodeData) continue;
+            // Procesar cada resultado del lote
+            for (let i = 0; i < rawResults.length; i++) {
+                const rawData = rawResults[i];
+                if (!rawData) continue;
 
-            const nodeType = this.getNodeType(nodeData.title);
+                const currentUid = pendingBatch[i].uid;
+                const currentParentUid = pendingBatch[i].parentUid;
 
-            // Si es CLM, EVD o GRI, agregarlo a la lista de nodos encontrados
-            if (nodeType === 'CLM' || nodeType === 'EVD' || nodeType === 'GRI') {
-                allNodes.set(currentUid, {
-                    uid: currentUid,
-                    title: nodeData.title,
-                    type: nodeType,
-                    parentUid: currentParentUid || questionUid // Si no tiene padre, es hijo directo del QUE
-                });
-            }
+                // Transformar a formato usable
+                const nodeData = this.transformToNativeFormat(rawData, 0, new Set(), true);
+                if (!nodeData) continue;
 
-            // Buscar referencias en el contenido del nodo
-            const referencedUids = this._extractAllReferencesFromNode(nodeData);
+                const nodeType = this.getNodeType(nodeData.title);
 
-            // Agregar las referencias no visitadas a la cola de procesamiento
-            // El padre de estas referencias es el nodo actual
-            for (const refUid of referencedUids) {
-                if (!visited.has(refUid) && !toProcess.some(p => p.uid === refUid)) {
-                    toProcess.push({ uid: refUid, parentUid: currentUid });
+                // Si es CLM, EVD o GRI, agregarlo a la lista de nodos encontrados
+                if (nodeType === 'CLM' || nodeType === 'EVD' || nodeType === 'GRI') {
+                    allNodes.set(currentUid, {
+                        uid: currentUid,
+                        title: nodeData.title,
+                        type: nodeType,
+                        parentUid: currentParentUid || questionUid // Si no tiene padre, es hijo directo del QUE
+                    });
+                }
+
+                // Buscar referencias en el contenido del nodo
+                const referencedUids = this._extractAllReferencesFromNode(nodeData);
+
+                // Agregar las referencias no visitadas a la cola de procesamiento
+                // El padre de estas referencias es el nodo actual
+                for (const refUid of referencedUids) {
+                    if (!visited.has(refUid) && !enqueued.has(refUid)) {
+                        enqueued.add(refUid);
+                        toProcess.push({ uid: refUid, parentUid: currentUid });
+                    }
                 }
             }
         }

@@ -397,6 +397,57 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             padding-top: 0.125rem;
         }
 
+        /* Panoramic Sub-Project Group */
+        .dgt-panoramic-group {
+            border: 1px solid var(--dgt-border-color);
+            border-left: 3px solid var(--dgt-accent-purple);
+            border-radius: 0 var(--dgt-radius-sm) var(--dgt-radius-sm) 0;
+            background-color: var(--dgt-bg-primary);
+            transition: var(--dgt-transition-fast);
+            margin-bottom: var(--dgt-spacing-sm);
+        }
+        .dgt-panoramic-group:hover {
+            box-shadow: var(--dgt-shadow-md);
+            border-color: var(--dgt-border-focus);
+            border-left-color: var(--dgt-accent-purple);
+        }
+        .dgt-panoramic-group-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            cursor: pointer;
+            gap: 8px;
+            transition: var(--dgt-transition-fast);
+            border-radius: 0 var(--dgt-radius-sm) var(--dgt-radius-sm) 0;
+        }
+        .dgt-panoramic-group-header:hover {
+            background-color: var(--dgt-bg-secondary);
+        }
+        .dgt-panoramic-group-body {
+            border-top: 1px solid var(--dgt-border-color);
+            padding: 4px 8px 8px 8px;
+            background: #ffffff;
+        }
+        .dgt-panoramic-group-nav {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 6px;
+            font-size: 0.6875rem;
+            color: var(--dgt-text-muted);
+            background: transparent;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-sm);
+            cursor: pointer;
+            transition: var(--dgt-transition-fast);
+            flex-shrink: 0;
+        }
+        .dgt-panoramic-group-nav:hover {
+            color: var(--dgt-text-primary);
+            background: var(--dgt-bg-secondary);
+            border-color: var(--dgt-border-focus);
+        }
+
         /* Scrollbars */
         .dgt-scrollable::-webkit-scrollbar {
             width: 8px;
