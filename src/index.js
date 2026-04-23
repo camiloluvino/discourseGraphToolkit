@@ -6,26 +6,41 @@ if (window.roamAlphaAPI) {
     // Run storage migration to graph-specific keys (one-time)
     DiscourseGraphToolkit.migrateStorageToGraphSpecific();
 
-    // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
-    setTimeout(() => {
-        DiscourseGraphToolkit.initializeProjectsSync()
-            .catch(e => {
-                console.error("Error en sincronización inicial:", e);
-                DiscourseGraphToolkit.showToast("⚠️ Error sincronizando proyectos", "warning");
-            });
-    }, 5000);
+    // Helper para esperar a que la API de Roam esté funcional
+    DiscourseGraphToolkit._waitForRoamReady = async function (maxWait = 15000, interval = 500) {
+        const start = Date.now();
+        while (Date.now() - start < maxWait) {
+            try {
+                // Verificar que la API responde a queries asíncronas
+                const test = await window.roamAlphaAPI.data.async.q('[:find ?e :where [?e :db/ident :db/ident] :limit 1]');
+                if (test) return true;
+            } catch (e) { /* Aún no lista */ }
+            await new Promise(r => setTimeout(r, interval));
+        }
+        return false;
+    };
 
-    // Cargar config desde Roam si existe
-    setTimeout(() => {
-        DiscourseGraphToolkit.loadConfigFromRoam()
+    // Inicializar sincronización secuencialmente cuando Roam esté listo
+    DiscourseGraphToolkit._waitForRoamReady().then(ready => {
+        if (!ready) {
+            console.warn("[DiscourseGraphToolkit] Roam API no estuvo lista después de 15 segundos.");
+            return;
+        }
+
+        console.log("[DiscourseGraphToolkit] Roam API lista, iniciando sincronización...");
+        
+        DiscourseGraphToolkit.initializeProjectsSync()
+            .then(() => {
+                return DiscourseGraphToolkit.loadConfigFromRoam();
+            })
             .then(data => {
                 if (data) console.log("Configuración cargada desde Roam.");
             })
             .catch(e => {
-                console.error("Error cargando config desde Roam:", e);
-                // No mostrar toast - config local se usa como fallback
+                console.error("Error en inicialización:", e);
+                DiscourseGraphToolkit.showToast("⚠️ Error inicializando plugin", "warning");
             });
-    }, 5500);
+    });
 
     // Registrar Comandos
     // Lista de comandos registrados (para cleanup en recargas)

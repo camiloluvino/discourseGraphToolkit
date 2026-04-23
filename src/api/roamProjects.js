@@ -87,6 +87,7 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
                 // La página existe pero está vacía, o la query falló. 
                 // Asumimos que debemos sincronizar local -> roam
                 console.log("Roam projects empty, syncing local to roam.");
+                roam = [...local]; // Forzar uso de datos locales para que se sincronicen hacia arriba
             }
         }
 
@@ -101,8 +102,10 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
     } catch (e) {
         console.error("Error initializing projects sync:", e);
         if (retry < 3) {
-            setTimeout(() => this.initializeProjectsSync(retry + 1), 2000);
+            await new Promise(r => setTimeout(r, 2000));
+            return this.initializeProjectsSync(retry + 1);
         }
+        throw e; // Propagar error para que el llamador lo maneje
     }
 };
 

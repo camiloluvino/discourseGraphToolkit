@@ -20,7 +20,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
 
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
-        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
+        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
         // Resumen de diagnóstico
         let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
@@ -176,19 +176,9 @@ DiscourseGraphToolkit.RelationshipMapper = {
         let match;
         while ((match = pattern.exec(str)) !== null) {
             const refContent = match[1];
+            // Match exacto en los mapas de títulos (O(1))
             if (clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
             if (evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
-            // Parciales
-            if (refContent.includes('CLM')) {
-                for (const titleFragment in clmTitleMap) {
-                    if (refContent.includes(titleFragment)) uids.add(clmTitleMap[titleFragment]);
-                }
-            }
-            if (refContent.includes('EVD')) {
-                for (const titleFragment in evdTitleMap) {
-                    if (refContent.includes(titleFragment)) uids.add(evdTitleMap[titleFragment]);
-                }
-            }
         }
         return Array.from(uids);
     },
@@ -242,48 +232,17 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             if (references.length === 0) return;
 
-            // Buscar CLMs
-            if (references.some(ref => ref.includes('CLM'))) {
-                for (const ref of references) {
-                    if (clmTitleMap[ref]) {
-                        const clmUid = clmTitleMap[ref];
-                        if (!node[clmField].includes(clmUid) && clmUid !== uid) {
-                            node[clmField].push(clmUid);
-                        }
-                    } else if (ref.includes('CLM')) {
-                        // Búsqueda parcial
-                        for (const titleFragment in clmTitleMap) {
-                            if (ref.includes(titleFragment)) {
-                                const clmUid = clmTitleMap[titleFragment];
-                                if (!node[clmField].includes(clmUid) && clmUid !== uid) {
-                                    node[clmField].push(clmUid);
-                                    break;
-                                }
-                            }
-                        }
+            // Buscar CLMs y EVDs usando match exacto (O(1))
+            for (const ref of references) {
+                if (ref.includes('CLM') && clmTitleMap[ref]) {
+                    const clmUid = clmTitleMap[ref];
+                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                        node[clmField].push(clmUid);
                     }
-                }
-            }
-
-            // Buscar EVDs
-            if (references.some(ref => ref.includes('EVD'))) {
-                for (const ref of references) {
-                    if (evdTitleMap[ref]) {
-                        const evdUid = evdTitleMap[ref];
-                        if (!node[evdField].includes(evdUid)) {
-                            node[evdField].push(evdUid);
-                        }
-                    } else if (ref.includes('EVD')) {
-                        // Búsqueda parcial
-                        for (const titleFragment in evdTitleMap) {
-                            if (ref.includes(titleFragment)) {
-                                const evdUid = evdTitleMap[titleFragment];
-                                if (!node[evdField].includes(evdUid)) {
-                                    node[evdField].push(evdUid);
-                                    break;
-                                }
-                            }
-                        }
+                } else if (ref.includes('EVD') && evdTitleMap[ref]) {
+                    const evdUid = evdTitleMap[ref];
+                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
+                        node[evdField].push(evdUid);
                     }
                 }
             }
@@ -389,7 +348,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // --- GRI: Mapear relaciones GRI -> QUE/CLM/GRI vía #Contains ---
-    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap) {
+    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "GRI") continue;
@@ -404,12 +363,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#Contains")) {
                         // Case 1: Inline (el bloque mismo puede tener una referencia)
-                        this._extractContainedNodes(child, node, uid, allNodes);
+                        this._extractContainedNodes(child, node, uid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
                         // Case 2: Container (#Contains -> hijos son las referencias)
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractContainedNodes(subChild, node, uid, allNodes);
+                                this._extractContainedNodes(subChild, node, uid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
                             }
                         }
                     }
@@ -421,7 +380,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // Helper: Extrae nodos contenidos (QUE, CLM, GRI) de un bloque bajo #Contains
-    _extractContainedNodes: function (block, node, sourceUid, allNodes) {
+    _extractContainedNodes: function (block, node, sourceUid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap) {
         try {
             const refsToCheck = [];
             if (block.refs) refsToCheck.push(...block.refs);
@@ -450,19 +409,15 @@ DiscourseGraphToolkit.RelationshipMapper = {
             let match;
             while ((match = pattern.exec(blockText)) !== null) {
                 const refContent = match[1];
-                // Solo buscar nodos discourse (no tags como #Contains)
-                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM') || refContent.includes('EVD')) {
-                    // Intentar encontrar en los mapas existentes via allNodes
-                    for (const nUid in allNodes) {
-                        const n = allNodes[nUid];
-                        if (n.title && n.title.includes(refContent) && nUid !== sourceUid) {
-                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI" || n.type === "EVD") {
-                                if (!node.contained_nodes.includes(nUid)) {
-                                    node.contained_nodes.push(nUid);
-                                }
-                            }
-                            break;
-                        }
+                // Intentar encontrar en los mapas existentes (O(1))
+                const nUid = (queTitleMap && queTitleMap[refContent]) || 
+                             (clmTitleMap && clmTitleMap[refContent]) || 
+                             (griTitleMap && griTitleMap[refContent]) || 
+                             (evdTitleMap && evdTitleMap[refContent]);
+                
+                if (nUid && nUid !== sourceUid) {
+                    if (!node.contained_nodes.includes(nUid)) {
+                        node.contained_nodes.push(nUid);
                     }
                 }
             }

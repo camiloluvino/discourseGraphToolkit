@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.40
- * Bundled build: 2026-04-15 19:40:01
+ * Bundled build: 2026-04-23 15:38:31
  */
 
 (function () {
@@ -560,7 +560,8 @@ DiscourseGraphToolkit.STORAGE = {
     QUESTION_ORDER: "discourseGraphToolkit_question_order",
     PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache",
     PANORAMIC_EXPANDED: "discourseGraphToolkit_panoramic_expanded",
-    GROUP_ORDER: "discourseGraphToolkit_group_order"
+    GROUP_ORDER: "discourseGraphToolkit_group_order",
+    VERIFICATION_CACHE: "discourseGraphToolkit_verificationCache"
 };
 
 // Get current graph name from Roam API or URL
@@ -1227,7 +1228,7 @@ DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
 
 // --- Cache de Verificación de Ramas ---
 DiscourseGraphToolkit.getVerificationCache = function () {
-    const stored = localStorage.getItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE));
     if (stored) {
         try {
             return JSON.parse(stored);
@@ -1242,11 +1243,11 @@ DiscourseGraphToolkit.saveVerificationCache = function (results, status) {
         status,
         timestamp: Date.now()
     };
-    localStorage.setItem(this.getStorageKey('discourseGraphToolkit_verificationCache'), JSON.stringify(data));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE), JSON.stringify(data));
 };
 
 DiscourseGraphToolkit.clearVerificationCache = function () {
-    localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    localStorage.removeItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE));
 };
 
 // --- Persistencia del Orden de Preguntas ---
@@ -1348,7 +1349,11 @@ DiscourseGraphToolkit.loadPanoramicCache = function () {
             }
         }
         return cached;
-    } catch (e) { return null; }
+    } catch (e) {
+        console.warn("Error parsing panoramic cache, clearing corrupted data:", e);
+        localStorage.removeItem(this.getStorageKey(this.STORAGE.PANORAMIC_CACHE));
+        return null;
+    }
 };
 
 DiscourseGraphToolkit.clearPanoramicCache = function () {
@@ -1376,7 +1381,11 @@ DiscourseGraphToolkit.loadPanoramicExpandedQuestions = function () {
     if (!stored) return {};
     try {
         return JSON.parse(stored);
-    } catch (e) { return {}; }
+    } catch (e) {
+        console.warn("Error parsing panoramic expanded cache, clearing corrupted data:", e);
+        localStorage.removeItem(this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED));
+        return {};
+    }
 };
 
 
@@ -1470,6 +1479,7 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
                 // La página existe pero está vacía, o la query falló. 
                 // Asumimos que debemos sincronizar local -> roam
                 console.log("Roam projects empty, syncing local to roam.");
+                roam = [...local]; // Forzar uso de datos locales para que se sincronicen hacia arriba
             }
         }
 
@@ -1484,8 +1494,10 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
     } catch (e) {
         console.error("Error initializing projects sync:", e);
         if (retry < 3) {
-            setTimeout(() => this.initializeProjectsSync(retry + 1), 2000);
+            await new Promise(r => setTimeout(r, 2000));
+            return this.initializeProjectsSync(retry + 1);
         }
+        throw e; // Propagar error para que el llamador lo maneje
     }
 };
 
@@ -3092,7 +3104,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
 
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
-        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap);
+        this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
         // Resumen de diagnóstico
         let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
@@ -3248,19 +3260,9 @@ DiscourseGraphToolkit.RelationshipMapper = {
         let match;
         while ((match = pattern.exec(str)) !== null) {
             const refContent = match[1];
+            // Match exacto en los mapas de títulos (O(1))
             if (clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
             if (evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
-            // Parciales
-            if (refContent.includes('CLM')) {
-                for (const titleFragment in clmTitleMap) {
-                    if (refContent.includes(titleFragment)) uids.add(clmTitleMap[titleFragment]);
-                }
-            }
-            if (refContent.includes('EVD')) {
-                for (const titleFragment in evdTitleMap) {
-                    if (refContent.includes(titleFragment)) uids.add(evdTitleMap[titleFragment]);
-                }
-            }
         }
         return Array.from(uids);
     },
@@ -3314,48 +3316,17 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             if (references.length === 0) return;
 
-            // Buscar CLMs
-            if (references.some(ref => ref.includes('CLM'))) {
-                for (const ref of references) {
-                    if (clmTitleMap[ref]) {
-                        const clmUid = clmTitleMap[ref];
-                        if (!node[clmField].includes(clmUid) && clmUid !== uid) {
-                            node[clmField].push(clmUid);
-                        }
-                    } else if (ref.includes('CLM')) {
-                        // Búsqueda parcial
-                        for (const titleFragment in clmTitleMap) {
-                            if (ref.includes(titleFragment)) {
-                                const clmUid = clmTitleMap[titleFragment];
-                                if (!node[clmField].includes(clmUid) && clmUid !== uid) {
-                                    node[clmField].push(clmUid);
-                                    break;
-                                }
-                            }
-                        }
+            // Buscar CLMs y EVDs usando match exacto (O(1))
+            for (const ref of references) {
+                if (ref.includes('CLM') && clmTitleMap[ref]) {
+                    const clmUid = clmTitleMap[ref];
+                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                        node[clmField].push(clmUid);
                     }
-                }
-            }
-
-            // Buscar EVDs
-            if (references.some(ref => ref.includes('EVD'))) {
-                for (const ref of references) {
-                    if (evdTitleMap[ref]) {
-                        const evdUid = evdTitleMap[ref];
-                        if (!node[evdField].includes(evdUid)) {
-                            node[evdField].push(evdUid);
-                        }
-                    } else if (ref.includes('EVD')) {
-                        // Búsqueda parcial
-                        for (const titleFragment in evdTitleMap) {
-                            if (ref.includes(titleFragment)) {
-                                const evdUid = evdTitleMap[titleFragment];
-                                if (!node[evdField].includes(evdUid)) {
-                                    node[evdField].push(evdUid);
-                                    break;
-                                }
-                            }
-                        }
+                } else if (ref.includes('EVD') && evdTitleMap[ref]) {
+                    const evdUid = evdTitleMap[ref];
+                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
+                        node[evdField].push(evdUid);
                     }
                 }
             }
@@ -3461,7 +3432,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // --- GRI: Mapear relaciones GRI -> QUE/CLM/GRI vía #Contains ---
-    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap) {
+    _mapGriRelationships: function (allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "GRI") continue;
@@ -3476,12 +3447,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#Contains")) {
                         // Case 1: Inline (el bloque mismo puede tener una referencia)
-                        this._extractContainedNodes(child, node, uid, allNodes);
+                        this._extractContainedNodes(child, node, uid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
                         // Case 2: Container (#Contains -> hijos son las referencias)
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractContainedNodes(subChild, node, uid, allNodes);
+                                this._extractContainedNodes(subChild, node, uid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
                             }
                         }
                     }
@@ -3493,7 +3464,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // Helper: Extrae nodos contenidos (QUE, CLM, GRI) de un bloque bajo #Contains
-    _extractContainedNodes: function (block, node, sourceUid, allNodes) {
+    _extractContainedNodes: function (block, node, sourceUid, allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap) {
         try {
             const refsToCheck = [];
             if (block.refs) refsToCheck.push(...block.refs);
@@ -3522,19 +3493,15 @@ DiscourseGraphToolkit.RelationshipMapper = {
             let match;
             while ((match = pattern.exec(blockText)) !== null) {
                 const refContent = match[1];
-                // Solo buscar nodos discourse (no tags como #Contains)
-                if (refContent.includes('GRI') || refContent.includes('QUE') || refContent.includes('CLM') || refContent.includes('EVD')) {
-                    // Intentar encontrar en los mapas existentes via allNodes
-                    for (const nUid in allNodes) {
-                        const n = allNodes[nUid];
-                        if (n.title && n.title.includes(refContent) && nUid !== sourceUid) {
-                            if (n.type === "QUE" || n.type === "CLM" || n.type === "GRI" || n.type === "EVD") {
-                                if (!node.contained_nodes.includes(nUid)) {
-                                    node.contained_nodes.push(nUid);
-                                }
-                            }
-                            break;
-                        }
+                // Intentar encontrar en los mapas existentes (O(1))
+                const nUid = (queTitleMap && queTitleMap[refContent]) || 
+                             (clmTitleMap && clmTitleMap[refContent]) || 
+                             (griTitleMap && griTitleMap[refContent]) || 
+                             (evdTitleMap && evdTitleMap[refContent]);
+                
+                if (nUid && nUid !== sourceUid) {
+                    if (!node.contained_nodes.includes(nUid)) {
+                        node.contained_nodes.push(nUid);
                     }
                 }
             }
@@ -8966,26 +8933,41 @@ if (window.roamAlphaAPI) {
     // Run storage migration to graph-specific keys (one-time)
     DiscourseGraphToolkit.migrateStorageToGraphSpecific();
 
-    // Inicializar sincronización con un pequeño retraso para asegurar que Roam esté listo
-    setTimeout(() => {
-        DiscourseGraphToolkit.initializeProjectsSync()
-            .catch(e => {
-                console.error("Error en sincronización inicial:", e);
-                DiscourseGraphToolkit.showToast("⚠️ Error sincronizando proyectos", "warning");
-            });
-    }, 5000);
+    // Helper para esperar a que la API de Roam esté funcional
+    DiscourseGraphToolkit._waitForRoamReady = async function (maxWait = 15000, interval = 500) {
+        const start = Date.now();
+        while (Date.now() - start < maxWait) {
+            try {
+                // Verificar que la API responde a queries asíncronas
+                const test = await window.roamAlphaAPI.data.async.q('[:find ?e :where [?e :db/ident :db/ident] :limit 1]');
+                if (test) return true;
+            } catch (e) { /* Aún no lista */ }
+            await new Promise(r => setTimeout(r, interval));
+        }
+        return false;
+    };
 
-    // Cargar config desde Roam si existe
-    setTimeout(() => {
-        DiscourseGraphToolkit.loadConfigFromRoam()
+    // Inicializar sincronización secuencialmente cuando Roam esté listo
+    DiscourseGraphToolkit._waitForRoamReady().then(ready => {
+        if (!ready) {
+            console.warn("[DiscourseGraphToolkit] Roam API no estuvo lista después de 15 segundos.");
+            return;
+        }
+
+        console.log("[DiscourseGraphToolkit] Roam API lista, iniciando sincronización...");
+        
+        DiscourseGraphToolkit.initializeProjectsSync()
+            .then(() => {
+                return DiscourseGraphToolkit.loadConfigFromRoam();
+            })
             .then(data => {
                 if (data) console.log("Configuración cargada desde Roam.");
             })
             .catch(e => {
-                console.error("Error cargando config desde Roam:", e);
-                // No mostrar toast - config local se usa como fallback
+                console.error("Error en inicialización:", e);
+                DiscourseGraphToolkit.showToast("⚠️ Error inicializando plugin", "warning");
             });
-    }, 5500);
+    });
 
     // Registrar Comandos
     // Lista de comandos registrados (para cleanup en recargas)

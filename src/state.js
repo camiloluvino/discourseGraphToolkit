@@ -193,7 +193,7 @@ DiscourseGraphToolkit.migrateStorageToGraphSpecific = function () {
 
 // --- Cache de Verificación de Ramas ---
 DiscourseGraphToolkit.getVerificationCache = function () {
-    const stored = localStorage.getItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    const stored = localStorage.getItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE));
     if (stored) {
         try {
             return JSON.parse(stored);
@@ -208,11 +208,11 @@ DiscourseGraphToolkit.saveVerificationCache = function (results, status) {
         status,
         timestamp: Date.now()
     };
-    localStorage.setItem(this.getStorageKey('discourseGraphToolkit_verificationCache'), JSON.stringify(data));
+    localStorage.setItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE), JSON.stringify(data));
 };
 
 DiscourseGraphToolkit.clearVerificationCache = function () {
-    localStorage.removeItem(this.getStorageKey('discourseGraphToolkit_verificationCache'));
+    localStorage.removeItem(this.getStorageKey(this.STORAGE.VERIFICATION_CACHE));
 };
 
 // --- Persistencia del Orden de Preguntas ---
@@ -314,7 +314,11 @@ DiscourseGraphToolkit.loadPanoramicCache = function () {
             }
         }
         return cached;
-    } catch (e) { return null; }
+    } catch (e) {
+        console.warn("Error parsing panoramic cache, clearing corrupted data:", e);
+        localStorage.removeItem(this.getStorageKey(this.STORAGE.PANORAMIC_CACHE));
+        return null;
+    }
 };
 
 DiscourseGraphToolkit.clearPanoramicCache = function () {
@@ -342,5 +346,9 @@ DiscourseGraphToolkit.loadPanoramicExpandedQuestions = function () {
     if (!stored) return {};
     try {
         return JSON.parse(stored);
-    } catch (e) { return {}; }
+    } catch (e) {
+        console.warn("Error parsing panoramic expanded cache, clearing corrupted data:", e);
+        localStorage.removeItem(this.getStorageKey(this.STORAGE.PANORAMIC_EXPANDED));
+        return {};
+    }
 };
