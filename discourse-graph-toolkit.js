@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.40
- * Bundled build: 2026-04-23 15:38:31
+ * Bundled build: 2026-04-26 19:04:00
  */
 
 (function () {
@@ -587,6 +587,10 @@ DiscourseGraphToolkit.ROAM = {
     PROJECTS_PAGE: "roam/js/discourse-graph/projects",
     CONFIG_PAGE: "roam/js/discourse-graph/config"
 };
+
+// Sufijo que identifica páginas contenedoras de nodos discourse
+// Las páginas contenedoras siempre terminan con este sufijo
+DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX = '/grafoDeDiscurso';
 
 // Configuración de Archivos y Exportación
 DiscourseGraphToolkit.FILES = {
@@ -2281,6 +2285,105 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
         console.error("Error finding orphan nodes:", e);
         return [];
     }
+};
+
+/**
+ * Dado un array de UIDs de QUEs/GRIs, encuentra qué página contenedora
+ * (página cuyo título termina en CONTAINER_PAGE_SUFFIX, ej: /grafoDeDiscurso)
+ * los referencia como bloque de PRIMER NIVEL (hijo directo de la página).
+ *
+ * Estrategia Datalog: usar :block/children desde la página contenedora asegura
+ * que solo se devuelven bloques de primer nivel (hijos directos), sin necesidad
+ * de filtrar padres en JS.
+ *
+ * @param {Array<string>} queUids - UIDs de las páginas QUE/GRI a buscar
+ * @returns {Promise<Map<string, {uid, title, project, containerStatus}>>}
+ *   Mapa queUid → info de la página contenedora (primera encontrada por QUE)
+ */
+DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
+    if (!queUids || queUids.length === 0) return new Map();
+
+    try {
+        const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
+
+        // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
+        // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
+        const query = `[:find ?container-uid ?container-title ?que-uid
+                        :in $ [?que-uid ...]
+                        :where
+                        [?que-page :block/uid ?que-uid]
+                        [?container :node/title ?container-title]
+                        [?container :block/uid ?container-uid]
+                        [(clojure.string/ends-with? ?container-title "${containerSuffix}")]
+                        [?container :block/children ?block]
+                        [?block :block/refs ?que-page]]`;
+
+        const results = await window.roamAlphaAPI.data.async.q(query, queUids);
+        if (!results || results.length === 0) return new Map();
+
+        // Tomar la primera coincidencia por QUE (un QUE puede estar en varias páginas)
+        const queToContainer = new Map();
+        for (const [containerUid, containerTitle, queUid] of results) {
+            if (queToContainer.has(queUid)) continue;
+            queToContainer.set(queUid, { uid: containerUid, title: containerTitle, project: null });
+        }
+
+        // Obtener proyectos de todas las páginas contenedoras en lote
+        const containerUids = [...new Set([...queToContainer.values()].map(c => c.uid))];
+        if (containerUids.length === 0) return queToContainer;
+
+        const PM = this.ProjectManager;
+        const escapedPattern = PM.getEscapedFieldPattern();
+        const projectQuery = `[:find ?page-uid ?string
+                              :in $ [?page-uid ...]
+                              :where
+                              [?page :block/uid ?page-uid]
+                              [?block :block/page ?page]
+                              [?block :block/string ?string]
+                              [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+        const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, containerUids);
+        const containerProjectMap = new Map();
+        const regex = PM.getFieldRegex();
+        const fieldPattern = PM.getFieldPattern();
+
+        if (projectResults) {
+            for (const [pageUid, blockString] of projectResults) {
+                if (this.isEscapedProjectField(blockString, fieldPattern)) continue;
+                const match = blockString.match(regex);
+                if (match) containerProjectMap.set(pageUid, match[1].trim());
+            }
+        }
+
+        // Enriquecer con el proyecto de cada página contenedora
+        for (const [, containerInfo] of queToContainer) {
+            containerInfo.project = containerProjectMap.get(containerInfo.uid) || null;
+        }
+
+        return queToContainer;
+    } catch (e) {
+        console.error('Error getting container pages for nodes:', e);
+        return new Map();
+    }
+};
+
+/**
+ * Calcula el containerStatus de una QUE dada la info de su página contenedora.
+ * @param {string|null} queProject - Proyecto del QUE (rootProject del cohResult)
+ * @param {{uid, title, project}|null} containerInfo - Info de la página contenedora
+ * @returns {'coherent'|'mismatched'|'no_project'|'no_container'}
+ */
+DiscourseGraphToolkit.calcContainerStatus = function (queProject, containerInfo) {
+    if (!containerInfo) return 'no_container';
+    if (!containerInfo.project) return 'no_project';
+    if (!queProject) return 'mismatched';
+    // El QUE debe tener el mismo proyecto que la página contenedora
+    // o ser un sub-namespace más específico
+    if (queProject === containerInfo.project ||
+        queProject.startsWith(containerInfo.project + '/')) {
+        return 'coherent';
+    }
+    return 'mismatched';
 };
 
 
@@ -5852,7 +5955,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
     } = DiscourseGraphToolkit.useBranches();
 
     // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
-    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | null
+    const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'container' | null
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
     const [showProjectFilter, setShowProjectFilter] = React.useState(false);
 
@@ -6024,7 +6127,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
     const counts = React.useMemo(() => ({
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent' || r.status === 'specialized').length,
         different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
-        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length
+        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length,
+        containerMismatch: bulkVerificationResults.filter(r =>
+            r.containerPage?.containerStatus === 'mismatched' ||
+            r.containerPage?.containerStatus === 'no_project'
+        ).length
     }), [bulkVerificationResults]);
 
     // --- Helpers (shared) ---
@@ -6088,6 +6195,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             setVerificationProgress({ current: 0, total: filteredQuestions.length, currentQuestion: '' });
 
+            // Obtener páginas contenedoras para todas las preguntas en lote
+            setBulkVerifyStatus('⏳ Buscando páginas contenedoras...');
+            const filteredUids = filteredQuestions.map(q => q.pageUid);
+            const containerPageMap = await DiscourseGraphToolkit.getContainerPagesForNodes(filteredUids);
+
             for (let i = 0; i < filteredQuestions.length; i++) {
                 // Cedemos control brevemente para permitir que el frontend repinte la UI
                 await new Promise(r => setTimeout(r, 10));
@@ -6106,11 +6218,16 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 else if (cohResult.different.length > 0) status = 'different';
                 else if (cohResult.specialized.length > 0) status = 'specialized';
 
+                const rawContainerInfo = containerPageMap.get(q.pageUid) || null;
+                const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
+                const containerPage = rawContainerInfo ? { ...rawContainerInfo, containerStatus } : null;
+
                 results.push({
                     question: q,
                     branchNodes,
                     coherence: cohResult,
-                    status
+                    status,
+                    containerPage
                 });
             }
 
@@ -6194,17 +6311,24 @@ DiscourseGraphToolkit.BranchesTab = function () {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setBulkVerifyStatus(`✅ Refrescando datos...`);
-        const branchNodes = await DiscourseGraphToolkit.getBranchNodes(selectedBulkQuestion.question.pageUid);
-        const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(selectedBulkQuestion.question.pageUid, branchNodes);
+        const rootUid = selectedBulkQuestion.question.pageUid;
+        const branchNodes = await DiscourseGraphToolkit.getBranchNodes(rootUid);
+        const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(rootUid, branchNodes);
 
         let status = 'coherent';
         if (cohResult.missing.length > 0) status = 'missing';
         else if (cohResult.different.length > 0) status = 'different';
         else if (cohResult.specialized.length > 0) status = 'specialized';
 
-        const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status };
+        // Re-obtener página contenedora para esta pregunta
+        const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([rootUid]);
+        const rawContainerInfo = singleContainerMap.get(rootUid) || null;
+        const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
+        const containerPage = rawContainerInfo ? { ...rawContainerInfo, containerStatus } : null;
+
+        const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status, containerPage };
         const updatedResults = bulkVerificationResults.map(r =>
-            r.question.pageUid === selectedBulkQuestion.question.pageUid ? updatedResult : r
+            r.question.pageUid === rootUid ? updatedResult : r
         );
         setBulkVerificationResults(updatedResults);
         setSelectedBulkQuestion(updatedResult);
@@ -6256,35 +6380,98 @@ DiscourseGraphToolkit.BranchesTab = function () {
         );
     };
 
+    // Helper: título corto de la página contenedora (segmento antes de /grafoDeDiscurso)
+    const getContainerShortTitle = (title) => {
+        if (!title) return '(sin página contenedora)';
+        const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
+        const base = title.endsWith(suffix) ? title.slice(0, -suffix.length) : title;
+        return base.split('/').pop() || base;
+    };
+
+    // Helper: icono y color según containerStatus
+    const CONTAINER_STATUS_META = {
+        coherent:    { icon: '🏛️', label: 'Proyecto coherente con página contenedora', color: 'var(--dgt-text-success)' },
+        mismatched:  { icon: '⚠️', label: 'Proyecto desalineado respecto a página contenedora', color: 'var(--dgt-text-warning)' },
+        no_project:  { icon: '❓', label: 'Página contenedora sin proyecto definido', color: 'var(--dgt-text-muted)' },
+        no_container:{ icon: '📄', label: 'Sin página contenedora encontrada', color: 'var(--dgt-text-muted)' }
+    };
+
+    // Render de una fila de QUE individual
+    const renderQueRow = (result, depth) =>
+        React.createElement('div', {
+            key: result.question.pageUid,
+            onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
+            className: 'dgt-flex-row dgt-text-sm',
+            style: {
+                padding: '0.6rem 0.75rem',
+                paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
+                borderBottom: '1px solid var(--dgt-border-color)',
+                cursor: 'pointer',
+                backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? 'var(--dgt-bg-secondary)' : 'transparent',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
+            }
+        },
+            React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' }, title: result.status },
+                (result.status === 'coherent' || result.status === 'specialized') ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
+            React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
+                React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
+                    parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
+                React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
+                    `${result.branchNodes.length} nodos`)
+            )
+        );
+
     const renderBranchesNodeContent = (node, depth) => {
         if (!node.questions || node.questions.length === 0) return null;
 
+        // Agrupar QUEs por página contenedora
+        const groupMap = new Map();
+        for (const result of node.questions) {
+            const key = result.containerPage?.uid || '(sin página contenedora)';
+            if (!groupMap.has(key)) {
+                groupMap.set(key, { containerPage: result.containerPage || null, questions: [] });
+            }
+            groupMap.get(key).questions.push(result);
+        }
+
         return React.createElement('div', null,
-            node.questions.map(result =>
-                React.createElement('div', {
-                    key: result.question.pageUid,
-                    onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
-                    className: 'dgt-flex-row dgt-text-sm',
-                    style: {
-                        padding: '0.6rem 0.75rem',
-                        paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
-                        borderBottom: '1px solid var(--dgt-border-color)',
-                        cursor: 'pointer',
-                        backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? 'var(--dgt-bg-secondary)' : 'transparent',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem'
-                    }
-                },
-                    React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' }, title: result.status },
-                        (result.status === 'coherent' || result.status === 'specialized') ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
-                    React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
-                        React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
-                            parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
-                        React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
-                            `${result.branchNodes.length} nodos`)
-                    )
-                )
-            )
+            Array.from(groupMap.entries()).map(([key, group]) => {
+                const cp = group.containerPage;
+                const cStatus = cp?.containerStatus || 'no_container';
+                const meta = CONTAINER_STATUS_META[cStatus] || CONTAINER_STATUS_META.no_container;
+                const shortTitle = cp ? getContainerShortTitle(cp.title) : '(sin página contenedora)';
+                const projLabel = cp?.project ? `  ·  ${cp.project}` : '';
+                const leftPad = `${0.75 + (depth + 1) * 0.75}rem`;
+
+                return React.createElement('div', { key },
+                    // Cabecera de la página contenedora
+                    React.createElement('div', {
+                        style: {
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: `0.35rem 0.75rem 0.35rem ${leftPad}`,
+                            borderBottom: '1px solid var(--dgt-border-color)',
+                            backgroundColor: 'var(--dgt-bg-secondary)',
+                            borderLeft: `3px solid ${meta.color}`
+                        },
+                        title: `${meta.label}${cp ? '\n' + cp.title : ''}`
+                    },
+                        React.createElement('span', { style: { fontSize: '0.8rem' } }, meta.icon),
+                        React.createElement('span', { style: { fontSize: '0.75rem', fontWeight: 600, color: 'var(--dgt-text-primary)' } }, shortTitle),
+                        React.createElement('span', { style: { fontSize: '0.65rem', color: 'var(--dgt-text-muted)', flex: 1 } }, projLabel),
+                        React.createElement('span', { className: 'dgt-badge dgt-badge-neutral', style: { fontSize: '0.65rem' } },
+                            `${group.questions.length} QUE${group.questions.length !== 1 ? 's' : ''}`),
+                        cp && React.createElement('button', {
+                            onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                            title: `Ir a: ${cp.title}`,
+                            style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' }
+                        }, '→')
+                    ),
+                    // Filas de QUEs dentro de este grupo
+                    group.questions.map(result => renderQueRow(result, depth))
+                );
+            })
         );
     };
 
@@ -6324,6 +6511,46 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
             },
                 React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
+                // 🏛️ Desalineamiento de página contenedora — wrapper con popover
+                React.createElement('div', { style: { position: 'relative' } },
+                    React.createElement(Badge, {
+                        emoji: '🏛️', count: counts.containerMismatch, type: 'warning',
+                        title: 'Clic para ver QUEs con proyecto desalineado respecto a su página contenedora',
+                        onClick: counts.containerMismatch > 0 ? () => setOpenPopover(openPopover === 'container' ? null : 'container') : undefined,
+                        className: counts.containerMismatch > 0 ? 'clickable' : ''
+                    }),
+                    openPopover === 'container' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
+                        React.createElement('div', { className: 'dgt-popover-header' },
+                            React.createElement('span', null, `🏛️ ${counts.containerMismatch} con página contenedora desalineada`),
+                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                        ),
+                        bulkVerificationResults
+                            .filter(r => r.containerPage?.containerStatus === 'mismatched' || r.containerPage?.containerStatus === 'no_project')
+                            .map(r => {
+                                const cp = r.containerPage;
+                                const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
+                                const base = cp.title && cp.title.endsWith(suffix) ? cp.title.slice(0, -suffix.length) : (cp.title || '');
+                                const shortName = base.split('/').pop() || base;
+                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
+                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '4px' } },
+                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
+                                        React.createElement('button', {
+                                            onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
+                                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                            style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' },
+                                            title: `Ir a: ${cp.title}`
+                                        }, '→')
+                                    ),
+                                    React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
+                                        `${shortName} ${statusLabel}`
+                                    )
+                                );
+                            })
+                    )
+                ),
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {

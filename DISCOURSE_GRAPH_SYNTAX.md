@@ -140,6 +140,28 @@ QUE: tesis/metodología
 
 ---
 
+## Páginas Contenedoras (`/grafoDeDiscurso`)
+
+El sistema identifica páginas que agrupan nodos de discurso (QUE) mediante el sufijo `/grafoDeDiscurso`. Estas páginas actúan como "contenedores maestros" para organizar la investigación por temas o capítulos.
+
+### Estructura del Contenedor
+
+```
+título del tema/grafoDeDiscurso
+    - Proyecto Asociado:: [[nombre-proyecto]]
+    - [[QUE]] - Primera pregunta del tema
+    - [[QUE]] - Segunda pregunta del tema
+```
+
+### Regla de Coherencia de Contenedor
+
+Para garantizar la integridad del grafo, todos los nodos de primer nivel en una página contenedora deben ser coherentes con el proyecto definido en dicha página:
+
+1. **Jerarquía obligatoria:** El proyecto de cada `[[QUE]]` debe ser igual o un sub-namespace del proyecto definido en la página `/grafoDeDiscurso`.
+2. **Navegación:** La pestaña de Ramas agrupa automáticamente los nodos bajo sus contenedores y señala mediante un icono de **templo (🏛️)** si existen desalineamientos de proyecto entre el contenedor y sus preguntas.
+
+---
+
 ## Relaciones Mapeadas
 
 El `RelationshipMapper` genera estas propiedades en cada nodo:

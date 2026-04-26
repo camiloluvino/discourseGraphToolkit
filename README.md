@@ -37,9 +37,13 @@ Verifica la consistencia de tus ramas de investigación:
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado.
 - **Verificación jerárquica inteligente:** Cada nodo debe ser igual o más específico que su padre directo, **salvo en referencias inter-proyectos explícitas**. El sistema detecta automáticamente cuando un nodo pertenece legítimamente a otro proyecto y lo trata como una referencia cruzada válida en lugar de marcarlo como un error de coherencia.
+- **Validación de Páginas Contenedoras:** Agrupa las preguntas bajo sus respectivas páginas contenedoras (ej. `tesis/capítulo1/grafoDeDiscurso`) y verifica que el `Proyecto Asociado::` del contenedor sea el mismo (o la raíz) de los nodos que contiene.
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
 - **Exclusión de relaciones horizontales:** Las conexiones vía `#RelatedTo` son ignoradas por el validador de ramas para evitar ruidos de coherencia en enlaces laterales.
 - **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
+- **Resumen Interactivo:**
+  - **🏛️ Badge de Contenedor:** Muestra el número de desalineamientos entre preguntas y sus páginas maestras. Al hacer clic, abre un popover interactivo que lista las discrepancias y permite navegar directamente a la página contenedora para su corrección.
+  - **⚠️/❌ Badges de Rama:** Permiten filtrar el árbol o abrir popovers detallados para navegación rápida.
 - **Selector Maestro:** Incluye un checkbox "Seleccionar Todos" para habilitar o deshabilitar auditorías masivas de proyectos con un solo clic.
 - **Propagación inteligente unificada:**
   - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.

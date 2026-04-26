@@ -44,6 +44,10 @@ DiscourseGraphToolkit.ROAM = {
     CONFIG_PAGE: "roam/js/discourse-graph/config"
 };
 
+// Sufijo que identifica páginas contenedoras de nodos discourse
+// Las páginas contenedoras siempre terminan con este sufijo
+DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX = '/grafoDeDiscurso';
+
 // Configuración de Archivos y Exportación
 DiscourseGraphToolkit.FILES = {
     BYTES_PER_MB: 1024 * 1024,

@@ -594,3 +594,102 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
         return [];
     }
 };
+
+/**
+ * Dado un array de UIDs de QUEs/GRIs, encuentra qué página contenedora
+ * (página cuyo título termina en CONTAINER_PAGE_SUFFIX, ej: /grafoDeDiscurso)
+ * los referencia como bloque de PRIMER NIVEL (hijo directo de la página).
+ *
+ * Estrategia Datalog: usar :block/children desde la página contenedora asegura
+ * que solo se devuelven bloques de primer nivel (hijos directos), sin necesidad
+ * de filtrar padres en JS.
+ *
+ * @param {Array<string>} queUids - UIDs de las páginas QUE/GRI a buscar
+ * @returns {Promise<Map<string, {uid, title, project, containerStatus}>>}
+ *   Mapa queUid → info de la página contenedora (primera encontrada por QUE)
+ */
+DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
+    if (!queUids || queUids.length === 0) return new Map();
+
+    try {
+        const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
+
+        // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
+        // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
+        const query = `[:find ?container-uid ?container-title ?que-uid
+                        :in $ [?que-uid ...]
+                        :where
+                        [?que-page :block/uid ?que-uid]
+                        [?container :node/title ?container-title]
+                        [?container :block/uid ?container-uid]
+                        [(clojure.string/ends-with? ?container-title "${containerSuffix}")]
+                        [?container :block/children ?block]
+                        [?block :block/refs ?que-page]]`;
+
+        const results = await window.roamAlphaAPI.data.async.q(query, queUids);
+        if (!results || results.length === 0) return new Map();
+
+        // Tomar la primera coincidencia por QUE (un QUE puede estar en varias páginas)
+        const queToContainer = new Map();
+        for (const [containerUid, containerTitle, queUid] of results) {
+            if (queToContainer.has(queUid)) continue;
+            queToContainer.set(queUid, { uid: containerUid, title: containerTitle, project: null });
+        }
+
+        // Obtener proyectos de todas las páginas contenedoras en lote
+        const containerUids = [...new Set([...queToContainer.values()].map(c => c.uid))];
+        if (containerUids.length === 0) return queToContainer;
+
+        const PM = this.ProjectManager;
+        const escapedPattern = PM.getEscapedFieldPattern();
+        const projectQuery = `[:find ?page-uid ?string
+                              :in $ [?page-uid ...]
+                              :where
+                              [?page :block/uid ?page-uid]
+                              [?block :block/page ?page]
+                              [?block :block/string ?string]
+                              [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+        const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, containerUids);
+        const containerProjectMap = new Map();
+        const regex = PM.getFieldRegex();
+        const fieldPattern = PM.getFieldPattern();
+
+        if (projectResults) {
+            for (const [pageUid, blockString] of projectResults) {
+                if (this.isEscapedProjectField(blockString, fieldPattern)) continue;
+                const match = blockString.match(regex);
+                if (match) containerProjectMap.set(pageUid, match[1].trim());
+            }
+        }
+
+        // Enriquecer con el proyecto de cada página contenedora
+        for (const [, containerInfo] of queToContainer) {
+            containerInfo.project = containerProjectMap.get(containerInfo.uid) || null;
+        }
+
+        return queToContainer;
+    } catch (e) {
+        console.error('Error getting container pages for nodes:', e);
+        return new Map();
+    }
+};
+
+/**
+ * Calcula el containerStatus de una QUE dada la info de su página contenedora.
+ * @param {string|null} queProject - Proyecto del QUE (rootProject del cohResult)
+ * @param {{uid, title, project}|null} containerInfo - Info de la página contenedora
+ * @returns {'coherent'|'mismatched'|'no_project'|'no_container'}
+ */
+DiscourseGraphToolkit.calcContainerStatus = function (queProject, containerInfo) {
+    if (!containerInfo) return 'no_container';
+    if (!containerInfo.project) return 'no_project';
+    if (!queProject) return 'mismatched';
+    // El QUE debe tener el mismo proyecto que la página contenedora
+    // o ser un sub-namespace más específico
+    if (queProject === containerInfo.project ||
+        queProject.startsWith(containerInfo.project + '/')) {
+        return 'coherent';
+    }
+    return 'mismatched';
+};
