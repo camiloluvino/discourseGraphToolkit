@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-04-15
+**Última actualización:** 2026-04-29
 
 ## Versión Actual
 
-**v1.5.40**
+**v1.5.41**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.41 (Abril 2026)
+- **Fix: Validación de Proyectos en ProjectsTab.**
+  - **Corrección de Crash Silencioso:** Se corrigió un bug donde el botón "Validar Existencia" fallaba debido a una referencia errónea a `setExportStatus`. Ahora utiliza `setProjectsStatus` correctamente.
+  - **Indicadores Agregados en Namespaces:** Los nodos padre (carpetas de proyectos) ahora muestran indicadores ✅/⚠️ basados en el estado de sus hijos, facilitando la identificación de problemas en grafos grandes.
+  - **Feedback Mejorado:** Se añadieron notificaciones (Toasts) y mensajes de estado durante el proceso de validación.
 
 ### v1.5.40 (Abril 2026)
 +- **Vista Panorámica: Agrupación Jerárquica por Sub-Proyecto.**

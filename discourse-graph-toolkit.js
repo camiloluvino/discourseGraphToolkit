@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.40
- * Bundled build: 2026-04-26 19:04:00
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.41
+ * Bundled build: 2026-04-29 10:45:00
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.40";
+    DiscourseGraphToolkit.VERSION = "1.5.41";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -5662,10 +5662,22 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     };
 
     const handleValidate = async () => {
-        setExportStatus("Validando proyectos...");
-        const val = await DiscourseGraphToolkit.validateProjectsInGraph(projects);
-        setValidation(val);
-        setExportStatus("Validación completada.");
+        setProjectsStatus("Validando proyectos...");
+        try {
+            const val = await DiscourseGraphToolkit.validateProjectsInGraph(projects);
+            setValidation(val);
+            const notFoundCount = Object.values(val).filter(v => v === false).length;
+            if (notFoundCount > 0) {
+                DiscourseGraphToolkit.showToast(`Validación completada. ${notFoundCount} proyecto(s) no encontrados.`, 'warning');
+            } else {
+                DiscourseGraphToolkit.showToast('Validación completada. Todos los proyectos encontrados.', 'success');
+            }
+        } catch (e) {
+            console.error('Error validating projects:', e);
+            DiscourseGraphToolkit.showToast('Error al validar proyectos: ' + e.message, 'error');
+        } finally {
+            setProjectsStatus('');
+        }
     };
 
     const handleScanProjects = async () => {
@@ -5688,7 +5700,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     };
 
     const handleForceSync = async () => {
-        setExportStatus("Sincronizando...");
+        setProjectsStatus("Sincronizando...");
         try {
             await DiscourseGraphToolkit.initializeProjectsSync();
             setProjects(DiscourseGraphToolkit.getProjects());
@@ -5696,7 +5708,7 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         } catch (e) {
             DiscourseGraphToolkit.showToast("Error en sincronización.", "error");
         } finally {
-            setExportStatus("");
+            setProjectsStatus('');
         }
     };
 
@@ -5755,10 +5767,21 @@ DiscourseGraphToolkit.ProjectsTab = function () {
         const allSelected = selectedCount === descendants.length && descendants.length > 0;
         const someSelected = selectedCount > 0 && selectedCount < descendants.length;
 
-        // Obtener estado de validación del proyecto hoja
-        const validationStatus = node.isLeaf && validation[node.project] !== undefined
-            ? (validation[node.project] ? '✅' : '⚠️')
-            : '';
+        // Obtener estado de validación: para hojas, mostrar directamente;
+        // para nodos padre (namespaces), agregar estado de hijos descendientes
+        let validationStatus = '';
+        if (node.isLeaf && validation[node.project] !== undefined) {
+            validationStatus = validation[node.project] ? '✅' : '⚠️';
+        } else if (hasChildren && Object.keys(validation).length > 0) {
+            // Para nodos padre: verificar si algún descendiente hoja no fue encontrado
+            const leafDescendants = descendants.filter(p => validation[p] !== undefined);
+            if (leafDescendants.length > 0) {
+                const allFound = leafDescendants.every(p => validation[p] === true);
+                const anyNotFound = leafDescendants.some(p => validation[p] === false);
+                if (anyNotFound) validationStatus = '⚠️';
+                else if (allFound) validationStatus = '✅';
+            }
+        }
 
         return React.createElement('div', { key: key, style: { marginLeft: depth > 0 ? '1rem' : 0 } },
             React.createElement('div', {
