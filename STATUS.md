@@ -24,6 +24,9 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
 ### v1.5.42 (Mayo 2026)
+- **Seguridad: Mitigación de Vulnerabilidades.**
+  - **SRI Hash en CDNs:** Se implementó verificación de integridad (`script.integrity` y `crossOrigin`) para la carga dinámica de `JSZip` desde CDNJS para prevenir supply-chain attacks.
+  - **Mitigación XSS (Exportación HTML):** Se añadió una capa estricta de escape HTML (`escapeHtml`) a los títulos de nodos (QUE, CLM, EVD, GRI) y metadatos de proyectos antes de la inyección en el DOM generado, evitando inyección de scripts por nodos maliciosos en Roam.
 - **Refactor: Auditoría de Calidad y Optimización de Algoritmos.**
   - **Eliminación de O(N²) en Mapeo:** Se migró la deduplicación de relaciones a un sistema basado en `Set` temporal en `RelationshipMapper`, eliminando la latencia en grafos densos.
   - **Memoria Optimizada (Backtracking):** Refactor de `isNodeRelevant` y `isRelevantToProject` para usar backtracking sobre un único `Set`, evitando el crash por recursión y consumo de memoria exponencial.

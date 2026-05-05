@@ -4610,22 +4610,25 @@ DiscourseGraphToolkit.HtmlHelpers = {
 
     // Formatea contenido para HTML (escape + newlines a br)
     formatContentForHtml: function (content) {
-        if (!content) return "";
-        return content
+        return this.escapeHtml(content).replace(/\n/g, "<br>");
+    },
+
+    escapeHtml: function (text) {
+        if (!text || typeof text !== 'string') return "";
+        return text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;")
-            .replace(/\n/g, "<br>");
+            .replace(/'/g, "&#039;");
     },
 
     // Genera HTML para metadata de proyecto
     generateMetadataHtml: function (metadata, small = false) {
         if (!metadata || Object.keys(metadata).length === 0) return "";
 
-        const proyecto = metadata.proyecto_asociado;
-        const seccion = metadata.seccion_tesis;
+        const proyecto = this.escapeHtml(metadata.proyecto_asociado);
+        const seccion = this.escapeHtml(metadata.seccion_tesis);
 
         if (!proyecto && !seccion) return "";
 
@@ -4687,7 +4690,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const node = allNodes[nodeUid];
         const type = node.type; // 'CLM' o 'EVD'
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
-        const title = DiscourseGraphToolkit.cleanText((node.title || '').replace(`[[${type}]] - `, ''));
+        const title = helpers.escapeHtml(DiscourseGraphToolkit.cleanText((node.title || '').replace(`[[${type}]] - `, '')));
 
         // Determinar nivel de heading HTML (h3-h6, máximo h6)
         const hLevel = Math.min(depth, 6);
@@ -4765,8 +4768,8 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     // Renderiza una pregunta completa con todos sus hijos (entry point)
     renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora) {
         const qId = `q${qIndex}`;
-        const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
+        const qTitle = helpers.escapeHtml(DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", "")));
 
         let html = `<div id="${qId}" class="node que-node">`;
         html += `<h2 class="collapsible">`;
@@ -4823,8 +4826,8 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const qId = `r${qIndex}`;
         const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
         const prefix = `[[${nodeType}]]`;
-        const title = DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, ""));
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
+        const title = helpers.escapeHtml(DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, "")));
 
         const cssClass = nodeType === 'GRI' ? 'gri-node' : 'que-node';
 
@@ -5039,6 +5042,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+            script.integrity = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG';
+            script.crossOrigin = 'anonymous';
             script.onload = () => {
                 this.JSZip = window.JSZip;
                 resolve(this.JSZip);

@@ -73,6 +73,8 @@ Gestiona la estructura global de tu investigación con una interfaz orientada a 
 
 ### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42)
 Se ha realizado una auditoría de calidad integral y refactorización del motor interno:
+- **Seguridad (SRI):** Se agregó verificación de integridad hash (SRI) en la carga dinámica de dependencias (JSZip) para prevenir vulnerabilidades de cadena de suministro (supply-chain).
+- **Seguridad (XSS):** Implementación de una capa estricta de escape HTML en los generadores de exportación para títulos de nodos y metadatos, previniendo la inyección de código malicioso.
 - **Deduplicación O(1):** El mapeo de relaciones ahora utiliza `Set` internamente en lugar de búsquedas `Array.includes()`, eliminando cuellos de botella de complejidad O(N²) en grafos con cientos de conexiones.
 - **Backtracking Eficiente:** Las funciones de relevancia jerárquica ahora utilizan un único `Set` compartido con backtracking, reduciendo el uso de memoria de complejidad exponencial a lineal (evita miles de copias de objetos en grafos profundos).
 - **Batching de Dependencias:** El cargador de la Vista Panorámica ahora acumula todas las referencias faltantes y las solicita en una sola llamada por nivel, reduciendo drásticamente los round-trips a la API de Roam.
