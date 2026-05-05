@@ -1,13 +1,13 @@
 /**
- * DISCOURSE GRAPH TOOLKIT v1.5.41
- * Bundled build: 2026-04-29 10:45:00
+ * DISCOURSE GRAPH TOOLKIT v1.5.42
+ * Bundled build: 2026-05-05 16:00:00
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.41";
+    DiscourseGraphToolkit.VERSION = "1.5.42";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -3197,6 +3197,23 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 1: Crear mapas de búsqueda
         const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
+        // Bug fix (Bug 3): Pre-initialize relation fields as Sets for O(1) deduplication.
+        // Using Sets instead of arrays during population avoids O(N²) .includes() calls.
+        // They are converted back to arrays at the end of mapRelationships.
+        for (const uid in allNodes) {
+            const n = allNodes[uid];
+            if (n.type === 'QUE') {
+                n._related_clms_set = new Set(n.related_clms || []);
+                n._direct_evds_set = new Set(n.direct_evds || []);
+            } else if (n.type === 'CLM') {
+                n._supporting_clms_set = new Set(n.supporting_clms || []);
+                n._related_evds_set = new Set(n.related_evds || []);
+                n._connected_clms_set = new Set(n.connected_clms || []);
+            } else if (n.type === 'GRI') {
+                n._contained_nodes_set = new Set(n.contained_nodes || []);
+            }
+        }
+
         // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
         this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
 
@@ -3209,15 +3226,29 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
-        // Resumen de diagnóstico
+        // Paso 6: Convertir Sets de vuelta a arrays y limpiar propiedades temporales
         let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
         for (const uid in allNodes) {
             const n = allNodes[uid];
-            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
-            if (n.type === 'CLM') {
-                clmSuppLinks += (n.supporting_clms || []).length;
-                clmEvdLinks += (n.related_evds || []).length;
-                clmConnLinks += (n.connected_clms || []).length;
+            if (n.type === 'QUE') {
+                n.related_clms = n._related_clms_set ? [...n._related_clms_set] : (n.related_clms || []);
+                n.direct_evds = n._direct_evds_set ? [...n._direct_evds_set] : (n.direct_evds || []);
+                delete n._related_clms_set;
+                delete n._direct_evds_set;
+                queClmLinks += n.related_clms.length;
+            } else if (n.type === 'CLM') {
+                n.supporting_clms = n._supporting_clms_set ? [...n._supporting_clms_set] : (n.supporting_clms || []);
+                n.related_evds = n._related_evds_set ? [...n._related_evds_set] : (n.related_evds || []);
+                n.connected_clms = n._connected_clms_set ? [...n._connected_clms_set] : (n.connected_clms || []);
+                delete n._supporting_clms_set;
+                delete n._related_evds_set;
+                delete n._connected_clms_set;
+                clmSuppLinks += n.supporting_clms.length;
+                clmEvdLinks += n.related_evds.length;
+                clmConnLinks += n.connected_clms.length;
+            } else if (n.type === 'GRI') {
+                n.contained_nodes = n._contained_nodes_set ? [...n._contained_nodes_set] : (n.contained_nodes || []);
+                delete n._contained_nodes_set;
             }
         }
         console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
@@ -3388,12 +3419,21 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 const refUid = ref.uid || "";
                 if (allNodes[refUid]) {
                     if (allNodes[refUid].type === "CLM") {
-                        if (!node[clmTargetField].includes(refUid)) {
+                        // Bug fix: use Set (_*_set) for O(1) deduplication when available
+                        const setKey = '_' + clmTargetField + '_set';
+                        if (node[setKey]) {
+                            node[setKey].add(refUid);
+                        } else if (!node[clmTargetField].includes(refUid)) {
                             node[clmTargetField].push(refUid);
                         }
                     } else if (allNodes[refUid].type === "EVD") {
-                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
-                            node[evdTargetField].push(refUid);
+                        if (node[evdTargetField]) {
+                            const setKey = '_' + evdTargetField + '_set';
+                            if (node[setKey]) {
+                                node[setKey].add(refUid);
+                            } else if (!node[evdTargetField].includes(refUid)) {
+                                node[evdTargetField].push(refUid);
+                            }
                         }
                     }
                 }
@@ -3420,16 +3460,27 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (references.length === 0) return;
 
             // Buscar CLMs y EVDs usando match exacto (O(1))
+            // Bug fix: use Set (_*_set) for O(1) deduplication when available
             for (const ref of references) {
                 if (ref.includes('CLM') && clmTitleMap[ref]) {
                     const clmUid = clmTitleMap[ref];
-                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
-                        node[clmField].push(clmUid);
+                    if (clmUid !== uid) {
+                        const setKey = '_' + clmField + '_set';
+                        if (node[setKey]) {
+                            node[setKey].add(clmUid);
+                        } else if (!node[clmField].includes(clmUid)) {
+                            node[clmField].push(clmUid);
+                        }
                     }
                 } else if (ref.includes('EVD') && evdTitleMap[ref]) {
                     const evdUid = evdTitleMap[ref];
-                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
-                        node[evdField].push(evdUid);
+                    if (evdUid !== uid) {
+                        const setKey = '_' + evdField + '_set';
+                        if (node[setKey]) {
+                            node[setKey].add(evdUid);
+                        } else if (!node[evdField].includes(evdUid)) {
+                            node[evdField].push(evdUid);
+                        }
                     }
                 }
             }
@@ -3514,11 +3565,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     if (allNodes[refUid] && refUid !== uid) {
                         const referencedNode = allNodes[refUid];
                         if (referencedNode.type === "CLM") {
-                            if (!node.connected_clms.includes(refUid)) {
+                            // Bug fix: use Set for O(1) deduplication when available
+                            if (node._connected_clms_set) {
+                                node._connected_clms_set.add(refUid);
+                            } else if (!node.connected_clms.includes(refUid)) {
                                 node.connected_clms.push(refUid);
                             }
                         } else if (referencedNode.type === "EVD") {
-                            if (!node.related_evds.includes(refUid)) {
+                            if (node._related_evds_set) {
+                                node._related_evds_set.add(refUid);
+                            } else if (!node.related_evds.includes(refUid)) {
                                 node.related_evds.push(refUid);
                             }
                         }
@@ -3583,7 +3639,10 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const refType = allNodes[refUid].type;
                     // GRI puede contener QUE, CLM, GRI, o EVD
                     if (refType === "QUE" || refType === "CLM" || refType === "GRI" || refType === "EVD") {
-                        if (!node.contained_nodes.includes(refUid)) {
+                        // Bug fix: use Set for O(1) deduplication when available
+                        if (node._contained_nodes_set) {
+                            node._contained_nodes_set.add(refUid);
+                        } else if (!node.contained_nodes.includes(refUid)) {
                             node.contained_nodes.push(refUid);
                         }
                     }
@@ -3603,7 +3662,10 @@ DiscourseGraphToolkit.RelationshipMapper = {
                              (evdTitleMap && evdTitleMap[refContent]);
                 
                 if (nUid && nUid !== sourceUid) {
-                    if (!node.contained_nodes.includes(nUid)) {
+                    // Bug fix: use Set for O(1) deduplication when available
+                    if (node._contained_nodes_set) {
+                        node._contained_nodes_set.add(nUid);
+                    } else if (!node.contained_nodes.includes(nUid)) {
                         node.contained_nodes.push(nUid);
                     }
                 }
@@ -5549,6 +5611,9 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     };
 
     const handleExpandAll = () => {
+        // Bug fix (Bug 6): Setting to {} (empty object) correctly expands all nodes because
+        // isExpanded = expandedProjects[node.project] !== false, which is true when the key
+        // is absent. An empty object means all nodes fall back to the default (expanded).
         setExpandedProjects({});
     };
 
@@ -7051,40 +7116,64 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     }, []); // Solo al montar
 
     // --- Helpers de Relevancia del Proyecto ---
-    const relevanceCache = React.useMemo(() => new Map(), [panoramicData, selectedProject]);
+    // Perf fix (2.1/2.2): Use refs instead of useMemo/useCallback to avoid recreating the cache
+    // and function on every render. The cache is invalidated imperatively only when panoramicData
+    // or selectedProject actually change — not on every unrelated render cycle.
+    const _relevanceCacheRef = React.useRef(new Map());
+    const _prevPanoramicDataRef = React.useRef(null);
+    const _prevSelectedProjectRef = React.useRef(null);
 
-    const isNodeRelevant = React.useCallback((uid, allNodes, targetProject, visited = new Set()) => {
-        if (!targetProject) return true;
-        if (relevanceCache.has(uid)) return relevanceCache.get(uid);
-        if (visited.has(uid)) return false;
+    // Invalidate cache only when the dependencies that affect relevance actually change
+    if (_prevPanoramicDataRef.current !== panoramicData || _prevSelectedProjectRef.current !== selectedProject) {
+        _relevanceCacheRef.current = new Map();
+        _prevPanoramicDataRef.current = panoramicData;
+        _prevSelectedProjectRef.current = selectedProject;
+    }
 
-        visited.add(uid);
-        const node = allNodes[uid];
-        if (!node) return false;
+    // Stable function reference via useRef — never recreated, reads cache via ref
+    const _isNodeRelevantFnRef = React.useRef(null);
+    if (!_isNodeRelevantFnRef.current) {
+        _isNodeRelevantFnRef.current = function isNodeRelevant(uid, allNodes, targetProject, visited = new Set()) {
+            if (!targetProject) return true;
+            const cache = _relevanceCacheRef.current;
+            if (cache.has(uid)) return cache.get(uid);
+            if (visited.has(uid)) return false;
 
-        // Is it a direct match?
-        if (node.project && (node.project === targetProject || node.project.startsWith(targetProject + '/'))) {
-            relevanceCache.set(uid, true);
-            return true;
-        }
+            visited.add(uid);
+            const node = allNodes[uid];
+            if (!node) {
+                visited.delete(uid); // backtrack
+                return false;
+            }
 
-        // Check descendants
-        const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-        let childrenUids = [];
-        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
-        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
-        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
-
-        for (const childUid of childrenUids) {
-            if (isNodeRelevant(childUid, allNodes, targetProject, new Set(visited))) {
-                relevanceCache.set(uid, true);
+            // Is it a direct match?
+            if (node.project && (node.project === targetProject || node.project.startsWith(targetProject + '/'))) {
+                cache.set(uid, true);
+                visited.delete(uid); // backtrack
                 return true;
             }
-        }
 
-        relevanceCache.set(uid, false);
-        return false;
-    }, [relevanceCache]);
+            // Check descendants
+            const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
+            let childrenUids = [];
+            if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
+            else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
+            else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
+
+            for (const childUid of childrenUids) {
+                if (isNodeRelevant(childUid, allNodes, targetProject, visited)) {
+                    cache.set(uid, true);
+                    visited.delete(uid); // backtrack
+                    return true;
+                }
+            }
+
+            cache.set(uid, false);
+            visited.delete(uid); // backtrack
+            return false;
+        };
+    }
+    const isNodeRelevant = _isNodeRelevantFnRef.current;
 
     // --- Cargar datos panorámicos ---
     const handleLoadPanoramic = async () => {
@@ -7113,20 +7202,28 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             });
 
-            // 4. Analizar dependencias y cargar nodos faltantes RECURSIVAMENTE
+            // 4. Analizar dependencias y cargar nodos faltantes
+            // Perf fix (2.4): Accumulate ALL pending UIDs across iterations and fetch in a single
+            // batch call instead of one round-trip per dependency depth level.
             setLoadStatus('⏳ Analizando relaciones...');
 
-            let missingUids = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
-            missingUids = [...missingUids].filter(uid => !allNodes[uid]);
+            let pendingUids = new Set(
+                [...DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes))]
+                    .filter(uid => !allNodes[uid])
+            );
 
-            let depth = 0;
-            const maxDepth = 5; // Evitar loops infinitos en caso de referencias circulares muy complejas
+            let safetyIter = 0;
+            const maxIterations = 5; // Safety cap against circular reference chains
 
-            while (missingUids.length > 0 && depth < maxDepth) {
-                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados (nively ${depth + 1})...`);
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, true, false);
+            while (pendingUids.size > 0 && safetyIter < maxIterations) {
+                const batchUids = [...pendingUids];
+                setLoadStatus(`⏳ Cargando ${batchUids.length} nodos relacionados (nivel ${safetyIter + 1})...`);
 
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(batchUids, null, null, true, false);
+
+                // Accumulate newly discovered nodes into the same pending set for the next iteration
                 const newNodesFetched = [];
+                pendingUids = new Set(); // Reset for next round
                 extraData.data.forEach(node => {
                     if (node.uid && !allNodes[node.uid]) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -7136,14 +7233,16 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     }
                 });
 
-                // Buscar si los nuevos nodos traen más dependencias
-                const newDependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(newNodesFetched);
-                missingUids = [...newDependencies].filter(uid => !allNodes[uid]);
-                depth++;
+                // Only re-check for new dependencies among freshly fetched nodes
+                const newDeps = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(newNodesFetched);
+                for (const uid of newDeps) {
+                    if (!allNodes[uid]) pendingUids.add(uid);
+                }
+                safetyIter++;
             }
 
-            if (depth === maxDepth && missingUids.length > 0) {
-                console.warn(`Vista Panorámica: Se alcanzó la profundidad máxima de relaciones anidadas, faltan ${missingUids.length} referencias.`);
+            if (safetyIter === maxIterations && pendingUids.size > 0) {
+                console.warn(`Vista Panorámica: Se alcanzó el límite de iteraciones, faltan ${pendingUids.size} referencias.`);
             }
 
             // 5. Mapear relaciones
@@ -7613,6 +7712,28 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     const filteredQuestions = isGroupedMode ? [] : getFilteredQuestions();
 
+    // Perf fix (2.5): Compute all 4 node-type counters in a single pass instead of 4 separate
+    // inline iterations inside JSX (which re-run on every render).
+    const nodeTypeCounts = React.useMemo(() => {
+        if (!panoramicData) return { queCount: 0, griCount: 0, clmCount: 0, evdCount: 0 };
+        let queCount = 0, griCount = 0, clmCount = 0, evdCount = 0;
+        // Root-node counts respect the current view mode and project filter
+        const visibleRoots = isGroupedMode
+            ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk))
+            : filteredQuestions;
+        for (const n of visibleRoots) {
+            const t = DiscourseGraphToolkit.getNodeType(n.title) || 'QUE';
+            if (t === 'QUE') queCount++;
+            else if (t === 'GRI') griCount++;
+        }
+        // CLM/EVD counts are global (all loaded nodes, not filtered by project)
+        for (const n of Object.values(panoramicData.allNodes)) {
+            if (n.type === 'CLM') clmCount++;
+            else if (n.type === 'EVD') evdCount++;
+        }
+        return { queCount, griCount, clmCount, evdCount };
+    }, [panoramicData, isGroupedMode, orderedGroupKeys, filteredQuestions]);
+
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
         // Header con layout de dos columnas: título a la izquierda, controles a la derecha
@@ -7740,16 +7861,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
                     }, '➖ Colapsar')
                 ),
-                // Fila 3: Estadísticas compactas
+                // Fila 3: Estadísticas compactas — valores pre-calculados por nodeTypeCounts (Perf fix 2.5)
                 panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                        `QUE: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                        `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
-                        `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
-                        `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' }, `QUE: ${nodeTypeCounts.queCount}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' }, `GRI: ${nodeTypeCounts.griCount}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' }, `CLM: ${nodeTypeCounts.clmCount}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' }, `EVD: ${nodeTypeCounts.evdCount}`)
                 )
             )
         ),
@@ -8050,7 +8167,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                         }
                     });
 
-                    // Re-colectar dependencias de los nuevos padres
+                    // Re-colectar dependencias de los nuevos padres y cargarlas en un solo batch
                     const newDeps = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(
                         parentUids.filter(uid => allNodes[uid]).map(uid => allNodes[uid])
                     );
@@ -8066,10 +8183,13 @@ DiscourseGraphToolkit.ExportTab = function () {
                         });
                     }
 
-                    // Re-mapear relaciones con todos los nodos
+                    // Perf fix (2.3): mapRelationships is called ONCE here (after all nodes are loaded)
+                    // instead of also calling it redundantly at line 8093 — the first call at 8093
+                    // now only runs on the happy path (no fallback). The fallback path re-maps once
+                    // with the complete allNodes after parent loading.
                     DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
-                    // Recalcular childNodeUids
+                    // Recalcular childNodeUids con el grafo completo
                     childNodeUids.clear();
                     Object.values(allNodes).forEach(node => {
                         if (node.type === 'GRI' && node.contained_nodes) {
@@ -8097,19 +8217,25 @@ DiscourseGraphToolkit.ExportTab = function () {
             const projectPageUids = new Set(trueProjectPages.map(p => p.pageUid));
             const relevanceCache = {};
 
-            const isRelevantToProject = (uid, visited) => {
+            // Bug fix: use a shared Set with backtracking instead of O(N!) Object.assign copies per recursion
+            const visitedSet = new Set();
+            const isRelevantToProject = (uid) => {
                 if (relevanceCache[uid] !== undefined) return relevanceCache[uid];
-                if (!visited) visited = {};
-                if (visited[uid]) return false;
-                visited[uid] = true;
+                if (visitedSet.has(uid)) return false;
+                visitedSet.add(uid);
 
                 if (projectPageUids.has(uid)) {
                     relevanceCache[uid] = true;
+                    visitedSet.delete(uid); // backtrack
                     return true;
                 }
 
                 const node = allNodes[uid];
-                if (!node) { relevanceCache[uid] = false; return false; }
+                if (!node) {
+                    relevanceCache[uid] = false;
+                    visitedSet.delete(uid); // backtrack
+                    return false;
+                }
 
                 const children = [].concat(
                     node.related_clms || [],
@@ -8120,13 +8246,15 @@ DiscourseGraphToolkit.ExportTab = function () {
                 );
 
                 for (let i = 0; i < children.length; i++) {
-                    if (isRelevantToProject(children[i], Object.assign({}, visited))) {
+                    if (isRelevantToProject(children[i])) {
                         relevanceCache[uid] = true;
+                        visitedSet.delete(uid); // backtrack
                         return true;
                     }
                 }
 
                 relevanceCache[uid] = false;
+                visitedSet.delete(uid); // backtrack
                 return false;
             };
 

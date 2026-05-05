@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-04-29
+**Última actualización:** 2026-05-05
 
 ## Versión Actual
 
-**v1.5.41**
+**v1.5.42**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,14 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.42 (Mayo 2026)
+- **Refactor: Auditoría de Calidad y Optimización de Algoritmos.**
+  - **Eliminación de O(N²) en Mapeo:** Se migró la deduplicación de relaciones a un sistema basado en `Set` temporal en `RelationshipMapper`, eliminando la latencia en grafos densos.
+  - **Memoria Optimizada (Backtracking):** Refactor de `isNodeRelevant` y `isRelevantToProject` para usar backtracking sobre un único `Set`, evitando el crash por recursión y consumo de memoria exponencial.
+  - **Batching de Carga:** Optimización del loop de carga en Panorámica para solicitar todas las dependencias de un nivel en un único batch.
+  - **Single-Pass Counters:** Las estadísticas de la UI ahora se calculan en un solo pase memoizado (O(N)), mejorando la respuesta al hacer drag & drop.
+  - **Relevancia Estable:** Nuevo sistema de cache para filtros de proyecto que persiste entre renders.
 
 ### v1.5.41 (Abril 2026)
 - **Fix: Validación de Proyectos en ProjectsTab.**

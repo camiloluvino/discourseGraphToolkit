@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.41  
+**Versión:** 1.5.42  
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -71,11 +71,13 @@ Gestiona la estructura global de tu investigación con una interfaz orientada a 
 - **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto y gestionar sus nodos individualmente.
 - **Modo Individual:** En proyectos "hoja" (sin sub-proyectos), el sistema permite el reordenamiento granular de nodos individuales.
 
-### 6. Optimizaciones de Rendimiento (v1.5.40)
-Se han implementado mejoras significativas en el motor del toolkit para manejar grafos de gran escala con mayor fluidez:
-- **Batching de Consultas (API):** La verificación de ramas ahora utiliza `pull_many` para procesar múltiples nodos en una sola llamada de red, reduciendo drásticamente el tiempo de carga en grafos complejos.
-- **Memoización de UI:** La jerarquía de proyectos en la pestaña Panorámica ha sido optimizada mediante un sistema de conteo en un solo pase (O(N)) y memoización de React, eliminando recálculos innecesarios durante la navegación.
-- **Cache de Motores:** Se ha implementado un sistema de cache para expresiones regulares y patrones de búsqueda frecuentemente utilizados, acelerando las auditorías masivas de coherencia.
+### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42)
+Se ha realizado una auditoría de calidad integral y refactorización del motor interno:
+- **Deduplicación O(1):** El mapeo de relaciones ahora utiliza `Set` internamente en lugar de búsquedas `Array.includes()`, eliminando cuellos de botella de complejidad O(N²) en grafos con cientos de conexiones.
+- **Backtracking Eficiente:** Las funciones de relevancia jerárquica ahora utilizan un único `Set` compartido con backtracking, reduciendo el uso de memoria de complejidad exponencial a lineal (evita miles de copias de objetos en grafos profundos).
+- **Batching de Dependencias:** El cargador de la Vista Panorámica ahora acumula todas las referencias faltantes y las solicita en una sola llamada por nivel, reduciendo drásticamente los round-trips a la API de Roam.
+- **Memoización de Estadísticas:** Los contadores de la UI se calculan ahora en un solo pase (O(N)) y se memoizan para evitar iteraciones redundantes en cada renderizado.
+- **Persistencia de Cache:** Sistema de cache de relevancia basado en `useRef` para evitar invalidaciones innecesarias y mejorar la fluidez de navegación en la Vista Panorámica.
 
 ### 7. Importación
 Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.
