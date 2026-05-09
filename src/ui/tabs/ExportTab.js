@@ -10,6 +10,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         selectedTypes, setSelectedTypes,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
+        skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
@@ -181,11 +182,14 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const prepareExportData = async (pagesToExport, pNames) => {
         const uids = pagesToExport.map(p => p.pageUid);
-        const anyContent = Object.values(contentConfig).some(x => x);
+        // Nota: Aunque skeletonMode esté activo, necesitamos los datos estructurales (hijos, refs)
+        // para que el RelationshipMapper descubra las relaciones entre nodos.
+        // El filtrado de contenido se hace en los renderers (markdownCore, htmlNodeRenderers).
+        const includeContent = Object.values(contentConfig).some(x => x);
 
         setExportStatus("Obteniendo datos...");
         const result = await DiscourseGraphToolkit.exportPagesNative(
-            uids, null, (msg) => setExportStatus(msg), anyContent, false
+            uids, null, (msg) => setExportStatus(msg), includeContent, false
         );
 
         setExportStatus("Procesando relaciones...");
@@ -204,7 +208,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         if (missingUids.length > 0) {
             setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-            const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
+            const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
             extraData.data.forEach(node => {
                 if (node.uid) {
                     node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -239,7 +243,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                 const parentUids = parentRoots.map(p => p.pageUid).filter(uid => !allNodes[uid]);
                 if (parentUids.length > 0) {
                     setExportStatus(`Cargando ${parentUids.length} nodos raíz padre...`);
-                    const parentData = await DiscourseGraphToolkit.exportPagesNative(parentUids, null, null, anyContent, false);
+                    const parentData = await DiscourseGraphToolkit.exportPagesNative(parentUids, null, null, includeContent, false);
                     parentData.data.forEach(node => {
                         if (node.uid) {
                             node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -254,7 +258,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                     );
                     const newMissing = [...newDeps].filter(uid => !allNodes[uid]);
                     if (newMissing.length > 0) {
-                        const extraData2 = await DiscourseGraphToolkit.exportPagesNative(newMissing, null, null, anyContent, false);
+                        const extraData2 = await DiscourseGraphToolkit.exportPagesNative(newMissing, null, null, includeContent, false);
                         extraData2.data.forEach(node => {
                             if (node.uid) {
                                 node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -421,7 +425,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
-                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora
+                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -452,7 +456,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -483,7 +487,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -514,7 +518,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Cargando librería EPUB...");
@@ -635,14 +639,35 @@ DiscourseGraphToolkit.ExportTab = function () {
                         )
                     )
                 ),
+                React.createElement('div', { style: { marginTop: '0.625rem', marginBottom: '0.625rem' } },
+                    React.createElement('label', {
+                        style: { fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }
+                    },
+                        React.createElement('input', {
+                            type: 'checkbox',
+                            checked: skeletonMode,
+                            onChange: e => setSkeletonMode(e.target.checked)
+                        }),
+                        ' Exportar solo esqueleto (solo títulos y relaciones)'
+                    ),
+                    React.createElement('div', {
+                        style: {
+                            fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem', marginLeft: '1.375rem',
+                            lineHeight: '1.3'
+                        }
+                    }, 'Modo "rayos X": omite todo el contenido, metadata y mensajes informativos.')
+                ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Extraer Todo el Contenido:'),
+                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', opacity: skeletonMode ? 0.4 : 1 } }, 'Extraer Todo el Contenido:'),
                     ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
                         React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
-                            React.createElement('label', null,
+                            React.createElement('label', {
+                                style: { opacity: skeletonMode ? 0.4 : 1 }
+                            },
                                 React.createElement('input', {
                                     type: 'checkbox',
                                     checked: contentConfig[type],
+                                    disabled: skeletonMode,
                                     onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
                                 }),
                                 ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
@@ -650,10 +675,13 @@ DiscourseGraphToolkit.ExportTab = function () {
                         )
                     ),
                     React.createElement('div', { style: { marginTop: '0.625rem' } },
-                        React.createElement('label', null,
+                        React.createElement('label', {
+                            style: { opacity: skeletonMode ? 0.4 : 1 }
+                        },
                             React.createElement('input', {
                                 type: 'checkbox',
                                 checked: excludeBitacora,
+                                disabled: skeletonMode,
                                 onChange: e => setExcludeBitacora(e.target.checked)
                             }),
                             ' Excluir contenido de [[bitácora]]'

@@ -13,6 +13,7 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [selectedTypes, setSelectedTypes] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [contentConfig, setContentConfig] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
+    const [skeletonMode, setSkeletonMode] = React.useState(false);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -23,11 +24,12 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         selectedTypes, setSelectedTypes,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
+        skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, isExporting, exportStatus, previewPages, orderedQuestions]);
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, orderedQuestions]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

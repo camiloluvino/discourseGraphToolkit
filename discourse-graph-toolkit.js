@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.42
- * Bundled build: 2026-05-05 16:00:00
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.43
+ * Bundled build: 2026-05-09 15:26:21
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.42";
+    DiscourseGraphToolkit.VERSION = "1.5.43";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -165,7 +165,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -181,15 +181,17 @@ var MarkdownCore = {
         var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
         result += hashes + ' [[' + type + ']] - ' + title + '\\n\\n';
 
-        // Metadata
-        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        }
 
-        // Contenido del nodo
-        if (config[type]) {
+        // Contenido del nodo — SKIP en modo esqueleto
+        if (config[type] && !skeletonMode) {
             var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
             if (content) {
                 result += content + '\\n';
-            } else if (type === 'EVD') {
+            } else if (type === 'EVD' && !skeletonMode) {
                 result += '*No se encontró contenido detallado para esta evidencia.*\\n\\n';
             }
         }
@@ -198,7 +200,7 @@ var MarkdownCore = {
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -206,19 +208,19 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
             result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
         }
 
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -226,7 +228,7 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -234,12 +236,12 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un QUE no tiene respuestas
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
         }
 
@@ -249,7 +251,7 @@ var MarkdownCore = {
 
     // --- Generación de Markdown completo ---
     // rootNodes: array de nodos raíz (GRI y/o QUE)
-    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode) {
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
@@ -258,7 +260,11 @@ var MarkdownCore = {
         }
         if (!config) config = { GRI: true, QUE: true, CLM: true, EVD: true };
 
-        var result = '# Estructura de Investigación\\n\\n';
+        var result = '';
+        // En modo esqueleto, omitir el título principal
+        if (!skeletonMode) {
+            result = '# Estructura de Investigación\\n\\n';
+        }
 
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
@@ -266,15 +272,17 @@ var MarkdownCore = {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
                 if (nodeType === 'QUE') {
-                    // Renderizado específico de QUE (mantiene lógica original)
+                    // Renderizado específico de QUE
                     var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
                     result += '## [[QUE]] - ' + qTitle + '\\n\\n';
 
-                    // Metadata de la pregunta
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido QUE
-                    if (config.QUE) {
+                    // Contenido QUE — SKIP en modo esqueleto
+                    if (config.QUE && !skeletonMode) {
                         var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
                         if (queContent) result += queContent + '\\n';
                     }
@@ -282,22 +290,25 @@ var MarkdownCore = {
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
 
+                    // Mensaje informativo — SKIP en modo esqueleto
                     if (!hasClms && !hasDirectEvds) {
-                        result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+                        if (!skeletonMode) {
+                            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+                        }
                         continue;
                     }
 
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
@@ -306,11 +317,13 @@ var MarkdownCore = {
                     var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
                     result += '## [[GRI]] - ' + gTitle + '\\n\\n';
 
-                    // Metadata
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido GRI
-                    if (config.GRI) {
+                    // Contenido GRI — SKIP en modo esqueleto
+                    if (config.GRI && !skeletonMode) {
                         var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
                         if (griContent) result += griContent + '\\n';
                     }
@@ -318,19 +331,21 @@ var MarkdownCore = {
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
-                    } else {
+                    } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\\n\\n';
                     }
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {});
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode);
                 }
 
             } catch (err) {
-                result += '*Error procesando nodo: ' + err + '*\\n\\n';
+                if (!skeletonMode) {
+                    result += '*Error procesando nodo: ' + err + '*\\n\\n';
+                }
             }
         }
 
@@ -3197,23 +3212,6 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 1: Crear mapas de búsqueda
         const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
-        // Bug fix (Bug 3): Pre-initialize relation fields as Sets for O(1) deduplication.
-        // Using Sets instead of arrays during population avoids O(N²) .includes() calls.
-        // They are converted back to arrays at the end of mapRelationships.
-        for (const uid in allNodes) {
-            const n = allNodes[uid];
-            if (n.type === 'QUE') {
-                n._related_clms_set = new Set(n.related_clms || []);
-                n._direct_evds_set = new Set(n.direct_evds || []);
-            } else if (n.type === 'CLM') {
-                n._supporting_clms_set = new Set(n.supporting_clms || []);
-                n._related_evds_set = new Set(n.related_evds || []);
-                n._connected_clms_set = new Set(n.connected_clms || []);
-            } else if (n.type === 'GRI') {
-                n._contained_nodes_set = new Set(n.contained_nodes || []);
-            }
-        }
-
         // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
         this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
 
@@ -3226,29 +3224,15 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
-        // Paso 6: Convertir Sets de vuelta a arrays y limpiar propiedades temporales
+        // Resumen de diagnóstico
         let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
         for (const uid in allNodes) {
             const n = allNodes[uid];
-            if (n.type === 'QUE') {
-                n.related_clms = n._related_clms_set ? [...n._related_clms_set] : (n.related_clms || []);
-                n.direct_evds = n._direct_evds_set ? [...n._direct_evds_set] : (n.direct_evds || []);
-                delete n._related_clms_set;
-                delete n._direct_evds_set;
-                queClmLinks += n.related_clms.length;
-            } else if (n.type === 'CLM') {
-                n.supporting_clms = n._supporting_clms_set ? [...n._supporting_clms_set] : (n.supporting_clms || []);
-                n.related_evds = n._related_evds_set ? [...n._related_evds_set] : (n.related_evds || []);
-                n.connected_clms = n._connected_clms_set ? [...n._connected_clms_set] : (n.connected_clms || []);
-                delete n._supporting_clms_set;
-                delete n._related_evds_set;
-                delete n._connected_clms_set;
-                clmSuppLinks += n.supporting_clms.length;
-                clmEvdLinks += n.related_evds.length;
-                clmConnLinks += n.connected_clms.length;
-            } else if (n.type === 'GRI') {
-                n.contained_nodes = n._contained_nodes_set ? [...n._contained_nodes_set] : (n.contained_nodes || []);
-                delete n._contained_nodes_set;
+            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
+            if (n.type === 'CLM') {
+                clmSuppLinks += (n.supporting_clms || []).length;
+                clmEvdLinks += (n.related_evds || []).length;
+                clmConnLinks += (n.connected_clms || []).length;
             }
         }
         console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
@@ -3419,21 +3403,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 const refUid = ref.uid || "";
                 if (allNodes[refUid]) {
                     if (allNodes[refUid].type === "CLM") {
-                        // Bug fix: use Set (_*_set) for O(1) deduplication when available
-                        const setKey = '_' + clmTargetField + '_set';
-                        if (node[setKey]) {
-                            node[setKey].add(refUid);
-                        } else if (!node[clmTargetField].includes(refUid)) {
+                        if (!node[clmTargetField].includes(refUid)) {
                             node[clmTargetField].push(refUid);
                         }
                     } else if (allNodes[refUid].type === "EVD") {
-                        if (node[evdTargetField]) {
-                            const setKey = '_' + evdTargetField + '_set';
-                            if (node[setKey]) {
-                                node[setKey].add(refUid);
-                            } else if (!node[evdTargetField].includes(refUid)) {
-                                node[evdTargetField].push(refUid);
-                            }
+                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
+                            node[evdTargetField].push(refUid);
                         }
                     }
                 }
@@ -3460,27 +3435,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (references.length === 0) return;
 
             // Buscar CLMs y EVDs usando match exacto (O(1))
-            // Bug fix: use Set (_*_set) for O(1) deduplication when available
             for (const ref of references) {
                 if (ref.includes('CLM') && clmTitleMap[ref]) {
                     const clmUid = clmTitleMap[ref];
-                    if (clmUid !== uid) {
-                        const setKey = '_' + clmField + '_set';
-                        if (node[setKey]) {
-                            node[setKey].add(clmUid);
-                        } else if (!node[clmField].includes(clmUid)) {
-                            node[clmField].push(clmUid);
-                        }
+                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                        node[clmField].push(clmUid);
                     }
                 } else if (ref.includes('EVD') && evdTitleMap[ref]) {
                     const evdUid = evdTitleMap[ref];
-                    if (evdUid !== uid) {
-                        const setKey = '_' + evdField + '_set';
-                        if (node[setKey]) {
-                            node[setKey].add(evdUid);
-                        } else if (!node[evdField].includes(evdUid)) {
-                            node[evdField].push(evdUid);
-                        }
+                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
+                        node[evdField].push(evdUid);
                     }
                 }
             }
@@ -3565,16 +3529,11 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     if (allNodes[refUid] && refUid !== uid) {
                         const referencedNode = allNodes[refUid];
                         if (referencedNode.type === "CLM") {
-                            // Bug fix: use Set for O(1) deduplication when available
-                            if (node._connected_clms_set) {
-                                node._connected_clms_set.add(refUid);
-                            } else if (!node.connected_clms.includes(refUid)) {
+                            if (!node.connected_clms.includes(refUid)) {
                                 node.connected_clms.push(refUid);
                             }
                         } else if (referencedNode.type === "EVD") {
-                            if (node._related_evds_set) {
-                                node._related_evds_set.add(refUid);
-                            } else if (!node.related_evds.includes(refUid)) {
+                            if (!node.related_evds.includes(refUid)) {
                                 node.related_evds.push(refUid);
                             }
                         }
@@ -3639,10 +3598,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const refType = allNodes[refUid].type;
                     // GRI puede contener QUE, CLM, GRI, o EVD
                     if (refType === "QUE" || refType === "CLM" || refType === "GRI" || refType === "EVD") {
-                        // Bug fix: use Set for O(1) deduplication when available
-                        if (node._contained_nodes_set) {
-                            node._contained_nodes_set.add(refUid);
-                        } else if (!node.contained_nodes.includes(refUid)) {
+                        if (!node.contained_nodes.includes(refUid)) {
                             node.contained_nodes.push(refUid);
                         }
                     }
@@ -3662,10 +3618,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                              (evdTitleMap && evdTitleMap[refContent]);
                 
                 if (nUid && nUid !== sourceUid) {
-                    // Bug fix: use Set for O(1) deduplication when available
-                    if (node._contained_nodes_set) {
-                        node._contained_nodes_set.add(nUid);
-                    } else if (!node.contained_nodes.includes(nUid)) {
+                    if (!node.contained_nodes.includes(nUid)) {
                         node.contained_nodes.push(nUid);
                     }
                 }
@@ -3891,7 +3844,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -3907,15 +3860,17 @@ var MarkdownCore = {
         var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
         result += hashes + ' [[' + type + ']] - ' + title + '\n\n';
 
-        // Metadata
-        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        }
 
-        // Contenido del nodo
-        if (config[type]) {
+        // Contenido del nodo — SKIP en modo esqueleto
+        if (config[type] && !skeletonMode) {
             var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
             if (content) {
                 result += content + '\n';
-            } else if (type === 'EVD') {
+            } else if (type === 'EVD' && !skeletonMode) {
                 result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
             }
         }
@@ -3924,7 +3879,7 @@ var MarkdownCore = {
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -3932,19 +3887,19 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
             result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
         }
 
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -3952,7 +3907,7 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -3960,12 +3915,12 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un QUE no tiene respuestas
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
         }
 
@@ -3975,7 +3930,7 @@ var MarkdownCore = {
 
     // --- Generación de Markdown completo ---
     // rootNodes: array de nodos raíz (GRI y/o QUE)
-    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode) {
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
@@ -3984,7 +3939,11 @@ var MarkdownCore = {
         }
         if (!config) config = { GRI: true, QUE: true, CLM: true, EVD: true };
 
-        var result = '# Estructura de Investigación\n\n';
+        var result = '';
+        // En modo esqueleto, omitir el título principal
+        if (!skeletonMode) {
+            result = '# Estructura de Investigación\n\n';
+        }
 
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
@@ -3992,15 +3951,17 @@ var MarkdownCore = {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
                 if (nodeType === 'QUE') {
-                    // Renderizado específico de QUE (mantiene lógica original)
+                    // Renderizado específico de QUE
                     var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
                     result += '## [[QUE]] - ' + qTitle + '\n\n';
 
-                    // Metadata de la pregunta
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido QUE
-                    if (config.QUE) {
+                    // Contenido QUE — SKIP en modo esqueleto
+                    if (config.QUE && !skeletonMode) {
                         var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
                         if (queContent) result += queContent + '\n';
                     }
@@ -4008,22 +3969,25 @@ var MarkdownCore = {
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
 
+                    // Mensaje informativo — SKIP en modo esqueleto
                     if (!hasClms && !hasDirectEvds) {
-                        result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+                        if (!skeletonMode) {
+                            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+                        }
                         continue;
                     }
 
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
@@ -4032,11 +3996,13 @@ var MarkdownCore = {
                     var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
                     result += '## [[GRI]] - ' + gTitle + '\n\n';
 
-                    // Metadata
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido GRI
-                    if (config.GRI) {
+                    // Contenido GRI — SKIP en modo esqueleto
+                    if (config.GRI && !skeletonMode) {
                         var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
                         if (griContent) result += griContent + '\n';
                     }
@@ -4044,19 +4010,21 @@ var MarkdownCore = {
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
-                    } else {
+                    } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
                     }
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {});
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode);
                 }
 
             } catch (err) {
-                result += '*Error procesando nodo: ' + err + '*\n\n';
+                if (!skeletonMode) {
+                    result += '*Error procesando nodo: ' + err + '*\n\n';
+                }
             }
         }
 
@@ -4610,25 +4578,22 @@ DiscourseGraphToolkit.HtmlHelpers = {
 
     // Formatea contenido para HTML (escape + newlines a br)
     formatContentForHtml: function (content) {
-        return this.escapeHtml(content).replace(/\n/g, "<br>");
-    },
-
-    escapeHtml: function (text) {
-        if (!text || typeof text !== 'string') return "";
-        return text
+        if (!content) return "";
+        return content
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(/'/g, "&#039;")
+            .replace(/\n/g, "<br>");
     },
 
     // Genera HTML para metadata de proyecto
     generateMetadataHtml: function (metadata, small = false) {
         if (!metadata || Object.keys(metadata).length === 0) return "";
 
-        const proyecto = this.escapeHtml(metadata.proyecto_asociado);
-        const seccion = this.escapeHtml(metadata.seccion_tesis);
+        const proyecto = metadata.proyecto_asociado;
+        const seccion = metadata.seccion_tesis;
 
         if (!proyecto && !seccion) return "";
 
@@ -4681,7 +4646,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     MAX_RENDER_DEPTH: 10,
 
     // Renderiza un nodo CLM o EVD recursivamente a cualquier profundidad
-    renderNode: function (nodeUid, allNodes, config, excludeBitacora, depth, visited, parentId) {
+    renderNode: function (nodeUid, allNodes, config, excludeBitacora, depth, visited, parentId, skeletonMode) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (depth > this.MAX_RENDER_DEPTH) return '';
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -4690,7 +4655,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const node = allNodes[nodeUid];
         const type = node.type; // 'CLM' o 'EVD'
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
-        const title = helpers.escapeHtml(DiscourseGraphToolkit.cleanText((node.title || '').replace(`[[${type}]] - `, '')));
+        const title = DiscourseGraphToolkit.cleanText((node.title || '').replace(`[[${type}]] - `, ''));
 
         // Determinar nivel de heading HTML (h3-h6, máximo h6)
         const hLevel = Math.min(depth, 6);
@@ -4711,11 +4676,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h${hLevel}>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(node.project_metadata || {}, depth > 3);
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(node.project_metadata || {}, depth > 3);
+        }
 
-        // Contenido del nodo
-        if (config[type]) {
+        // Contenido del nodo — SKIP en modo esqueleto
+        if (config[type] && !skeletonMode) {
             const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(node.data, config[type], type, excludeBitacora);
             if (content) {
                 const contentStyle = depth > 4 ? ` style="margin-left: ${Math.min((depth - 3) * 5, 20)}px; font-size: ${Math.max(13 - depth, 10)}px; color: #333;"` : '';
@@ -4730,7 +4697,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (hasSupportingClms) {
             html += '<div class="supporting-clms">';
             for (const suppUid of node.supporting_clms) {
-                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '');
+                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '', skeletonMode);
             }
             html += '</div>';
         }
@@ -4740,7 +4707,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (hasRelatedEvds) {
             for (let k = 0; k < node.related_evds.length; k++) {
                 const evdId = parentId ? `${parentId}_e${k}` : '';
-                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId);
+                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId, skeletonMode);
             }
         }
 
@@ -4749,13 +4716,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             html += '<div class="contained-nodes">';
             for (let cn = 0; cn < node.contained_nodes.length; cn++) {
                 const cnId = parentId ? `${parentId}_cn${cn}` : '';
-                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId);
+                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId, skeletonMode);
             }
             html += '</div>';
         }
 
-        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
             html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
         }
 
@@ -4766,10 +4733,10 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     },
 
     // Renderiza una pregunta completa con todos sus hijos (entry point)
-    renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora) {
+    renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora, skeletonMode) {
         const qId = `q${qIndex}`;
+        const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
-        const qTitle = helpers.escapeHtml(DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", "")));
 
         let html = `<div id="${qId}" class="node que-node">`;
         html += `<h2 class="collapsible">`;
@@ -4781,22 +4748,28 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h2>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(question.project_metadata || {});
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(question.project_metadata || {});
+        }
 
-        // Contenido QUE
-        const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
-        if (queContent) {
-            html += `<div class="node content-node" style="margin-bottom: 10px;">`;
-            html += `<p>${helpers.formatContentForHtml(queContent)}</p>`;
-            html += `</div>`;
+        // Contenido QUE — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+            if (queContent) {
+                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                html += `<p>${helpers.formatContentForHtml(queContent)}</p>`;
+                html += `</div>`;
+            }
         }
 
         const hasClms = question.related_clms && question.related_clms.length > 0;
         const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
 
         if (!hasClms && !hasDirectEvds) {
-            html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            if (!skeletonMode) {
+                html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            }
             html += '</div></div>';
             return html;
         }
@@ -4805,7 +4778,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (question.related_clms) {
             for (let j = 0; j < question.related_clms.length; j++) {
                 const clmId = `q${qIndex}_c${j}`;
-                html += this.renderNode(question.related_clms[j], allNodes, config, excludeBitacora, 3, {}, clmId);
+                html += this.renderNode(question.related_clms[j], allNodes, config, excludeBitacora, 3, {}, clmId, skeletonMode);
             }
         }
 
@@ -4813,7 +4786,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (question.direct_evds) {
             for (let j = 0; j < question.direct_evds.length; j++) {
                 const evdId = `q${qIndex}_de${j}`;
-                html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId);
+                html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId, skeletonMode);
             }
         }
 
@@ -4822,12 +4795,12 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     },
 
     // Renderiza un nodo raíz GRI con todos sus nodos contenidos (entry point)
-    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora) {
+    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora, skeletonMode) {
         const qId = `r${qIndex}`;
         const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
         const prefix = `[[${nodeType}]]`;
+        const title = DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, ""));
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
-        const title = helpers.escapeHtml(DiscourseGraphToolkit.cleanText(rootNode.title.replace(`${prefix} - `, "")));
 
         const cssClass = nodeType === 'GRI' ? 'gri-node' : 'que-node';
 
@@ -4837,11 +4810,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h2>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+        }
 
-        // Contenido del nodo raíz
-        if (config[nodeType]) {
+        // Contenido del nodo raíz — SKIP en modo esqueleto
+        if (config[nodeType] && !skeletonMode) {
             const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(rootNode.data || rootNode, config[nodeType], nodeType, excludeBitacora);
             if (content) {
                 html += `<div class="node content-node" style="margin-bottom: 10px;">`;
@@ -4854,7 +4829,9 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const hasContained = rootNode.contained_nodes && rootNode.contained_nodes.length > 0;
 
         if (!hasContained) {
-            html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            if (!skeletonMode) {
+                html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            }
             html += '</div></div>';
             return html;
         }
@@ -4862,7 +4839,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         // Renderizar cada nodo contenido (recursión desde profundidad 3)
         for (let j = 0; j < rootNode.contained_nodes.length; j++) {
             const cnId = `r${qIndex}_cn${j}`;
-            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId);
+            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId, skeletonMode);
         }
 
         html += `</div></div>`;
@@ -4881,7 +4858,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
 
 DiscourseGraphToolkit.HtmlGenerator = {
 
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true) {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true, skeletonMode = false) {
         // Compatibilidad legacy: si contentConfig es boolean, convertir a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
@@ -4920,11 +4897,11 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                 if (nodeType === 'GRI') {
                     html += DiscourseGraphToolkit.HtmlNodeRenderers.renderRootNode(
-                        rootNode, i, allNodes, config, excludeBitacora
+                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode
                     );
                 } else {
                     html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
-                        rootNode, i, allNodes, config, excludeBitacora
+                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode
                     );
                 }
             } catch (e) {
@@ -4993,14 +4970,14 @@ DiscourseGraphToolkit.HtmlGenerator = {
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false, skeletonMode = false) {
         // Delegar completamente a MarkdownCore
-        return MarkdownCore.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, flatMode);
+        return MarkdownCore.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, flatMode, skeletonMode);
     },
 
     // Convenience wrapper for flat markdown export (EPUB-ready)
-    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true) {
-        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true);
+    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, skeletonMode = false) {
+        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true, skeletonMode);
     }
 };
 
@@ -5042,8 +5019,6 @@ DiscourseGraphToolkit.EpubGenerator = {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            script.integrity = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG';
-            script.crossOrigin = 'anonymous';
             script.onload = () => {
                 this.JSZip = window.JSZip;
                 resolve(this.JSZip);
@@ -5616,9 +5591,6 @@ DiscourseGraphToolkit.ProjectsTab = function () {
     };
 
     const handleExpandAll = () => {
-        // Bug fix (Bug 6): Setting to {} (empty object) correctly expands all nodes because
-        // isExpanded = expandedProjects[node.project] !== false, which is true when the key
-        // is absent. An empty object means all nodes fall back to the default (expanded).
         setExpandedProjects({});
     };
 
@@ -7121,64 +7093,40 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     }, []); // Solo al montar
 
     // --- Helpers de Relevancia del Proyecto ---
-    // Perf fix (2.1/2.2): Use refs instead of useMemo/useCallback to avoid recreating the cache
-    // and function on every render. The cache is invalidated imperatively only when panoramicData
-    // or selectedProject actually change — not on every unrelated render cycle.
-    const _relevanceCacheRef = React.useRef(new Map());
-    const _prevPanoramicDataRef = React.useRef(null);
-    const _prevSelectedProjectRef = React.useRef(null);
+    const relevanceCache = React.useMemo(() => new Map(), [panoramicData, selectedProject]);
 
-    // Invalidate cache only when the dependencies that affect relevance actually change
-    if (_prevPanoramicDataRef.current !== panoramicData || _prevSelectedProjectRef.current !== selectedProject) {
-        _relevanceCacheRef.current = new Map();
-        _prevPanoramicDataRef.current = panoramicData;
-        _prevSelectedProjectRef.current = selectedProject;
-    }
+    const isNodeRelevant = React.useCallback((uid, allNodes, targetProject, visited = new Set()) => {
+        if (!targetProject) return true;
+        if (relevanceCache.has(uid)) return relevanceCache.get(uid);
+        if (visited.has(uid)) return false;
 
-    // Stable function reference via useRef — never recreated, reads cache via ref
-    const _isNodeRelevantFnRef = React.useRef(null);
-    if (!_isNodeRelevantFnRef.current) {
-        _isNodeRelevantFnRef.current = function isNodeRelevant(uid, allNodes, targetProject, visited = new Set()) {
-            if (!targetProject) return true;
-            const cache = _relevanceCacheRef.current;
-            if (cache.has(uid)) return cache.get(uid);
-            if (visited.has(uid)) return false;
+        visited.add(uid);
+        const node = allNodes[uid];
+        if (!node) return false;
 
-            visited.add(uid);
-            const node = allNodes[uid];
-            if (!node) {
-                visited.delete(uid); // backtrack
-                return false;
-            }
+        // Is it a direct match?
+        if (node.project && (node.project === targetProject || node.project.startsWith(targetProject + '/'))) {
+            relevanceCache.set(uid, true);
+            return true;
+        }
 
-            // Is it a direct match?
-            if (node.project && (node.project === targetProject || node.project.startsWith(targetProject + '/'))) {
-                cache.set(uid, true);
-                visited.delete(uid); // backtrack
+        // Check descendants
+        const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
+        let childrenUids = [];
+        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
+        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
+        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
+
+        for (const childUid of childrenUids) {
+            if (isNodeRelevant(childUid, allNodes, targetProject, new Set(visited))) {
+                relevanceCache.set(uid, true);
                 return true;
             }
+        }
 
-            // Check descendants
-            const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-            let childrenUids = [];
-            if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
-            else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
-            else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
-
-            for (const childUid of childrenUids) {
-                if (isNodeRelevant(childUid, allNodes, targetProject, visited)) {
-                    cache.set(uid, true);
-                    visited.delete(uid); // backtrack
-                    return true;
-                }
-            }
-
-            cache.set(uid, false);
-            visited.delete(uid); // backtrack
-            return false;
-        };
-    }
-    const isNodeRelevant = _isNodeRelevantFnRef.current;
+        relevanceCache.set(uid, false);
+        return false;
+    }, [relevanceCache]);
 
     // --- Cargar datos panorámicos ---
     const handleLoadPanoramic = async () => {
@@ -7207,28 +7155,20 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             });
 
-            // 4. Analizar dependencias y cargar nodos faltantes
-            // Perf fix (2.4): Accumulate ALL pending UIDs across iterations and fetch in a single
-            // batch call instead of one round-trip per dependency depth level.
+            // 4. Analizar dependencias y cargar nodos faltantes RECURSIVAMENTE
             setLoadStatus('⏳ Analizando relaciones...');
 
-            let pendingUids = new Set(
-                [...DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes))]
-                    .filter(uid => !allNodes[uid])
-            );
+            let missingUids = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(Object.values(allNodes));
+            missingUids = [...missingUids].filter(uid => !allNodes[uid]);
 
-            let safetyIter = 0;
-            const maxIterations = 5; // Safety cap against circular reference chains
+            let depth = 0;
+            const maxDepth = 5; // Evitar loops infinitos en caso de referencias circulares muy complejas
 
-            while (pendingUids.size > 0 && safetyIter < maxIterations) {
-                const batchUids = [...pendingUids];
-                setLoadStatus(`⏳ Cargando ${batchUids.length} nodos relacionados (nivel ${safetyIter + 1})...`);
+            while (missingUids.length > 0 && depth < maxDepth) {
+                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados (nively ${depth + 1})...`);
+                const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, true, false);
 
-                const extraData = await DiscourseGraphToolkit.exportPagesNative(batchUids, null, null, true, false);
-
-                // Accumulate newly discovered nodes into the same pending set for the next iteration
                 const newNodesFetched = [];
-                pendingUids = new Set(); // Reset for next round
                 extraData.data.forEach(node => {
                     if (node.uid && !allNodes[node.uid]) {
                         node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -7238,16 +7178,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     }
                 });
 
-                // Only re-check for new dependencies among freshly fetched nodes
-                const newDeps = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(newNodesFetched);
-                for (const uid of newDeps) {
-                    if (!allNodes[uid]) pendingUids.add(uid);
-                }
-                safetyIter++;
+                // Buscar si los nuevos nodos traen más dependencias
+                const newDependencies = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(newNodesFetched);
+                missingUids = [...newDependencies].filter(uid => !allNodes[uid]);
+                depth++;
             }
 
-            if (safetyIter === maxIterations && pendingUids.size > 0) {
-                console.warn(`Vista Panorámica: Se alcanzó el límite de iteraciones, faltan ${pendingUids.size} referencias.`);
+            if (depth === maxDepth && missingUids.length > 0) {
+                console.warn(`Vista Panorámica: Se alcanzó la profundidad máxima de relaciones anidadas, faltan ${missingUids.length} referencias.`);
             }
 
             // 5. Mapear relaciones
@@ -7717,28 +7655,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     const filteredQuestions = isGroupedMode ? [] : getFilteredQuestions();
 
-    // Perf fix (2.5): Compute all 4 node-type counters in a single pass instead of 4 separate
-    // inline iterations inside JSX (which re-run on every render).
-    const nodeTypeCounts = React.useMemo(() => {
-        if (!panoramicData) return { queCount: 0, griCount: 0, clmCount: 0, evdCount: 0 };
-        let queCount = 0, griCount = 0, clmCount = 0, evdCount = 0;
-        // Root-node counts respect the current view mode and project filter
-        const visibleRoots = isGroupedMode
-            ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk))
-            : filteredQuestions;
-        for (const n of visibleRoots) {
-            const t = DiscourseGraphToolkit.getNodeType(n.title) || 'QUE';
-            if (t === 'QUE') queCount++;
-            else if (t === 'GRI') griCount++;
-        }
-        // CLM/EVD counts are global (all loaded nodes, not filtered by project)
-        for (const n of Object.values(panoramicData.allNodes)) {
-            if (n.type === 'CLM') clmCount++;
-            else if (n.type === 'EVD') evdCount++;
-        }
-        return { queCount, griCount, clmCount, evdCount };
-    }, [panoramicData, isGroupedMode, orderedGroupKeys, filteredQuestions]);
-
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
         // Header con layout de dos columnas: título a la izquierda, controles a la derecha
@@ -7866,12 +7782,16 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
                     }, '➖ Colapsar')
                 ),
-                // Fila 3: Estadísticas compactas — valores pre-calculados por nodeTypeCounts (Perf fix 2.5)
+                // Fila 3: Estadísticas compactas
                 panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' }, `QUE: ${nodeTypeCounts.queCount}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' }, `GRI: ${nodeTypeCounts.griCount}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' }, `CLM: ${nodeTypeCounts.clmCount}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' }, `EVD: ${nodeTypeCounts.evdCount}`)
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
+                        `QUE: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
+                        `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
+                        `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
+                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
+                        `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
                 )
             )
         ),
@@ -7934,6 +7854,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         selectedTypes, setSelectedTypes,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
+        skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
@@ -8105,11 +8026,14 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const prepareExportData = async (pagesToExport, pNames) => {
         const uids = pagesToExport.map(p => p.pageUid);
-        const anyContent = Object.values(contentConfig).some(x => x);
+        // Nota: Aunque skeletonMode esté activo, necesitamos los datos estructurales (hijos, refs)
+        // para que el RelationshipMapper descubra las relaciones entre nodos.
+        // El filtrado de contenido se hace en los renderers (markdownCore, htmlNodeRenderers).
+        const includeContent = Object.values(contentConfig).some(x => x);
 
         setExportStatus("Obteniendo datos...");
         const result = await DiscourseGraphToolkit.exportPagesNative(
-            uids, null, (msg) => setExportStatus(msg), anyContent, false
+            uids, null, (msg) => setExportStatus(msg), includeContent, false
         );
 
         setExportStatus("Procesando relaciones...");
@@ -8128,7 +8052,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         if (missingUids.length > 0) {
             setExportStatus(`Cargando ${missingUids.length} nodos relacionados...`);
-            const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, anyContent, false);
+            const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, includeContent, false);
             extraData.data.forEach(node => {
                 if (node.uid) {
                     node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -8163,7 +8087,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                 const parentUids = parentRoots.map(p => p.pageUid).filter(uid => !allNodes[uid]);
                 if (parentUids.length > 0) {
                     setExportStatus(`Cargando ${parentUids.length} nodos raíz padre...`);
-                    const parentData = await DiscourseGraphToolkit.exportPagesNative(parentUids, null, null, anyContent, false);
+                    const parentData = await DiscourseGraphToolkit.exportPagesNative(parentUids, null, null, includeContent, false);
                     parentData.data.forEach(node => {
                         if (node.uid) {
                             node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -8172,13 +8096,13 @@ DiscourseGraphToolkit.ExportTab = function () {
                         }
                     });
 
-                    // Re-colectar dependencias de los nuevos padres y cargarlas en un solo batch
+                    // Re-colectar dependencias de los nuevos padres
                     const newDeps = DiscourseGraphToolkit.RelationshipMapper.collectDependencies(
                         parentUids.filter(uid => allNodes[uid]).map(uid => allNodes[uid])
                     );
                     const newMissing = [...newDeps].filter(uid => !allNodes[uid]);
                     if (newMissing.length > 0) {
-                        const extraData2 = await DiscourseGraphToolkit.exportPagesNative(newMissing, null, null, anyContent, false);
+                        const extraData2 = await DiscourseGraphToolkit.exportPagesNative(newMissing, null, null, includeContent, false);
                         extraData2.data.forEach(node => {
                             if (node.uid) {
                                 node.type = DiscourseGraphToolkit.getNodeType(node.title);
@@ -8188,13 +8112,10 @@ DiscourseGraphToolkit.ExportTab = function () {
                         });
                     }
 
-                    // Perf fix (2.3): mapRelationships is called ONCE here (after all nodes are loaded)
-                    // instead of also calling it redundantly at line 8093 — the first call at 8093
-                    // now only runs on the happy path (no fallback). The fallback path re-maps once
-                    // with the complete allNodes after parent loading.
+                    // Re-mapear relaciones con todos los nodos
                     DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
-                    // Recalcular childNodeUids con el grafo completo
+                    // Recalcular childNodeUids
                     childNodeUids.clear();
                     Object.values(allNodes).forEach(node => {
                         if (node.type === 'GRI' && node.contained_nodes) {
@@ -8222,25 +8143,19 @@ DiscourseGraphToolkit.ExportTab = function () {
             const projectPageUids = new Set(trueProjectPages.map(p => p.pageUid));
             const relevanceCache = {};
 
-            // Bug fix: use a shared Set with backtracking instead of O(N!) Object.assign copies per recursion
-            const visitedSet = new Set();
-            const isRelevantToProject = (uid) => {
+            const isRelevantToProject = (uid, visited) => {
                 if (relevanceCache[uid] !== undefined) return relevanceCache[uid];
-                if (visitedSet.has(uid)) return false;
-                visitedSet.add(uid);
+                if (!visited) visited = {};
+                if (visited[uid]) return false;
+                visited[uid] = true;
 
                 if (projectPageUids.has(uid)) {
                     relevanceCache[uid] = true;
-                    visitedSet.delete(uid); // backtrack
                     return true;
                 }
 
                 const node = allNodes[uid];
-                if (!node) {
-                    relevanceCache[uid] = false;
-                    visitedSet.delete(uid); // backtrack
-                    return false;
-                }
+                if (!node) { relevanceCache[uid] = false; return false; }
 
                 const children = [].concat(
                     node.related_clms || [],
@@ -8251,15 +8166,13 @@ DiscourseGraphToolkit.ExportTab = function () {
                 );
 
                 for (let i = 0; i < children.length; i++) {
-                    if (isRelevantToProject(children[i])) {
+                    if (isRelevantToProject(children[i], Object.assign({}, visited))) {
                         relevanceCache[uid] = true;
-                        visitedSet.delete(uid); // backtrack
                         return true;
                     }
                 }
 
                 relevanceCache[uid] = false;
-                visitedSet.delete(uid); // backtrack
                 return false;
             };
 
@@ -8356,7 +8269,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
-                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora
+                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -8387,7 +8300,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -8418,7 +8331,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Descargando...");
@@ -8449,7 +8362,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
             );
 
             setExportStatus("Cargando librería EPUB...");
@@ -8570,14 +8483,35 @@ DiscourseGraphToolkit.ExportTab = function () {
                         )
                     )
                 ),
+                React.createElement('div', { style: { marginTop: '0.625rem', marginBottom: '0.625rem' } },
+                    React.createElement('label', {
+                        style: { fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }
+                    },
+                        React.createElement('input', {
+                            type: 'checkbox',
+                            checked: skeletonMode,
+                            onChange: e => setSkeletonMode(e.target.checked)
+                        }),
+                        ' Exportar solo esqueleto (solo títulos y relaciones)'
+                    ),
+                    React.createElement('div', {
+                        style: {
+                            fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem', marginLeft: '1.375rem',
+                            lineHeight: '1.3'
+                        }
+                    }, 'Modo "rayos X": omite todo el contenido, metadata y mensajes informativos.')
+                ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Extraer Todo el Contenido:'),
+                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', opacity: skeletonMode ? 0.4 : 1 } }, 'Extraer Todo el Contenido:'),
                     ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
                         React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
-                            React.createElement('label', null,
+                            React.createElement('label', {
+                                style: { opacity: skeletonMode ? 0.4 : 1 }
+                            },
                                 React.createElement('input', {
                                     type: 'checkbox',
                                     checked: contentConfig[type],
+                                    disabled: skeletonMode,
                                     onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
                                 }),
                                 ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
@@ -8585,10 +8519,13 @@ DiscourseGraphToolkit.ExportTab = function () {
                         )
                     ),
                     React.createElement('div', { style: { marginTop: '0.625rem' } },
-                        React.createElement('label', null,
+                        React.createElement('label', {
+                            style: { opacity: skeletonMode ? 0.4 : 1 }
+                        },
                             React.createElement('input', {
                                 type: 'checkbox',
                                 checked: excludeBitacora,
+                                disabled: skeletonMode,
                                 onChange: e => setExcludeBitacora(e.target.checked)
                             }),
                             ' Excluir contenido de [[bitácora]]'
@@ -8931,6 +8868,7 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [selectedTypes, setSelectedTypes] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [contentConfig, setContentConfig] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
+    const [skeletonMode, setSkeletonMode] = React.useState(false);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -8941,11 +8879,12 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         selectedTypes, setSelectedTypes,
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
+        skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         orderedQuestions, setOrderedQuestions
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, isExporting, exportStatus, previewPages, orderedQuestions]);
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, orderedQuestions]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

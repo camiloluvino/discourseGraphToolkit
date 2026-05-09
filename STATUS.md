@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-05
+**Última actualización:** 2026-05-09
 
 ## Versión Actual
 
-**v1.5.42**
+**v1.5.43**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,10 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.43 (Mayo 2026)
+- **Feature: Modo "Esqueleto" en Exportación.** Nueva opción "Exportar solo esqueleto (solo títulos y relaciones)" en la pestaña Exportar. Al activarla, los exportadores (HTML, Markdown, MD Plano, EPUB) generan únicamente la estructura jerárquica del grafo de discurso: títulos de nodos (`[[QUE]]`, `[[CLM]]`, `[[EVD]]`, `[[GRI]]`) y sus relaciones (`#RespondedBy`, `#SupportedBy`, `#Contains`), omitiendo todo el contenido interno, metadata y mensajes informativos. Ideal para obtener una "vista de rayos X" del grafo.
+- **Fix: Modo esqueleto no mostraba CLMs ni EVDs.** Se corrigió un bug donde el modo esqueleto cortaba los datos estructurales (hijos y refs) que el `RelationshipMapper` necesita para descubrir las relaciones entre nodos, resultando en exportaciones que solo mostraban los QUE sin sus ramas. Ahora el pull de datos desde Roam y el mapeo de relaciones funcionan igual que siempre; el filtrado de contenido se aplica exclusivamente en los renderers.
 
 ### v1.5.42 (Mayo 2026)
 - **Seguridad: Mitigación de Vulnerabilidades.**

@@ -153,7 +153,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -169,15 +169,17 @@ var MarkdownCore = {
         var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
         result += hashes + ' [[' + type + ']] - ' + title + '\n\n';
 
-        // Metadata
-        result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            result += this.renderMetadata(node.project_metadata || {}, flatMode);
+        }
 
-        // Contenido del nodo
-        if (config[type]) {
+        // Contenido del nodo — SKIP en modo esqueleto
+        if (config[type] && !skeletonMode) {
             var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
             if (content) {
                 result += content + '\n';
-            } else if (type === 'EVD') {
+            } else if (type === 'EVD' && !skeletonMode) {
                 result += '*No se encontró contenido detallado para esta evidencia.*\n\n';
             }
         }
@@ -186,7 +188,7 @@ var MarkdownCore = {
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -194,19 +196,19 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
             result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
         }
 
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -214,7 +216,7 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
@@ -222,12 +224,12 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited);
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
             }
         }
 
-        // Mensaje si un QUE no tiene respuestas
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
         }
 
@@ -237,7 +239,7 @@ var MarkdownCore = {
 
     // --- Generación de Markdown completo ---
     // rootNodes: array de nodos raíz (GRI y/o QUE)
-    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode) {
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
@@ -246,7 +248,11 @@ var MarkdownCore = {
         }
         if (!config) config = { GRI: true, QUE: true, CLM: true, EVD: true };
 
-        var result = '# Estructura de Investigación\n\n';
+        var result = '';
+        // En modo esqueleto, omitir el título principal
+        if (!skeletonMode) {
+            result = '# Estructura de Investigación\n\n';
+        }
 
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
@@ -254,15 +260,17 @@ var MarkdownCore = {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
                 if (nodeType === 'QUE') {
-                    // Renderizado específico de QUE (mantiene lógica original)
+                    // Renderizado específico de QUE
                     var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
                     result += '## [[QUE]] - ' + qTitle + '\n\n';
 
-                    // Metadata de la pregunta
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido QUE
-                    if (config.QUE) {
+                    // Contenido QUE — SKIP en modo esqueleto
+                    if (config.QUE && !skeletonMode) {
                         var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
                         if (queContent) result += queContent + '\n';
                     }
@@ -270,22 +278,25 @@ var MarkdownCore = {
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
 
+                    // Mensaje informativo — SKIP en modo esqueleto
                     if (!hasClms && !hasDirectEvds) {
-                        result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+                        if (!skeletonMode) {
+                            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+                        }
                         continue;
                     }
 
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
                     }
 
@@ -294,11 +305,13 @@ var MarkdownCore = {
                     var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
                     result += '## [[GRI]] - ' + gTitle + '\n\n';
 
-                    // Metadata
-                    result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    // Metadata — SKIP en modo esqueleto
+                    if (!skeletonMode) {
+                        result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
+                    }
 
-                    // Contenido GRI
-                    if (config.GRI) {
+                    // Contenido GRI — SKIP en modo esqueleto
+                    if (config.GRI && !skeletonMode) {
                         var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
                         if (griContent) result += griContent + '\n';
                     }
@@ -306,19 +319,21 @@ var MarkdownCore = {
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {});
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
                         }
-                    } else {
+                    } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
                     }
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {});
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode);
                 }
 
             } catch (err) {
-                result += '*Error procesando nodo: ' + err + '*\n\n';
+                if (!skeletonMode) {
+                    result += '*Error procesando nodo: ' + err + '*\n\n';
+                }
             }
         }
 

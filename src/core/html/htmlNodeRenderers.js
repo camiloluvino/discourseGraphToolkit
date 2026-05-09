@@ -10,7 +10,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     MAX_RENDER_DEPTH: 10,
 
     // Renderiza un nodo CLM o EVD recursivamente a cualquier profundidad
-    renderNode: function (nodeUid, allNodes, config, excludeBitacora, depth, visited, parentId) {
+    renderNode: function (nodeUid, allNodes, config, excludeBitacora, depth, visited, parentId, skeletonMode) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (depth > this.MAX_RENDER_DEPTH) return '';
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -40,11 +40,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h${hLevel}>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(node.project_metadata || {}, depth > 3);
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(node.project_metadata || {}, depth > 3);
+        }
 
-        // Contenido del nodo
-        if (config[type]) {
+        // Contenido del nodo — SKIP en modo esqueleto
+        if (config[type] && !skeletonMode) {
             const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(node.data, config[type], type, excludeBitacora);
             if (content) {
                 const contentStyle = depth > 4 ? ` style="margin-left: ${Math.min((depth - 3) * 5, 20)}px; font-size: ${Math.max(13 - depth, 10)}px; color: #333;"` : '';
@@ -59,7 +61,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (hasSupportingClms) {
             html += '<div class="supporting-clms">';
             for (const suppUid of node.supporting_clms) {
-                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '');
+                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '', skeletonMode);
             }
             html += '</div>';
         }
@@ -69,7 +71,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (hasRelatedEvds) {
             for (let k = 0; k < node.related_evds.length; k++) {
                 const evdId = parentId ? `${parentId}_e${k}` : '';
-                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId);
+                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId, skeletonMode);
             }
         }
 
@@ -78,13 +80,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             html += '<div class="contained-nodes">';
             for (let cn = 0; cn < node.contained_nodes.length; cn++) {
                 const cnId = parentId ? `${parentId}_cn${cn}` : '';
-                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId);
+                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId, skeletonMode);
             }
             html += '</div>';
         }
 
-        // Mensaje si un CLM no tiene ni EVDs ni CLMs de soporte
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds) {
+        // Mensaje — SKIP en modo esqueleto
+        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
             html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
         }
 
@@ -95,7 +97,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     },
 
     // Renderiza una pregunta completa con todos sus hijos (entry point)
-    renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora) {
+    renderQuestion: function (question, qIndex, allNodes, config, excludeBitacora, skeletonMode) {
         const qId = `q${qIndex}`;
         const qTitle = DiscourseGraphToolkit.cleanText(question.title.replace("[[QUE]] - ", ""));
         const helpers = DiscourseGraphToolkit.HtmlHelpers;
@@ -110,22 +112,28 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h2>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(question.project_metadata || {});
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(question.project_metadata || {});
+        }
 
-        // Contenido QUE
-        const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
-        if (queContent) {
-            html += `<div class="node content-node" style="margin-bottom: 10px;">`;
-            html += `<p>${helpers.formatContentForHtml(queContent)}</p>`;
-            html += `</div>`;
+        // Contenido QUE — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            const queContent = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(question, config.QUE, "QUE", excludeBitacora);
+            if (queContent) {
+                html += `<div class="node content-node" style="margin-bottom: 10px;">`;
+                html += `<p>${helpers.formatContentForHtml(queContent)}</p>`;
+                html += `</div>`;
+            }
         }
 
         const hasClms = question.related_clms && question.related_clms.length > 0;
         const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
 
         if (!hasClms && !hasDirectEvds) {
-            html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            if (!skeletonMode) {
+                html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            }
             html += '</div></div>';
             return html;
         }
@@ -134,7 +142,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (question.related_clms) {
             for (let j = 0; j < question.related_clms.length; j++) {
                 const clmId = `q${qIndex}_c${j}`;
-                html += this.renderNode(question.related_clms[j], allNodes, config, excludeBitacora, 3, {}, clmId);
+                html += this.renderNode(question.related_clms[j], allNodes, config, excludeBitacora, 3, {}, clmId, skeletonMode);
             }
         }
 
@@ -142,7 +150,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         if (question.direct_evds) {
             for (let j = 0; j < question.direct_evds.length; j++) {
                 const evdId = `q${qIndex}_de${j}`;
-                html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId);
+                html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId, skeletonMode);
             }
         }
 
@@ -151,7 +159,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
     },
 
     // Renderiza un nodo raíz GRI con todos sus nodos contenidos (entry point)
-    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora) {
+    renderRootNode: function (rootNode, qIndex, allNodes, config, excludeBitacora, skeletonMode) {
         const qId = `r${qIndex}`;
         const nodeType = rootNode.type || DiscourseGraphToolkit.getNodeType(rootNode.title);
         const prefix = `[[${nodeType}]]`;
@@ -166,11 +174,13 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         html += `</h2>`;
         html += `<div class="content">`;
 
-        // Metadata
-        html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+        // Metadata — SKIP en modo esqueleto
+        if (!skeletonMode) {
+            html += helpers.generateMetadataHtml(rootNode.project_metadata || {});
+        }
 
-        // Contenido del nodo raíz
-        if (config[nodeType]) {
+        // Contenido del nodo raíz — SKIP en modo esqueleto
+        if (config[nodeType] && !skeletonMode) {
             const content = DiscourseGraphToolkit.ContentProcessor.extractNodeContent(rootNode.data || rootNode, config[nodeType], nodeType, excludeBitacora);
             if (content) {
                 html += `<div class="node content-node" style="margin-bottom: 10px;">`;
@@ -183,7 +193,9 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         const hasContained = rootNode.contained_nodes && rootNode.contained_nodes.length > 0;
 
         if (!hasContained) {
-            html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            if (!skeletonMode) {
+                html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
+            }
             html += '</div></div>';
             return html;
         }
@@ -191,7 +203,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
         // Renderizar cada nodo contenido (recursión desde profundidad 3)
         for (let j = 0; j < rootNode.contained_nodes.length; j++) {
             const cnId = `r${qIndex}_cn${j}`;
-            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId);
+            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId, skeletonMode);
         }
 
         html += `</div></div>`;
