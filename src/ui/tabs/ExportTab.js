@@ -639,6 +639,12 @@ DiscourseGraphToolkit.ExportTab = function () {
                         )
                     )
                 ),
+                React.createElement('div', {
+                    style: {
+                        fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem', marginBottom: '0.5rem',
+                        lineHeight: '1.3'
+                    }
+                }, 'Controla qu\u00e9 tipos de nodos se incluyen en el \u00e1rbol de exportaci\u00f3n.'),
                 React.createElement('div', { style: { marginTop: '0.625rem', marginBottom: '0.625rem' } },
                     React.createElement('label', {
                         style: { fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }
@@ -658,7 +664,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                     }, 'Modo "rayos X": omite todo el contenido, metadata y mensajes informativos.')
                 ),
                 React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', opacity: skeletonMode ? 0.4 : 1 } }, 'Extraer Todo el Contenido:'),
+                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', opacity: skeletonMode ? 0.4 : 1 } }, 'Extraer contenido detallado por tipo:'),
                     ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
                         React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
                             React.createElement('label', {
@@ -674,6 +680,12 @@ DiscourseGraphToolkit.ExportTab = function () {
                             )
                         )
                     ),
+                    React.createElement('div', {
+                        style: {
+                            fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem',
+                            lineHeight: '1.3'
+                        }
+                    }, 'Los t\u00edtulos siempre aparecen. Marca un tipo para incluir adem\u00e1s el texto de sus bloques internos.'),
                     React.createElement('div', { style: { marginTop: '0.625rem' } },
                         React.createElement('label', {
                             style: { opacity: skeletonMode ? 0.4 : 1 }
