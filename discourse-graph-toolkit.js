@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.43
- * Bundled build: 2026-05-11 11:22:53
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.44
+ * Bundled build: 2026-05-11 13:01:25
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.43";
+    DiscourseGraphToolkit.VERSION = "1.5.44";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -6628,8 +6628,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
             React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem', alignItems: 'center' } },
-                // Checkbox de selección (solo hasta nivel 1)
-                (depth <= 1) && React.createElement('input', {
+                // Checkbox de selección (permitido en todos los niveles)
+                React.createElement('input', {
                     type: 'checkbox',
                     checked: selectedProjects.has(node.project || '(sin proyecto)'),
                     onChange: (e) => {

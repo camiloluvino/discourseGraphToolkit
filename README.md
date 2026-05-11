@@ -45,6 +45,7 @@ Verifica la consistencia de tus ramas de investigación:
   - **🏛️ Badge de Contenedor:** Muestra el número de desalineamientos entre preguntas y sus páginas maestras. Al hacer clic, abre un popover interactivo que lista las discrepancias y permite navegar directamente a la página contenedora para su corrección.
   - **⚠️/❌ Badges de Rama:** Permiten filtrar el árbol o abrir popovers detallados para navegación rápida.
 - **Selector Maestro:** Incluye un checkbox "Seleccionar Todos" para habilitar o deshabilitar auditorías masivas de proyectos con un solo clic.
+- **Selección Profunda:** Permite seleccionar ramas y sub-proyectos en cualquier nivel de profundidad (Nivel 2, 3, 4+) para auditorías focalizadas, eliminando la restricción previa de los primeros dos niveles.
 - **Propagación inteligente unificada:**
   - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
 - **UI Limpia:** Secciones colapsables por tipo de error y detalles técnicos accesibles vía hover (tooltips).

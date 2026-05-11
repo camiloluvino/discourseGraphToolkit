@@ -15,7 +15,7 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Unificación de propagación, soporte para selección masiva y rediseño |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Selección en cualquier nivel de profundidad, propagación masiva y rediseño |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con bloques draggables |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
@@ -31,6 +31,8 @@
   - **Chip activo:** El favorito que coincide con la selección actual se resalta en verde, indicando visualmente qué perfil está activo.
   - **Persistencia aislada:** Los favoritos se almacenan en localStorage con clave aislada por grafo de Roam, independientes entre tabs.
   - **FavoritesService:** Servicio CRUD compartido (`config.js`) con métodos `getAll`, `add`, `update`, `remove`, `rename` y manejo seguro de errores.
+- **Mejora: Selección Profunda en Ramas.** Se eliminó la restricción que limitaba los checkboxes de selección a los niveles 0 y 1 en la pestaña **Ramas**. Ahora es posible seleccionar ramas de cualquier nivel de profundidad (Niveles 2, 3, 4+) para realizar verificaciones de coherencia focalizadas en sub-proyectos anidados.
+
 
 ### v1.5.43 (Mayo 2026)
 - **Feature: Modo "Esqueleto" en Exportación.** Nueva opción "Exportar solo esqueleto (solo títulos y relaciones)" en la pestaña Exportar. Al activarla, los exportadores (HTML, Markdown, MD Plano, EPUB) generan únicamente la estructura jerárquica del grafo de discurso: títulos de nodos (`[[QUE]]`, `[[CLM]]`, `[[EVD]]`, `[[GRI]]`) y sus relaciones (`#RespondedBy`, `#SupportedBy`, `#Contains`), omitiendo todo el contenido interno, metadata y mensajes informativos. Ideal para obtener una "vista de rayos X" del grafo.
