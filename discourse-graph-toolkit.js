@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.43
- * Bundled build: 2026-05-09 15:51:58
+ * Bundled build: 2026-05-11 09:54:24
  */
 
 (function () {
@@ -576,7 +576,8 @@ DiscourseGraphToolkit.STORAGE = {
     PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache",
     PANORAMIC_EXPANDED: "discourseGraphToolkit_panoramic_expanded",
     GROUP_ORDER: "discourseGraphToolkit_group_order",
-    VERIFICATION_CACHE: "discourseGraphToolkit_verificationCache"
+    VERIFICATION_CACHE: "discourseGraphToolkit_verificationCache",
+    FAVORITES: "discourseGraphToolkit_favorites"
 };
 
 // Get current graph name from Roam API or URL
@@ -710,8 +711,79 @@ DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
     "EVD": `Proyecto Asociado:: {PROYECTO}`
 };
 
+// ============================================================================
+// FavoritesService
+// CRUD para perfiles de selección rápida (compartido entre tabs)
+// ============================================================================
+DiscourseGraphToolkit.FavoritesService = {
+    _getStorageKey: function () {
+        return DiscourseGraphToolkit.getStorageKey(DiscourseGraphToolkit.STORAGE.FAVORITES);
+    },
 
+    // Obtener todos los favoritos de un tipo ('branches' o 'export')
+    getAll: function (tabType) {
+        try {
+            const raw = localStorage.getItem(this._getStorageKey());
+            const all = raw ? JSON.parse(raw) : {};
+            return all[tabType] || [];
+        } catch (e) {
+            console.warn('FavoritesService: Error reading favorites', e);
+            return [];
+        }
+    },
 
+    // Guardar la lista completa de un tipo
+    _saveAll: function (tabType, list) {
+        try {
+            const raw = localStorage.getItem(this._getStorageKey());
+            const all = raw ? JSON.parse(raw) : {};
+            all[tabType] = list;
+            localStorage.setItem(this._getStorageKey(), JSON.stringify(all));
+            return true;
+        } catch (e) {
+            console.warn('FavoritesService: Error saving favorites', e);
+            return false;
+        }
+    },
+
+    // Agregar un favorito
+    add: function (tabType, name, data) {
+        const list = this.getAll(tabType);
+        const id = 'fav_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        list.push({
+            id: id,
+            name: name.trim().substring(0, 40),
+            timestamp: Date.now(),
+            data: data
+        });
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Actualizar un favorito existente (por id)
+    update: function (tabType, id, updates) {
+        const list = this.getAll(tabType);
+        const idx = list.findIndex(f => f.id === id);
+        if (idx === -1) return list;
+        if (updates.name) updates.name = updates.name.trim().substring(0, 40);
+        if (updates.timestamp === undefined) updates.timestamp = Date.now();
+        list[idx] = { ...list[idx], ...updates };
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Eliminar un favorito por id
+    remove: function (tabType, id) {
+        const list = this.getAll(tabType).filter(f => f.id !== id);
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Renombrar un favorito
+    rename: function (tabType, id, newName) {
+        return this.update(tabType, id, { name: newName });
+    }
+};
 
 // --- MODULE: src/utils/helpers.js ---
 // ============================================================================
@@ -6019,6 +6091,58 @@ DiscourseGraphToolkit.BranchesTab = function () {
         verificationProgress, setVerificationProgress
     } = DiscourseGraphToolkit.useBranches();
 
+    // --- Favorites ---
+    const [favorites, setFavorites] = React.useState([]);
+    const [showSaveDialog, setShowSaveDialog] = React.useState(false);
+    const [saveDialogName, setSaveDialogName] = React.useState('');
+
+    // Cargar favoritos al montar
+    React.useEffect(() => {
+        setFavorites(DiscourseGraphToolkit.FavoritesService.getAll('branches'));
+    }, []);
+
+    const handleSaveFavorite = () => {
+        const name = saveDialogName.trim();
+        if (!name) return;
+        const data = {
+            selectedProjects: Array.from(selectedProjects)
+        };
+        const updated = DiscourseGraphToolkit.FavoritesService.add('branches', name, data);
+        setFavorites(updated);
+        setSaveDialogName('');
+        setShowSaveDialog(false);
+        DiscourseGraphToolkit.showToast('Favorito guardado: ' + name, 'success');
+    };
+
+    const handleApplyFavorite = (fav) => {
+        const data = fav.data;
+        if (data.selectedProjects && Array.isArray(data.selectedProjects)) {
+            setSelectedProjects(new Set(data.selectedProjects));
+        }
+        DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
+    };
+
+    const handleDeleteFavorite = (favId, favName, e) => {
+        e.stopPropagation();
+        if (!confirm('¿Eliminar favorito "' + favName + '"?')) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.remove('branches', favId);
+        setFavorites(updated);
+    };
+
+    const handleRenameFavorite = (favId, currentName) => {
+        const newName = prompt('Nuevo nombre:', currentName);
+        if (!newName || newName.trim() === currentName) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.rename('branches', favId, newName.trim());
+        setFavorites(updated);
+    };
+
+    const isFavoriteActive = (fav) => {
+        const current = Array.from(selectedProjects).sort();
+        const saved = (fav.data.selectedProjects || []).sort();
+        if (current.length !== saved.length) return false;
+        return current.every((v, i) => v === saved[i]);
+    };
+
     // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'container' | null
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
@@ -6567,6 +6691,93 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 style: { minWidth: '120px' },
                 className: 'dgt-btn dgt-btn-primary'
             }, isBulkVerifying ? (verificationProgress.total > 0 ? `⏳ (${verificationProgress.current}/${verificationProgress.total})` : '⏳ Iniciando...') : '🔄 Procesar')
+        ),
+
+        // --- Favorites Bar ---
+        React.createElement('div', {
+            style: {
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                marginBottom: '0.5rem',
+                backgroundColor: 'var(--dgt-bg-secondary)',
+                border: '1px solid var(--dgt-border-color)',
+                borderRadius: 'var(--dgt-radius-md)',
+                flexWrap: 'wrap',
+                fontSize: '0.8125rem'
+            }
+        },
+            React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
+            favorites.length === 0 && !showSaveDialog && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
+            favorites.map(function (fav) {
+                var isActive = isFavoriteActive(fav);
+                return React.createElement('span', {
+                    key: fav.id,
+                    onClick: function () { handleApplyFavorite(fav); },
+                    title: fav.name + (isActive ? ' (activo)' : ''),
+                    style: {
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '2px 8px',
+                        backgroundColor: isActive ? 'var(--dgt-accent-green)' : 'transparent',
+                        color: isActive ? '#fff' : 'var(--dgt-text-primary)',
+                        border: '1px solid ' + (isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-border-color)'),
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'all 0.15s ease'
+                    }
+                },
+                    React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
+                    React.createElement('span', {
+                        onClick: function (e) { e.stopPropagation(); handleRenameFavorite(fav.id, fav.name); },
+                        style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' },
+                        title: 'Haz clic para renombrar'
+                    }, fav.name),
+                    React.createElement('span', {
+                        onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
+                        style: { cursor: 'pointer', opacity: 0.6, marginLeft: '2px', fontSize: '0.65rem', color: isActive ? '#fff' : 'var(--dgt-text-muted)' },
+                        title: 'Eliminar favorito'
+                    }, '✕')
+                );
+            }),
+            !showSaveDialog && React.createElement('button', {
+                onClick: function () { setSaveDialogName(''); setShowSaveDialog(true); },
+                title: 'Guardar selección actual como favorito',
+                style: {
+                    background: 'transparent', border: '1px dashed var(--dgt-border-color)',
+                    borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
+                    fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
+                }
+            }, '+ Guardar'),
+            showSaveDialog && React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+                React.createElement('input', {
+                    type: 'text',
+                    value: saveDialogName,
+                    onChange: function (e) { setSaveDialogName(e.target.value); },
+                    onKeyDown: function (e) { if (e.key === 'Enter') handleSaveFavorite(); if (e.key === 'Escape') setShowSaveDialog(false); },
+                    placeholder: 'Nombre del favorito...',
+                    autoFocus: true,
+                    style: {
+                        padding: '2px 6px', fontSize: '0.75rem',
+                        border: '1px solid var(--dgt-border-focus)',
+                        borderRadius: '4px', width: '140px',
+                        outline: 'none'
+                    }
+                }),
+                React.createElement('button', {
+                    onClick: handleSaveFavorite,
+                    disabled: !saveDialogName.trim(),
+                    style: {
+                        padding: '2px 8px', fontSize: '0.7rem',
+                        border: 'none', borderRadius: '4px',
+                        backgroundColor: saveDialogName.trim() ? 'var(--dgt-accent-green)' : 'var(--dgt-text-muted)',
+                        color: '#fff', cursor: saveDialogName.trim() ? 'pointer' : 'default'
+                    }
+                }, 'OK'),
+                React.createElement('button', {
+                    onClick: function () { setShowSaveDialog(false); },
+                    style: { padding: '2px 6px', fontSize: '0.7rem', border: 'none', borderRadius: '4px', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--dgt-text-muted)' }
+                }, '✕')
+            )
         ),
 
         // Barra de resumen con badges y status
@@ -7861,6 +8072,80 @@ DiscourseGraphToolkit.ExportTab = function () {
         orderedQuestions, setOrderedQuestions
     } = DiscourseGraphToolkit.useExport();
 
+    // --- Favorites ---
+    const [favorites, setFavorites] = React.useState([]);
+    const [showSaveDialog, setShowSaveDialog] = React.useState(false);
+    const [saveDialogName, setSaveDialogName] = React.useState('');
+
+    // Cargar favoritos al montar
+    React.useEffect(() => {
+        setFavorites(DiscourseGraphToolkit.FavoritesService.getAll('export'));
+    }, []);
+
+    const handleSaveFavorite = () => {
+        const name = saveDialogName.trim();
+        if (!name) return;
+        const data = {
+            selectedProjects: { ...selectedProjects },
+            selectedTypes: { ...selectedTypes },
+            contentConfig: { ...contentConfig },
+            excludeBitacora: excludeBitacora,
+            skeletonMode: skeletonMode
+        };
+        const updated = DiscourseGraphToolkit.FavoritesService.add('export', name, data);
+        setFavorites(updated);
+        setSaveDialogName('');
+        setShowSaveDialog(false);
+        DiscourseGraphToolkit.showToast('Favorito guardado: ' + name, 'success');
+    };
+
+    const handleApplyFavorite = (fav) => {
+        const data = fav.data;
+        if (data.selectedProjects) setSelectedProjects({ ...data.selectedProjects });
+        if (data.selectedTypes) setSelectedTypes({ ...data.selectedTypes });
+        if (data.contentConfig) setContentConfig({ ...data.contentConfig });
+        if (data.excludeBitacora !== undefined) setExcludeBitacora(data.excludeBitacora);
+        if (data.skeletonMode !== undefined) setSkeletonMode(data.skeletonMode);
+        DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
+    };
+
+    const handleDeleteFavorite = (favId, favName, e) => {
+        e.stopPropagation();
+        if (!confirm('¿Eliminar favorito "' + favName + '"?')) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.remove('export', favId);
+        setFavorites(updated);
+    };
+
+    const handleRenameFavorite = (favId, currentName) => {
+        const newName = prompt('Nuevo nombre:', currentName);
+        if (!newName || newName.trim() === currentName) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.rename('export', favId, newName.trim());
+        setFavorites(updated);
+    };
+
+    const isFavoriteActive = (fav) => {
+        const data = fav.data;
+        if (!data) return false;
+        // Comparar selectedProjects (objeto)
+        const currentProjKeys = Object.keys(selectedProjects).filter(k => selectedProjects[k]).sort();
+        const savedProjKeys = Object.keys(data.selectedProjects || {}).filter(k => data.selectedProjects[k]).sort();
+        if (currentProjKeys.join(',') !== savedProjKeys.join(',')) return false;
+        // Comparar selectedTypes
+        const typesEqual = data.selectedTypes &&
+            Object.keys(data.selectedTypes).every(k => data.selectedTypes[k] === selectedTypes[k]) &&
+            Object.keys(selectedTypes).every(k => data.selectedTypes[k] === selectedTypes[k]);
+        if (!typesEqual) return false;
+        // Comparar contentConfig
+        const contentEqual = data.contentConfig &&
+            Object.keys(data.contentConfig).every(k => data.contentConfig[k] === contentConfig[k]) &&
+            Object.keys(contentConfig).every(k => data.contentConfig[k] === contentConfig[k]);
+        if (!contentEqual) return false;
+        // Comparar flags
+        if (data.excludeBitacora !== undefined && data.excludeBitacora !== excludeBitacora) return false;
+        if (data.skeletonMode !== undefined && data.skeletonMode !== skeletonMode) return false;
+        return true;
+    };
+
     // --- Limpiar preview cuando cambian los proyectos seleccionados ---
     React.useEffect(() => {
         setPreviewPages([]);
@@ -8444,6 +8729,94 @@ DiscourseGraphToolkit.ExportTab = function () {
     // --- Render ---
     return React.createElement('div', { className: 'dgt-container' },
         React.createElement('h3', { style: { marginTop: 0, marginBottom: '1.25rem' } }, 'Exportar Grafos'),
+
+        // --- Favorites Bar ---
+        React.createElement('div', {
+            style: {
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                marginBottom: '1rem',
+                backgroundColor: 'var(--dgt-bg-secondary)',
+                border: '1px solid var(--dgt-border-color)',
+                borderRadius: 'var(--dgt-radius-md)',
+                flexWrap: 'wrap',
+                fontSize: '0.8125rem'
+            }
+        },
+            React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
+            favorites.length === 0 && !showSaveDialog && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
+            favorites.map(function (fav) {
+                var isActive = isFavoriteActive(fav);
+                return React.createElement('span', {
+                    key: fav.id,
+                    onClick: function () { handleApplyFavorite(fav); },
+                    title: fav.name + (isActive ? ' (activo)' : ''),
+                    style: {
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '2px 8px',
+                        backgroundColor: isActive ? 'var(--dgt-accent-green)' : 'transparent',
+                        color: isActive ? '#fff' : 'var(--dgt-text-primary)',
+                        border: '1px solid ' + (isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-border-color)'),
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'all 0.15s ease'
+                    }
+                },
+                    React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
+                    React.createElement('span', {
+                        onClick: function (e) { e.stopPropagation(); handleRenameFavorite(fav.id, fav.name); },
+                        style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' },
+                        title: 'Haz clic para renombrar'
+                    }, fav.name),
+                    React.createElement('span', {
+                        onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
+                        style: { cursor: 'pointer', opacity: 0.6, marginLeft: '2px', fontSize: '0.65rem', color: isActive ? '#fff' : 'var(--dgt-text-muted)' },
+                        title: 'Eliminar favorito'
+                    }, '✕')
+                );
+            }),
+            !showSaveDialog && React.createElement('button', {
+                onClick: function () { setSaveDialogName(''); setShowSaveDialog(true); },
+                title: 'Guardar selección actual como favorito',
+                style: {
+                    background: 'transparent', border: '1px dashed var(--dgt-border-color)',
+                    borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
+                    fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
+                }
+            }, '+ Guardar'),
+            showSaveDialog && React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+                React.createElement('input', {
+                    type: 'text',
+                    value: saveDialogName,
+                    onChange: function (e) { setSaveDialogName(e.target.value); },
+                    onKeyDown: function (e) { if (e.key === 'Enter') handleSaveFavorite(); if (e.key === 'Escape') setShowSaveDialog(false); },
+                    placeholder: 'Nombre del favorito...',
+                    autoFocus: true,
+                    style: {
+                        padding: '2px 6px', fontSize: '0.75rem',
+                        border: '1px solid var(--dgt-border-focus)',
+                        borderRadius: '4px', width: '140px',
+                        outline: 'none'
+                    }
+                }),
+                React.createElement('button', {
+                    onClick: handleSaveFavorite,
+                    disabled: !saveDialogName.trim(),
+                    style: {
+                        padding: '2px 8px', fontSize: '0.7rem',
+                        border: 'none', borderRadius: '4px',
+                        backgroundColor: saveDialogName.trim() ? 'var(--dgt-accent-green)' : 'var(--dgt-text-muted)',
+                        color: '#fff', cursor: saveDialogName.trim() ? 'pointer' : 'default'
+                    }
+                }, 'OK'),
+                React.createElement('button', {
+                    onClick: function () { setShowSaveDialog(false); },
+                    style: { padding: '2px 6px', fontSize: '0.7rem', border: 'none', borderRadius: '4px', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--dgt-text-muted)' }
+                }, '✕')
+            )
+        ),
+
         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'stretch', flex: 1, minHeight: 0 } },
             React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
                 React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },

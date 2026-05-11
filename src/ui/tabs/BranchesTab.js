@@ -15,6 +15,58 @@ DiscourseGraphToolkit.BranchesTab = function () {
         verificationProgress, setVerificationProgress
     } = DiscourseGraphToolkit.useBranches();
 
+    // --- Favorites ---
+    const [favorites, setFavorites] = React.useState([]);
+    const [showSaveDialog, setShowSaveDialog] = React.useState(false);
+    const [saveDialogName, setSaveDialogName] = React.useState('');
+
+    // Cargar favoritos al montar
+    React.useEffect(() => {
+        setFavorites(DiscourseGraphToolkit.FavoritesService.getAll('branches'));
+    }, []);
+
+    const handleSaveFavorite = () => {
+        const name = saveDialogName.trim();
+        if (!name) return;
+        const data = {
+            selectedProjects: Array.from(selectedProjects)
+        };
+        const updated = DiscourseGraphToolkit.FavoritesService.add('branches', name, data);
+        setFavorites(updated);
+        setSaveDialogName('');
+        setShowSaveDialog(false);
+        DiscourseGraphToolkit.showToast('Favorito guardado: ' + name, 'success');
+    };
+
+    const handleApplyFavorite = (fav) => {
+        const data = fav.data;
+        if (data.selectedProjects && Array.isArray(data.selectedProjects)) {
+            setSelectedProjects(new Set(data.selectedProjects));
+        }
+        DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
+    };
+
+    const handleDeleteFavorite = (favId, favName, e) => {
+        e.stopPropagation();
+        if (!confirm('¿Eliminar favorito "' + favName + '"?')) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.remove('branches', favId);
+        setFavorites(updated);
+    };
+
+    const handleRenameFavorite = (favId, currentName) => {
+        const newName = prompt('Nuevo nombre:', currentName);
+        if (!newName || newName.trim() === currentName) return;
+        const updated = DiscourseGraphToolkit.FavoritesService.rename('branches', favId, newName.trim());
+        setFavorites(updated);
+    };
+
+    const isFavoriteActive = (fav) => {
+        const current = Array.from(selectedProjects).sort();
+        const saved = (fav.data.selectedProjects || []).sort();
+        if (current.length !== saved.length) return false;
+        return current.every((v, i) => v === saved[i]);
+    };
+
     // --- Estado para popover (mantener para resumen) y Filtro de Árbol ---
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'container' | null
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
@@ -563,6 +615,93 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 style: { minWidth: '120px' },
                 className: 'dgt-btn dgt-btn-primary'
             }, isBulkVerifying ? (verificationProgress.total > 0 ? `⏳ (${verificationProgress.current}/${verificationProgress.total})` : '⏳ Iniciando...') : '🔄 Procesar')
+        ),
+
+        // --- Favorites Bar ---
+        React.createElement('div', {
+            style: {
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                marginBottom: '0.5rem',
+                backgroundColor: 'var(--dgt-bg-secondary)',
+                border: '1px solid var(--dgt-border-color)',
+                borderRadius: 'var(--dgt-radius-md)',
+                flexWrap: 'wrap',
+                fontSize: '0.8125rem'
+            }
+        },
+            React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
+            favorites.length === 0 && !showSaveDialog && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
+            favorites.map(function (fav) {
+                var isActive = isFavoriteActive(fav);
+                return React.createElement('span', {
+                    key: fav.id,
+                    onClick: function () { handleApplyFavorite(fav); },
+                    title: fav.name + (isActive ? ' (activo)' : ''),
+                    style: {
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '2px 8px',
+                        backgroundColor: isActive ? 'var(--dgt-accent-green)' : 'transparent',
+                        color: isActive ? '#fff' : 'var(--dgt-text-primary)',
+                        border: '1px solid ' + (isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-border-color)'),
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'all 0.15s ease'
+                    }
+                },
+                    React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
+                    React.createElement('span', {
+                        onClick: function (e) { e.stopPropagation(); handleRenameFavorite(fav.id, fav.name); },
+                        style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' },
+                        title: 'Haz clic para renombrar'
+                    }, fav.name),
+                    React.createElement('span', {
+                        onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
+                        style: { cursor: 'pointer', opacity: 0.6, marginLeft: '2px', fontSize: '0.65rem', color: isActive ? '#fff' : 'var(--dgt-text-muted)' },
+                        title: 'Eliminar favorito'
+                    }, '✕')
+                );
+            }),
+            !showSaveDialog && React.createElement('button', {
+                onClick: function () { setSaveDialogName(''); setShowSaveDialog(true); },
+                title: 'Guardar selección actual como favorito',
+                style: {
+                    background: 'transparent', border: '1px dashed var(--dgt-border-color)',
+                    borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
+                    fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
+                }
+            }, '+ Guardar'),
+            showSaveDialog && React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+                React.createElement('input', {
+                    type: 'text',
+                    value: saveDialogName,
+                    onChange: function (e) { setSaveDialogName(e.target.value); },
+                    onKeyDown: function (e) { if (e.key === 'Enter') handleSaveFavorite(); if (e.key === 'Escape') setShowSaveDialog(false); },
+                    placeholder: 'Nombre del favorito...',
+                    autoFocus: true,
+                    style: {
+                        padding: '2px 6px', fontSize: '0.75rem',
+                        border: '1px solid var(--dgt-border-focus)',
+                        borderRadius: '4px', width: '140px',
+                        outline: 'none'
+                    }
+                }),
+                React.createElement('button', {
+                    onClick: handleSaveFavorite,
+                    disabled: !saveDialogName.trim(),
+                    style: {
+                        padding: '2px 8px', fontSize: '0.7rem',
+                        border: 'none', borderRadius: '4px',
+                        backgroundColor: saveDialogName.trim() ? 'var(--dgt-accent-green)' : 'var(--dgt-text-muted)',
+                        color: '#fff', cursor: saveDialogName.trim() ? 'pointer' : 'default'
+                    }
+                }, 'OK'),
+                React.createElement('button', {
+                    onClick: function () { setShowSaveDialog(false); },
+                    style: { padding: '2px 6px', fontSize: '0.7rem', border: 'none', borderRadius: '4px', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--dgt-text-muted)' }
+                }, '✕')
+            )
         ),
 
         // Barra de resumen con badges y status

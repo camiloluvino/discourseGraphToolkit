@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-09
+**Última actualización:** 2026-05-11
 
 ## Versión Actual
 
-**v1.5.43**
+**v1.5.44**
 
 ## Estado de Funcionalidades
 
@@ -23,9 +23,17 @@
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
 
+### v1.5.44 (Mayo 2026)
+- **Feature: Sistema de Favoritos (Perfiles de Selección Rápida).** Nueva barra ⭐ Favoritos en las pestañas **Ramas** y **Exportar** que permite guardar y restaurar configuraciones de selección con un clic.
+  - **Guardar selección:** Botón "+ Guardar" captura el estado actual de proyectos (y tipos/config en Exportar) en un perfil con nombre personalizado.
+  - **Aplicar con un clic:** Cada favorito aparece como un chip 🔖 clickeable. Al seleccionarlo, restaura automáticamente toda la configuración guardada.
+  - **Edición completa:** Los chips se pueden renombrar (clic en el nombre) y eliminar (✕). Diálogo inline para nombrar nuevos favoritos.
+  - **Chip activo:** El favorito que coincide con la selección actual se resalta en verde, indicando visualmente qué perfil está activo.
+  - **Persistencia aislada:** Los favoritos se almacenan en localStorage con clave aislada por grafo de Roam, independientes entre tabs.
+  - **FavoritesService:** Servicio CRUD compartido (`config.js`) con métodos `getAll`, `add`, `update`, `remove`, `rename` y manejo seguro de errores.
+
 ### v1.5.43 (Mayo 2026)
 - **Feature: Modo "Esqueleto" en Exportación.** Nueva opción "Exportar solo esqueleto (solo títulos y relaciones)" en la pestaña Exportar. Al activarla, los exportadores (HTML, Markdown, MD Plano, EPUB) generan únicamente la estructura jerárquica del grafo de discurso: títulos de nodos (`[[QUE]]`, `[[CLM]]`, `[[EVD]]`, `[[GRI]]`) y sus relaciones (`#RespondedBy`, `#SupportedBy`, `#Contains`), omitiendo todo el contenido interno, metadata y mensajes informativos. Ideal para obtener una "vista de rayos X" del grafo.
-- **Fix: Modo esqueleto no mostraba CLMs ni EVDs.** Se corrigió un bug donde el modo esqueleto cortaba los datos estructurales (hijos y refs) que el `RelationshipMapper` necesita para descubrir las relaciones entre nodos, resultando en exportaciones que solo mostraban los QUE sin sus ramas. Ahora el pull de datos desde Roam y el mapeo de relaciones funcionan igual que siempre; el filtrado de contenido se aplica exclusivamente en los renderers.
 
 ### v1.5.42 (Mayo 2026)
 - **Seguridad: Mitigación de Vulnerabilidades.**

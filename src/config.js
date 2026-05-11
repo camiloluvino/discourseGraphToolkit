@@ -17,7 +17,8 @@ DiscourseGraphToolkit.STORAGE = {
     PANORAMIC_CACHE: "discourseGraphToolkit_panoramic_cache",
     PANORAMIC_EXPANDED: "discourseGraphToolkit_panoramic_expanded",
     GROUP_ORDER: "discourseGraphToolkit_group_order",
-    VERIFICATION_CACHE: "discourseGraphToolkit_verificationCache"
+    VERIFICATION_CACHE: "discourseGraphToolkit_verificationCache",
+    FAVORITES: "discourseGraphToolkit_favorites"
 };
 
 // Get current graph name from Roam API or URL
@@ -151,4 +152,76 @@ DiscourseGraphToolkit.DEFAULT_TEMPLATES = {
     "EVD": `Proyecto Asociado:: {PROYECTO}`
 };
 
+// ============================================================================
+// FavoritesService
+// CRUD para perfiles de selección rápida (compartido entre tabs)
+// ============================================================================
+DiscourseGraphToolkit.FavoritesService = {
+    _getStorageKey: function () {
+        return DiscourseGraphToolkit.getStorageKey(DiscourseGraphToolkit.STORAGE.FAVORITES);
+    },
 
+    // Obtener todos los favoritos de un tipo ('branches' o 'export')
+    getAll: function (tabType) {
+        try {
+            const raw = localStorage.getItem(this._getStorageKey());
+            const all = raw ? JSON.parse(raw) : {};
+            return all[tabType] || [];
+        } catch (e) {
+            console.warn('FavoritesService: Error reading favorites', e);
+            return [];
+        }
+    },
+
+    // Guardar la lista completa de un tipo
+    _saveAll: function (tabType, list) {
+        try {
+            const raw = localStorage.getItem(this._getStorageKey());
+            const all = raw ? JSON.parse(raw) : {};
+            all[tabType] = list;
+            localStorage.setItem(this._getStorageKey(), JSON.stringify(all));
+            return true;
+        } catch (e) {
+            console.warn('FavoritesService: Error saving favorites', e);
+            return false;
+        }
+    },
+
+    // Agregar un favorito
+    add: function (tabType, name, data) {
+        const list = this.getAll(tabType);
+        const id = 'fav_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        list.push({
+            id: id,
+            name: name.trim().substring(0, 40),
+            timestamp: Date.now(),
+            data: data
+        });
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Actualizar un favorito existente (por id)
+    update: function (tabType, id, updates) {
+        const list = this.getAll(tabType);
+        const idx = list.findIndex(f => f.id === id);
+        if (idx === -1) return list;
+        if (updates.name) updates.name = updates.name.trim().substring(0, 40);
+        if (updates.timestamp === undefined) updates.timestamp = Date.now();
+        list[idx] = { ...list[idx], ...updates };
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Eliminar un favorito por id
+    remove: function (tabType, id) {
+        const list = this.getAll(tabType).filter(f => f.id !== id);
+        this._saveAll(tabType, list);
+        return list;
+    },
+
+    // Renombrar un favorito
+    rename: function (tabType, id, newName) {
+        return this.update(tabType, id, { name: newName });
+    }
+};
