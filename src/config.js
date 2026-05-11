@@ -187,13 +187,37 @@ DiscourseGraphToolkit.FavoritesService = {
         }
     },
 
-    // Agregar un favorito
+    // Agregar (o sobrescribir) un favorito
+    // Si name es null/undefined, se genera automáticamente usando DiscourseGraphToolkit.computeFavoriteName
+    // Si ya existe un favorito con ese nombre, se actualiza (sobrescribe)
     add: function (tabType, name, data) {
+        // Si no se pasó nombre, generarlo automáticamente desde los datos
+        if (!name && data && data.selectedProjects) {
+            name = DiscourseGraphToolkit.computeFavoriteName(data.selectedProjects);
+        }
+        if (!name) name = 'favorito';
+
         const list = this.getAll(tabType);
+        const trimmedName = name.trim().substring(0, 40);
+
+        // Buscar si ya existe un favorito con el mismo nombre (namespace)
+        const existingIdx = list.findIndex(f => f.name === trimmedName);
+        if (existingIdx !== -1) {
+            // Actualizar el existente
+            list[existingIdx] = {
+                ...list[existingIdx],
+                timestamp: Date.now(),
+                data: data
+            };
+            this._saveAll(tabType, list);
+            return list;
+        }
+
+        // No existe, crear nuevo
         const id = 'fav_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
         list.push({
             id: id,
-            name: name.trim().substring(0, 40),
+            name: trimmedName,
             timestamp: Date.now(),
             data: data
         });
@@ -223,5 +247,69 @@ DiscourseGraphToolkit.FavoritesService = {
     // Renombrar un favorito
     rename: function (tabType, id, newName) {
         return this.update(tabType, id, { name: newName });
+    }
+};
+
+// ============================================================================
+// Función auxiliar para generar nombre de favorito basado en namespace
+// ============================================================================
+
+/**
+ * Genera un nombre automático para un favorito basado en el namespace
+ * (ruta de proyecto común) de los proyectos seleccionados.
+ * Filtra proyectos intermedios (que son prefijo de otro proyecto más específico),
+ * dejando solo los proyectos "hoja" para calcular el namespace.
+ *
+ * @param {Set<string>|Object} selectedProjects - Set de strings (Branches) u objeto {proyecto: bool} (Export)
+ * @returns {string} - Nombre generado (namespace común o concatenación)
+ */
+DiscourseGraphToolkit.computeFavoriteName = function (selectedProjects) {
+    // Obtener array de nombres de proyectos seleccionados
+    let projects;
+    if (selectedProjects instanceof Set) {
+        projects = Array.from(selectedProjects).filter(p => p && p !== '(sin proyecto)');
+    } else if (Array.isArray(selectedProjects)) {
+        // Array: usar los valores directamente (ej: BranchesTab con Array.from(selectedProjects))
+        projects = selectedProjects.filter(p => p && p !== '(sin proyecto)');
+    } else if (typeof selectedProjects === 'object') {
+        // Objeto { proyecto: bool }: usar las keys con valor true (ej: ExportTab)
+        projects = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+    } else {
+        return 'favorito';
+    }
+
+    if (projects.length === 0) return 'favorito';
+    if (projects.length === 1) return projects[0];
+
+    // Filtrar solo proyectos "hoja": aquellos que NO son prefijo de otro proyecto
+    // (ej: si hay "Filosofía" y "Filosofía/Ética", "Filosofía" es intermedio y se filtra)
+    const leafProjects = projects.filter(p => {
+        const prefix = p + '/';
+        return !projects.some(other => other !== p && other.startsWith(prefix));
+    });
+
+    // Si después de filtrar solo queda 1, usarlo directamente
+    if (leafProjects.length === 0) return projects.sort().join('|');
+    if (leafProjects.length === 1) return leafProjects[0];
+
+    // Calcular el prefijo de ruta común más largo (ancestro común / namespace)
+    const splitPaths = leafProjects.map(p => p.split('/'));
+    const minLength = Math.min(...splitPaths.map(p => p.length));
+
+    let commonParts = [];
+    for (let i = 0; i < minLength; i++) {
+        const segment = splitPaths[0][i];
+        if (splitPaths.every(path => path[i] === segment)) {
+            commonParts.push(segment);
+        } else {
+            break;
+        }
+    }
+
+    // Si hay ancestro común (namespace), usarlo; de lo contrario concatenar ordenado
+    if (commonParts.length > 0) {
+        return commonParts.join('/');
+    } else {
+        return leafProjects.sort().join('|');
     }
 };

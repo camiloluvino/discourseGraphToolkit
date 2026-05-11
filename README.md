@@ -49,6 +49,12 @@ Verifica la consistencia de tus ramas de investigación:
   - `🔄 Propagar` — Botón único que corrige automáticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
 - **UI Limpia:** Secciones colapsables por tipo de error y detalles técnicos accesibles vía hover (tooltips).
 
+### 3.5 Favoritos por Namespace (Ramas y Exportar)
+Guarda y recupera configuraciones de selección rápida con nombres generados automáticamente:
+- **Nombre automático por namespace:** Al guardar un favorito, el nombre se genera desde el ancestro común de los proyectos seleccionados (ej. `Filosofía/Ética`).
+- **Sobrescritura automática:** Si ya existe un favorito con el mismo namespace, se actualiza silenciosamente (sin duplicados).
+- **Disponible en pestañas Ramas y Exportar:** Cada pestaña guarda su propio conjunto de favoritos.
+
 ### 4. Exportación Multi-Formato
 Exporta tus grafos de discurso en múltiples formatos:
 - **JSON Nativo:** Compatible con el formato de Roam Research.

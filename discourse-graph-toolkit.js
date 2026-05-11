@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.43
- * Bundled build: 2026-05-11 09:54:24
+ * Bundled build: 2026-05-11 11:22:53
  */
 
 (function () {
@@ -746,13 +746,37 @@ DiscourseGraphToolkit.FavoritesService = {
         }
     },
 
-    // Agregar un favorito
+    // Agregar (o sobrescribir) un favorito
+    // Si name es null/undefined, se genera automáticamente usando DiscourseGraphToolkit.computeFavoriteName
+    // Si ya existe un favorito con ese nombre, se actualiza (sobrescribe)
     add: function (tabType, name, data) {
+        // Si no se pasó nombre, generarlo automáticamente desde los datos
+        if (!name && data && data.selectedProjects) {
+            name = DiscourseGraphToolkit.computeFavoriteName(data.selectedProjects);
+        }
+        if (!name) name = 'favorito';
+
         const list = this.getAll(tabType);
+        const trimmedName = name.trim().substring(0, 40);
+
+        // Buscar si ya existe un favorito con el mismo nombre (namespace)
+        const existingIdx = list.findIndex(f => f.name === trimmedName);
+        if (existingIdx !== -1) {
+            // Actualizar el existente
+            list[existingIdx] = {
+                ...list[existingIdx],
+                timestamp: Date.now(),
+                data: data
+            };
+            this._saveAll(tabType, list);
+            return list;
+        }
+
+        // No existe, crear nuevo
         const id = 'fav_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
         list.push({
             id: id,
-            name: name.trim().substring(0, 40),
+            name: trimmedName,
             timestamp: Date.now(),
             data: data
         });
@@ -784,6 +808,71 @@ DiscourseGraphToolkit.FavoritesService = {
         return this.update(tabType, id, { name: newName });
     }
 };
+
+// ============================================================================
+// Función auxiliar para generar nombre de favorito basado en namespace
+// ============================================================================
+
+/**
+ * Genera un nombre automático para un favorito basado en el namespace
+ * (ruta de proyecto común) de los proyectos seleccionados.
+ * Filtra proyectos intermedios (que son prefijo de otro proyecto más específico),
+ * dejando solo los proyectos "hoja" para calcular el namespace.
+ *
+ * @param {Set<string>|Object} selectedProjects - Set de strings (Branches) u objeto {proyecto: bool} (Export)
+ * @returns {string} - Nombre generado (namespace común o concatenación)
+ */
+DiscourseGraphToolkit.computeFavoriteName = function (selectedProjects) {
+    // Obtener array de nombres de proyectos seleccionados
+    let projects;
+    if (selectedProjects instanceof Set) {
+        projects = Array.from(selectedProjects).filter(p => p && p !== '(sin proyecto)');
+    } else if (Array.isArray(selectedProjects)) {
+        // Array: usar los valores directamente (ej: BranchesTab con Array.from(selectedProjects))
+        projects = selectedProjects.filter(p => p && p !== '(sin proyecto)');
+    } else if (typeof selectedProjects === 'object') {
+        // Objeto { proyecto: bool }: usar las keys con valor true (ej: ExportTab)
+        projects = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
+    } else {
+        return 'favorito';
+    }
+
+    if (projects.length === 0) return 'favorito';
+    if (projects.length === 1) return projects[0];
+
+    // Filtrar solo proyectos "hoja": aquellos que NO son prefijo de otro proyecto
+    // (ej: si hay "Filosofía" y "Filosofía/Ética", "Filosofía" es intermedio y se filtra)
+    const leafProjects = projects.filter(p => {
+        const prefix = p + '/';
+        return !projects.some(other => other !== p && other.startsWith(prefix));
+    });
+
+    // Si después de filtrar solo queda 1, usarlo directamente
+    if (leafProjects.length === 0) return projects.sort().join('|');
+    if (leafProjects.length === 1) return leafProjects[0];
+
+    // Calcular el prefijo de ruta común más largo (ancestro común / namespace)
+    const splitPaths = leafProjects.map(p => p.split('/'));
+    const minLength = Math.min(...splitPaths.map(p => p.length));
+
+    let commonParts = [];
+    for (let i = 0; i < minLength; i++) {
+        const segment = splitPaths[0][i];
+        if (splitPaths.every(path => path[i] === segment)) {
+            commonParts.push(segment);
+        } else {
+            break;
+        }
+    }
+
+    // Si hay ancestro común (namespace), usarlo; de lo contrario concatenar ordenado
+    if (commonParts.length > 0) {
+        return commonParts.join('/');
+    } else {
+        return leafProjects.sort().join('|');
+    }
+};
+
 
 // --- MODULE: src/utils/helpers.js ---
 // ============================================================================
@@ -6093,8 +6182,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Favorites ---
     const [favorites, setFavorites] = React.useState([]);
-    const [showSaveDialog, setShowSaveDialog] = React.useState(false);
-    const [saveDialogName, setSaveDialogName] = React.useState('');
 
     // Cargar favoritos al montar
     React.useEffect(() => {
@@ -6102,15 +6189,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
     }, []);
 
     const handleSaveFavorite = () => {
-        const name = saveDialogName.trim();
-        if (!name) return;
         const data = {
             selectedProjects: Array.from(selectedProjects)
         };
-        const updated = DiscourseGraphToolkit.FavoritesService.add('branches', name, data);
+        // El nombre se genera automáticamente desde selectedProjects (por namespace)
+        const updated = DiscourseGraphToolkit.FavoritesService.add('branches', null, data);
         setFavorites(updated);
-        setSaveDialogName('');
-        setShowSaveDialog(false);
+        // Mostrar toast con el nombre generado
+        const name = DiscourseGraphToolkit.computeFavoriteName(selectedProjects);
         DiscourseGraphToolkit.showToast('Favorito guardado: ' + name, 'success');
     };
 
@@ -6707,7 +6793,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }
         },
             React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
-            favorites.length === 0 && !showSaveDialog && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
+            favorites.length === 0 && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
             favorites.map(function (fav) {
                 var isActive = isFavoriteActive(fav);
                 return React.createElement('span', {
@@ -6728,9 +6814,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 },
                     React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
                     React.createElement('span', {
-                        onClick: function (e) { e.stopPropagation(); handleRenameFavorite(fav.id, fav.name); },
-                        style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' },
-                        title: 'Haz clic para renombrar'
+                        style: { maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+                        title: fav.name
                     }, fav.name),
                     React.createElement('span', {
                         onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
@@ -6739,45 +6824,15 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     }, '✕')
                 );
             }),
-            !showSaveDialog && React.createElement('button', {
-                onClick: function () { setSaveDialogName(''); setShowSaveDialog(true); },
-                title: 'Guardar selección actual como favorito',
+            React.createElement('button', {
+                onClick: handleSaveFavorite,
+                title: 'Guardar selección actual como favorito (nombre generado por namespace)',
                 style: {
                     background: 'transparent', border: '1px dashed var(--dgt-border-color)',
                     borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
                     fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
                 }
-            }, '+ Guardar'),
-            showSaveDialog && React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-                React.createElement('input', {
-                    type: 'text',
-                    value: saveDialogName,
-                    onChange: function (e) { setSaveDialogName(e.target.value); },
-                    onKeyDown: function (e) { if (e.key === 'Enter') handleSaveFavorite(); if (e.key === 'Escape') setShowSaveDialog(false); },
-                    placeholder: 'Nombre del favorito...',
-                    autoFocus: true,
-                    style: {
-                        padding: '2px 6px', fontSize: '0.75rem',
-                        border: '1px solid var(--dgt-border-focus)',
-                        borderRadius: '4px', width: '140px',
-                        outline: 'none'
-                    }
-                }),
-                React.createElement('button', {
-                    onClick: handleSaveFavorite,
-                    disabled: !saveDialogName.trim(),
-                    style: {
-                        padding: '2px 8px', fontSize: '0.7rem',
-                        border: 'none', borderRadius: '4px',
-                        backgroundColor: saveDialogName.trim() ? 'var(--dgt-accent-green)' : 'var(--dgt-text-muted)',
-                        color: '#fff', cursor: saveDialogName.trim() ? 'pointer' : 'default'
-                    }
-                }, 'OK'),
-                React.createElement('button', {
-                    onClick: function () { setShowSaveDialog(false); },
-                    style: { padding: '2px 6px', fontSize: '0.7rem', border: 'none', borderRadius: '4px', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--dgt-text-muted)' }
-                }, '✕')
-            )
+            }, '+ Guardar')
         ),
 
         // Barra de resumen con badges y status
@@ -8074,8 +8129,6 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     // --- Favorites ---
     const [favorites, setFavorites] = React.useState([]);
-    const [showSaveDialog, setShowSaveDialog] = React.useState(false);
-    const [saveDialogName, setSaveDialogName] = React.useState('');
 
     // Cargar favoritos al montar
     React.useEffect(() => {
@@ -8083,8 +8136,6 @@ DiscourseGraphToolkit.ExportTab = function () {
     }, []);
 
     const handleSaveFavorite = () => {
-        const name = saveDialogName.trim();
-        if (!name) return;
         const data = {
             selectedProjects: { ...selectedProjects },
             selectedTypes: { ...selectedTypes },
@@ -8092,10 +8143,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             excludeBitacora: excludeBitacora,
             skeletonMode: skeletonMode
         };
-        const updated = DiscourseGraphToolkit.FavoritesService.add('export', name, data);
+        // El nombre se genera automáticamente desde selectedProjects (por namespace)
+        const updated = DiscourseGraphToolkit.FavoritesService.add('export', null, data);
         setFavorites(updated);
-        setSaveDialogName('');
-        setShowSaveDialog(false);
+        // Mostrar toast con el nombre generado
+        const name = DiscourseGraphToolkit.computeFavoriteName(selectedProjects);
         DiscourseGraphToolkit.showToast('Favorito guardado: ' + name, 'success');
     };
 
@@ -8744,7 +8796,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             }
         },
             React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
-            favorites.length === 0 && !showSaveDialog && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
+            favorites.length === 0 && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
             favorites.map(function (fav) {
                 var isActive = isFavoriteActive(fav);
                 return React.createElement('span', {
@@ -8765,9 +8817,8 @@ DiscourseGraphToolkit.ExportTab = function () {
                 },
                     React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
                     React.createElement('span', {
-                        onClick: function (e) { e.stopPropagation(); handleRenameFavorite(fav.id, fav.name); },
-                        style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' },
-                        title: 'Haz clic para renombrar'
+                        style: { maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+                        title: fav.name
                     }, fav.name),
                     React.createElement('span', {
                         onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
@@ -8776,45 +8827,15 @@ DiscourseGraphToolkit.ExportTab = function () {
                     }, '✕')
                 );
             }),
-            !showSaveDialog && React.createElement('button', {
-                onClick: function () { setSaveDialogName(''); setShowSaveDialog(true); },
-                title: 'Guardar selección actual como favorito',
+            React.createElement('button', {
+                onClick: handleSaveFavorite,
+                title: 'Guardar selección actual como favorito (nombre generado por namespace)',
                 style: {
                     background: 'transparent', border: '1px dashed var(--dgt-border-color)',
                     borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
                     fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
                 }
-            }, '+ Guardar'),
-            showSaveDialog && React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-                React.createElement('input', {
-                    type: 'text',
-                    value: saveDialogName,
-                    onChange: function (e) { setSaveDialogName(e.target.value); },
-                    onKeyDown: function (e) { if (e.key === 'Enter') handleSaveFavorite(); if (e.key === 'Escape') setShowSaveDialog(false); },
-                    placeholder: 'Nombre del favorito...',
-                    autoFocus: true,
-                    style: {
-                        padding: '2px 6px', fontSize: '0.75rem',
-                        border: '1px solid var(--dgt-border-focus)',
-                        borderRadius: '4px', width: '140px',
-                        outline: 'none'
-                    }
-                }),
-                React.createElement('button', {
-                    onClick: handleSaveFavorite,
-                    disabled: !saveDialogName.trim(),
-                    style: {
-                        padding: '2px 8px', fontSize: '0.7rem',
-                        border: 'none', borderRadius: '4px',
-                        backgroundColor: saveDialogName.trim() ? 'var(--dgt-accent-green)' : 'var(--dgt-text-muted)',
-                        color: '#fff', cursor: saveDialogName.trim() ? 'pointer' : 'default'
-                    }
-                }, 'OK'),
-                React.createElement('button', {
-                    onClick: function () { setShowSaveDialog(false); },
-                    style: { padding: '2px 6px', fontSize: '0.7rem', border: 'none', borderRadius: '4px', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--dgt-text-muted)' }
-                }, '✕')
-            )
+            }, '+ Guardar')
         ),
 
         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'stretch', flex: 1, minHeight: 0 } },
