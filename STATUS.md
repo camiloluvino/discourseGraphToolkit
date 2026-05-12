@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.45**
+**v1.5.46**
 
 ## Estado de Funcionalidades
 
@@ -19,9 +19,15 @@
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con bloques draggables |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam |
-| Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
-| Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
+| Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI e integración Paso 3 |
+| Exportación Markdown | ✅ Muy Mejorado | Nuevo flujo con Paso 3 (Ordenación) y fix de sincronización |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.46 (Mayo 2026)
+- **Feature: Rediseño del Flujo de Exportación (Paso 3).** Se implementó un nuevo botón "Generar Orden de Exportación" en la pestaña Exportar para separar el cálculo de nodos de la descarga del archivo. Esto permite al usuario previsualizar y organizar los nodos antes de exportar.
+- **Fix: Sincronización Crítica en Exportación.** Se resolvió una condición de carrera donde el exportador leía un estado "vacío" si se iniciaba la descarga inmediatamente. Ahora `handlePreview` retorna los datos calculados de forma síncrona a los handlers de exportación.
+- **UX: Visibilidad Permanente del Paso 3.** El contenedor de orden de exportación ahora es siempre visible, mejorando la descubribilidad de la función de reordenamiento.
+- **Tech:** Unificación de `getParentProjectKey` en todos los flujos de exportación y eliminación de referencias huérfanas a lógica de ordenamiento antigua.
 
 ### v1.5.45 (Mayo 2026)
 - **Performance: Optimización Crítica en Consultas de Exportación.** Se rediseñó la función `findPagesWithProject` para utilizar índices nativos de Roam (`:block/refs`) en lugar de escaneo de texto completo. Esta mejora elimina el cuello de botella O(N) en la búsqueda de proyectos, permitiendo que el proceso de exportación se inicie de forma casi instantánea incluso en grafos con cientos de miles de bloques.

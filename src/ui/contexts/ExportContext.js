@@ -18,6 +18,7 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
     const [orderedQuestions, setOrderedQuestions] = React.useState([]);
+    const [orderedGroups, setOrderedGroups] = React.useState([]);
 
     const value = React.useMemo(() => ({
         selectedProjects, setSelectedProjects,
@@ -28,8 +29,9 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
-        orderedQuestions, setOrderedQuestions
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, orderedQuestions]);
+        orderedQuestions, setOrderedQuestions,
+        orderedGroups, setOrderedGroups
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, orderedQuestions, orderedGroups]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

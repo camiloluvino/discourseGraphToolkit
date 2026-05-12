@@ -33,15 +33,9 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Estado local para el orden de preguntas (modo individual)
+    // Orden de nodos (solo lectura — se edita en Exportación › Paso 3)
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
-
-    // Estado local para el orden de grupos (modo agrupado)
     const [orderedGroupKeys, setOrderedGroupKeys] = React.useState([]);
-
-    // Estados para Drag & Drop
-    const [dragItemIndex, setDragItemIndex] = React.useState(null);
-    const [dragOverItemIndex, setDragOverItemIndex] = React.useState(null);
 
     // Estado para tracking del timestamp del cache
     const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
@@ -49,13 +43,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // --- Computar sub-proyectos inmediatos y modo agrupado ---
     const immediateSubProjects = React.useMemo(() => {
         if (!panoramicData || !selectedProject) return [];
-        // Buscar sub-proyectos directos (profundidad = selectedProject.depth + 1)
         const selectedDepth = selectedProject.split('/').length;
         const subProjects = new Set();
-
         Object.values(panoramicData.allNodes).forEach(node => {
             if (node.project && node.project.startsWith(selectedProject + '/')) {
-                // Extraer el sub-proyecto inmediato
                 const parts = node.project.split('/');
                 if (parts.length > selectedDepth) {
                     const immediateChild = parts.slice(0, selectedDepth + 1).join('/');
@@ -63,102 +54,38 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 }
             }
         });
-
         return Array.from(subProjects).sort();
     }, [panoramicData, selectedProject]);
 
     const isGroupedMode = selectedProject && immediateSubProjects.length > 0;
 
-    // --- Helpers de Reordenamiento (Drag & Drop) ---
-    const handleDragStart = (e, index) => {
-        setDragItemIndex(index);
-        if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = "move";
-        }
-    };
-
-    const handleDragEnter = (e, index) => {
-        e.preventDefault();
-        // Evitar triggers extras si ya es el mismo
-        if (index !== dragOverItemIndex) setDragOverItemIndex(index);
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault(); // Necesario para permitir el drop
-    };
-
-    const handleDragEnd = () => {
-        setDragItemIndex(null);
-        setDragOverItemIndex(null);
-    };
-
-    const handleDrop = (e, dropIndex) => {
-        e.preventDefault();
-        if (dragItemIndex === null || dropIndex === null || !selectedProject) return;
-        
-        if (dragItemIndex !== dropIndex) {
-            if (isGroupedMode) {
-                // Modo agrupado: reordenar grupos
-                const newOrder = [...orderedGroupKeys];
-                const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
-                let insertIndex = dropIndex;
-                if (dragItemIndex < dropIndex) {
-                    insertIndex = dropIndex - 1;
-                }
-                if (insertIndex < 0) insertIndex = 0;
-                newOrder.splice(insertIndex, 0, draggedItem);
-                setOrderedGroupKeys(newOrder);
-                DiscourseGraphToolkit.saveGroupOrder(selectedProject, newOrder);
-            } else {
-                // Modo individual: reordenar nodos
-                const newOrder = [...orderedQuestionUIDs];
-                const draggedItem = newOrder.splice(dragItemIndex, 1)[0];
-                let insertIndex = dropIndex;
-                if (dragItemIndex < dropIndex) {
-                    insertIndex = dropIndex - 1;
-                }
-                if (insertIndex < 0) insertIndex = 0;
-                newOrder.splice(insertIndex, 0, draggedItem);
-                setOrderedQuestionUIDs(newOrder);
-                DiscourseGraphToolkit.saveQuestionOrder(selectedProject, newOrder.map(uid => ({ uid })));
-            }
-        }
-        
-        setDragItemIndex(null);
-        setDragOverItemIndex(null);
-    };
-
-    // Efecto para cargar/sincronizar orden cuando cambia el proyecto o los datos
+    // Cargar orden guardado (escrito por ExportTab › Paso 3) cuando cambia el proyecto
     React.useEffect(() => {
         if (!panoramicData || !selectedProject) {
             setOrderedQuestionUIDs([]);
             setOrderedGroupKeys([]);
             return;
         }
-
         if (isGroupedMode) {
-            // Modo agrupado: cargar orden de grupos
             const savedGroupOrder = DiscourseGraphToolkit.loadGroupOrder(selectedProject);
             if (savedGroupOrder && savedGroupOrder.length > 0) {
-                // Filtrar grupos que ya no existen, agregar nuevos al final
-                const validGroups = savedGroupOrder.filter(g => immediateSubProjects.includes(g));
-                const newGroups = immediateSubProjects.filter(g => !savedGroupOrder.includes(g));
-                setOrderedGroupKeys([...validGroups, ...newGroups]);
+                const valid = savedGroupOrder.filter(g => immediateSubProjects.includes(g));
+                const newOnes = immediateSubProjects.filter(g => !savedGroupOrder.includes(g));
+                setOrderedGroupKeys([...valid, ...newOnes]);
             } else {
                 setOrderedGroupKeys([...immediateSubProjects]);
             }
             setOrderedQuestionUIDs([]);
         } else {
-            // Modo individual: cargar orden de nodos (comportamiento original)
             const projectQuestions = panoramicData.questions.filter(q => {
                 if (!q.project) return false;
                 return q.project === selectedProject || q.project.startsWith(selectedProject + '/');
             });
             const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(selectedProject);
             if (savedOrder && savedOrder.length > 0) {
-                const orderedUIDs = savedOrder.filter(uid => projectQuestions.some(q => q.uid === uid));
-                const newUIDs = projectQuestions.filter(q => !savedOrder.includes(q.uid)).map(q => q.uid);
-                setOrderedQuestionUIDs([...orderedUIDs, ...newUIDs]);
+                const ordered = savedOrder.filter(uid => projectQuestions.some(q => q.uid === uid));
+                const unseen = projectQuestions.filter(q => !savedOrder.includes(q.uid)).map(q => q.uid);
+                setOrderedQuestionUIDs([...ordered, ...unseen]);
             } else {
                 setOrderedQuestionUIDs(projectQuestions.map(q => q.uid));
             }
@@ -387,14 +314,9 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     };
 
     // --- Renderizar un nodo raíz (QUE o GRI) como fila plana ---
-    // showDragHandle: controla si se muestra el drag handle (false en modo agrupado, los nodos dentro de un grupo no se arrastran)
-    const renderQuestion = (question, allNodes, showDragHandle = true, qIndex = -1) => {
+    const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1) => {
         const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
-
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
-
-        const isDragging = showDragHandle && dragItemIndex === qIndex;
-        const isDragOver = showDragHandle && dragOverItemIndex === qIndex;
 
         let displayProject = question.project;
         if (selectedProject && question.project && question.project.startsWith(selectedProject)) {
@@ -403,26 +325,12 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         return React.createElement('div', {
             key: question.uid,
-            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()} ${isDragOver ? 'dgt-drag-over' : ''}`,
-            draggable: showDragHandle && selectedProject ? true : false,
-            onDragStart: showDragHandle && selectedProject ? (e) => handleDragStart(e, qIndex) : undefined,
-            onDragEnter: showDragHandle && selectedProject ? (e) => handleDragEnter(e, qIndex) : undefined,
-            onDragOver: showDragHandle && selectedProject ? handleDragOver : undefined,
-            onDragEnd: showDragHandle && selectedProject ? handleDragEnd : undefined,
-            onDrop: showDragHandle && selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
-            style: { opacity: isDragging ? 0.4 : 1 }
+            className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()}`
         },
-            // Fila plana del nodo raíz (sin expandir)
             React.createElement('div', {
                 className: 'dgt-panoramic-node-row',
                 style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
-                // Drag handle (solo si showDragHandle y hay proyecto seleccionado)
-                showDragHandle && selectedProject && React.createElement('div', {
-                    className: 'dgt-drag-handle dgt-mr-xs',
-                    title: 'Mantén presionado y arrastra para reordenar',
-                    onClick: (e) => e.stopPropagation()
-                }, '⋮⋮'),
                 // Badge de tipo (QUE/GRI)
                 React.createElement('span', {
                     className: `dgt-badge ${badgeClass}`,
@@ -462,24 +370,15 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return groupNodes;
     };
 
-    // --- Renderizar un grupo de sub-proyecto ---
+    // --- Renderizar un grupo de sub-proyecto (solo lectura) ---
     const renderSubProjectGroup = (groupKey, groupIndex) => {
         const groupNodes = getOrderedNodesForGroup(groupKey);
         const groupLabel = groupKey.split('/').pop();
         const isExpanded = expandedQuestions[`group:${groupKey}`] === true;
-        const isDragging = dragItemIndex === groupIndex;
-        const isDragOver = dragOverItemIndex === groupIndex;
 
         return React.createElement('div', {
             key: groupKey,
-            className: `dgt-panoramic-group ${isDragOver ? 'dgt-drag-over' : ''}`,
-            draggable: true,
-            onDragStart: (e) => handleDragStart(e, groupIndex),
-            onDragEnter: (e) => handleDragEnter(e, groupIndex),
-            onDragOver: handleDragOver,
-            onDragEnd: handleDragEnd,
-            onDrop: (e) => handleDrop(e, groupIndex),
-            style: { opacity: isDragging ? 0.4 : 1 }
+            className: 'dgt-panoramic-group'
         },
             // Header del grupo
             React.createElement('div', {
@@ -493,14 +392,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     });
                 }
             },
-                // Drag handle
-                React.createElement('div', {
-                    className: 'dgt-drag-handle',
-                    title: 'Mantén presionado y arrastra para reordenar este grupo',
-                    onClick: (e) => e.stopPropagation(),
-                    style: { cursor: 'grab', fontSize: '0.875rem', color: 'var(--dgt-text-muted)', flexShrink: 0 }
-                }, '⋮⋮'),
-
                 // Flecha de expandir/colapsar
                 React.createElement('span', {
                     className: 'dgt-text-muted',
