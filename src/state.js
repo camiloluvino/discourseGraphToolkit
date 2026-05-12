@@ -219,7 +219,7 @@ DiscourseGraphToolkit.clearVerificationCache = function () {
 DiscourseGraphToolkit.saveQuestionOrder = function (projectKey, order) {
     if (!projectKey) return; // No guardar si no hay proyecto
     const allOrders = this.loadAllQuestionOrders();
-    allOrders[projectKey] = order.map(q => q.uid); // Solo guardamos UIDs
+    allOrders[projectKey] = order.map(q => typeof q === 'string' ? q : q.uid); // Acepta objetos o strings
     localStorage.setItem(
         this.getStorageKey(this.STORAGE.QUESTION_ORDER),
         JSON.stringify(allOrders)

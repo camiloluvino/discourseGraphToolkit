@@ -40,6 +40,69 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     // Estado para tracking del timestamp del cache
     const [cacheTimestamp, setCacheTimestamp] = React.useState(null);
 
+    // --- Estado D&D ---
+    const [dragType, setDragType] = React.useState(null); // 'group' | 'node'
+    const [dragGroupKey, setDragGroupKey] = React.useState(null);
+    const [dragIdx, setDragIdx] = React.useState(null);
+    const [dragOverIdx, setDragOverIdx] = React.useState(null);
+
+    // --- D&D handlers para grupos ---
+    const handleGroupDragStart = (e, idx) => { setDragType('group'); setDragIdx(idx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; };
+    const handleGroupDragEnter = (e, idx) => { e.preventDefault(); setDragOverIdx(idx); };
+    const handleGroupDragOver = (e) => { e.preventDefault(); };
+    const handleGroupDragEnd = () => { setDragType(null); setDragIdx(null); setDragOverIdx(null); };
+    const handleGroupDrop = (e, dropIdx) => {
+        e.preventDefault();
+        if (dragIdx === null || dropIdx === null || dragIdx === dropIdx) { handleGroupDragEnd(); return; }
+        const newGroups = [...orderedGroupKeys];
+        const [item] = newGroups.splice(dragIdx, 1);
+        newGroups.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        setOrderedGroupKeys(newGroups);
+        DiscourseGraphToolkit.saveGroupOrder(selectedProject, newGroups);
+        handleGroupDragEnd();
+    };
+
+    // --- D&D handlers para nodos ---
+    const handleNodeDragStart = (e, groupKey, idx) => { setDragType('node'); setDragGroupKey(groupKey); setDragIdx(idx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; };
+    const handleNodeDragEnter = (e, idx) => { e.preventDefault(); setDragOverIdx(idx); };
+    const handleNodeDragOver = (e) => { e.preventDefault(); };
+    const handleNodeDragEnd = () => { setDragType(null); setDragGroupKey(null); setDragIdx(null); setDragOverIdx(null); };
+    const handleNodeDrop = (e, groupKey, dropIdx) => {
+        e.preventDefault();
+        if (dragIdx === null || dropIdx === null || dragIdx === dropIdx || dragGroupKey !== groupKey) { handleNodeDragEnd(); return; }
+        
+        let targetList = groupKey ? orderedQuestionUIDsForGroup(groupKey) : [...orderedQuestionUIDs];
+        
+        const [item] = targetList.splice(dragIdx, 1);
+        targetList.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        
+        if (groupKey) {
+            DiscourseGraphToolkit.saveQuestionOrder(groupKey, targetList);
+            // We force a re-render of this specific group by updating a dummy state or relying on the fact that we can just update the group Nodes in cache. Wait.
+            // In grouped mode, we don't have a single orderedQuestionUIDs array. Let's just save it to localStorage and trigger a re-render by updating a timestamp.
+            setCacheTimestamp(Date.now());
+        } else {
+            setOrderedQuestionUIDs(targetList);
+            DiscourseGraphToolkit.saveQuestionOrder(selectedProject, targetList);
+        }
+        handleNodeDragEnd();
+    };
+
+    const orderedQuestionUIDsForGroup = (groupKey) => {
+        const groupNodes = panoramicData.questions.filter(q => {
+            if (!q.project) return false;
+            return q.project === groupKey || q.project.startsWith(groupKey + '/');
+        });
+        const savedOrder = DiscourseGraphToolkit.loadQuestionOrder(groupKey);
+        if (savedOrder && savedOrder.length > 0) {
+            const validSaved = savedOrder.filter(uid => groupNodes.some(q => q.uid === uid));
+            const newUids = groupNodes.filter(q => !savedOrder.includes(q.uid)).map(q=>q.uid);
+            return [...validSaved, ...newUids];
+        }
+        return groupNodes.map(q=>q.uid);
+    };
+
+
     // --- Computar sub-proyectos inmediatos y modo agrupado ---
     const immediateSubProjects = React.useMemo(() => {
         if (!panoramicData || !selectedProject) return [];
@@ -325,6 +388,17 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
         return React.createElement('div', {
             key: question.uid,
+            draggable: true,
+            onDragStart: e => handleNodeDragStart(e, groupKey, qIndex),
+            onDragEnter: e => handleNodeDragEnter(e, qIndex),
+            onDragOver: handleNodeDragOver,
+            onDragEnd: handleNodeDragEnd,
+            onDrop: e => handleNodeDrop(e, groupKey, qIndex),
+            style: { 
+                borderTop: isNodeDragOver ? '2px dashed var(--dgt-accent-purple)' : '1px solid var(--dgt-border-color)', 
+                opacity: dragType === 'node' && dragGroupKey === groupKey && dragIdx === qIndex ? 0.4 : 1,
+                cursor: 'grab'
+            },
             className: `dgt-panoramic-root dgt-panoramic-root-${nodeType.toLowerCase()}`
         },
             React.createElement('div', {
@@ -372,12 +446,24 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     // --- Renderizar un grupo de sub-proyecto (solo lectura) ---
     const renderSubProjectGroup = (groupKey, groupIndex) => {
+        const isGroupDragOver = dragType === 'group' && dragOverIdx === groupIndex;
         const groupNodes = getOrderedNodesForGroup(groupKey);
         const groupLabel = groupKey.split('/').pop();
         const isExpanded = expandedQuestions[`group:${groupKey}`] === true;
 
         return React.createElement('div', {
             key: groupKey,
+            draggable: true,
+            onDragStart: e => handleGroupDragStart(e, groupIndex),
+            onDragEnter: e => handleGroupDragEnter(e, groupIndex),
+            onDragOver: handleGroupDragOver,
+            onDragEnd: handleGroupDragEnd,
+            onDrop: e => handleGroupDrop(e, groupIndex),
+            style: { 
+                border: isGroupDragOver ? '2px dashed var(--dgt-accent-purple)' : undefined,
+                opacity: dragType === 'group' && dragIdx === groupIndex ? 0.4 : 1,
+                cursor: 'grab'
+            },
             className: 'dgt-panoramic-group'
         },
             // Header del grupo
@@ -426,7 +512,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 className: 'dgt-panoramic-group-body'
             },
                 groupNodes.length > 0
-                    ? groupNodes.map(q => renderQuestion(q, panoramicData.allNodes, false))
+                    ? groupNodes.map((q, idx) => renderQuestion(q, panoramicData.allNodes, false, idx, groupKey))
                     : React.createElement('span', {
                         className: 'dgt-text-muted dgt-text-xs',
                         style: { fontStyle: 'italic', padding: '8px' }
@@ -628,7 +714,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                 )
                 // Modo individual: renderizar nodos planos (comportamiento original)
                 : (filteredQuestions.length > 0
-                    ? filteredQuestions.map((q, index) => renderQuestion(q, panoramicData.allNodes, true, index))
+                    ? filteredQuestions.map((q, index) => renderQuestion(q, panoramicData.allNodes, true, index, null))
                     : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
                         'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
                 )
