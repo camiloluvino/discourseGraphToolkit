@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.47
- * Bundled build: 2026-05-12 16:48:14
+ * Bundled build: 2026-05-12 16:51:46
  */
 
 (function () {
@@ -7522,7 +7522,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     };
 
     // --- Renderizar un nodo raíz (QUE o GRI) como fila plana ---
-    const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1) => {
+    const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1, groupKey = null) => {
+        const isNodeDragOver = dragType === 'node' && dragGroupKey === groupKey && dragOverIdx === qIndex;
         const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 

@@ -377,7 +377,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     };
 
     // --- Renderizar un nodo raíz (QUE o GRI) como fila plana ---
-    const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1) => {
+    const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1, groupKey = null) => {
+        const isNodeDragOver = dragType === 'node' && dragGroupKey === groupKey && dragOverIdx === qIndex;
         const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
