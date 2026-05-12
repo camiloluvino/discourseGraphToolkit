@@ -70,13 +70,14 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
 - **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.
 
-### 5. Vista Panorámica Inteligente (Agrupación Hierárquica)
-Gestiona la estructura global de tu investigación con una interfaz orientada a bloques:
-- **Agrupación Automática:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan automáticamente en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
+### 5. Vista Panorámica Simplificada (Solo Nodos Raíz)
+Vista sintética de todas las ramas del grafo mostrando únicamente los nodos raíz (QUE y GRI) como filas planas:
+- **Vista Limpia:** Muestra solo preguntas (QUE) y grupos (GRI) como filas individuales con su badge de tipo y proyecto asociado.
+- **Drag & Drop:** Reordena nodos raíz arrastrándolos libremente. El orden se persiste por proyecto.
+- **Agrupación Automática:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
 - **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre.
-- **Herencia de Orden:** Al expandir un bloque de sub-proyecto, los nodos internos respetan el orden definido en ese nivel específico.
-- **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto y gestionar sus nodos individualmente.
-- **Modo Individual:** En proyectos "hoja" (sin sub-proyectos), el sistema permite el reordenamiento granular de nodos individuales.
+- **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto.
+- **Sin Expansión de Árbol:** Los nodos inferiores (CLM, EVD) ya no se renderizan en esta vista, manteniendo el foco en la estructura de alto nivel.
 
 ### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42 - v1.5.45)
 Se ha realizado una auditoría de calidad integral y refactorización del motor interno:

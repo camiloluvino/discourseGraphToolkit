@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.45
- * Bundled build: 2026-05-11 21:27:39
+ * Bundled build: 2026-05-12 11:55:22
  */
 
 (function () {
@@ -7313,14 +7313,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
 
     // --- Helpers ---
-    const toggleQuestion = (uid) => {
-        setExpandedQuestions(prev => {
-            const newState = { ...prev, [uid]: !prev[uid] };
-            DiscourseGraphToolkit.savePanoramicExpandedQuestions(newState);
-            return newState;
-        });
-    };
-
     const cleanTitle = (title, type) => {
         return (title || '').replace(new RegExp(`\\[\\[${type}\\]\\]\\s*-\\s*`), '');
     };
@@ -7539,164 +7531,10 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         }
     };
 
-    // --- Renderizar rama de un CLM ---
-    const renderCLMBranch = (clmUid, allNodes, depth = 0) => {
-        const clm = allNodes[clmUid];
-        if (!clm) return null;
-
-        const maxDepth = 3;
-        if (depth > maxDepth) return React.createElement('span', { style: { color: '#999', fontSize: '0.6875rem' } }, '...');
-
-        return React.createElement('span', {
-            key: clmUid,
-            style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap' }
-        },
-            // CLM node
-            React.createElement('span', {
-                className: 'dgt-badge dgt-badge-success',
-                style: { fontSize: '0.75rem', textTransform: 'none', fontWeight: 'normal', padding: '2px 4px' },
-                title: clm.title
-            }, React.createElement(React.Fragment, null, "📌 ", renderMarkdownTitle(cleanTitle(clm.title, 'CLM')))),
-
-            // EVDs del CLM
-            clm.related_evds && clm.related_evds.length > 0 && React.createElement(React.Fragment, null,
-                React.createElement('span', { style: { color: '#999', margin: '0 0.25rem', fontSize: '0.6875rem' } }, '→'),
-                clm.related_evds.slice(0, 3).map((evdUid, i) => {
-                    const evd = allNodes[evdUid];
-                    if (!evd) return null;
-                    return React.createElement('span', {
-                        key: evdUid,
-                        className: 'dgt-badge dgt-badge-warning',
-                        style: { marginRight: i < clm.related_evds.length - 1 ? '0.25rem' : 0, textTransform: 'none', fontWeight: 'normal', fontSize: '0.6875rem', padding: '2px 4px' },
-                        title: evd.title
-                    }, React.createElement(React.Fragment, null, "📎 ", renderMarkdownTitle(cleanTitle(evd.title, 'EVD').substring(0, 20))));
-                }),
-                clm.related_evds.length > 3 && React.createElement('span', {
-                    style: { color: '#999', fontSize: '0.625rem', marginLeft: '0.25rem' }
-                }, `+${clm.related_evds.length - 3}`)
-            ),
-
-            // CLMs de soporte (recursivo)
-            clm.supporting_clms && clm.supporting_clms.length > 0 && React.createElement(React.Fragment, null,
-                React.createElement('span', { style: { color: '#999', margin: '0 0.25rem', fontSize: '0.6875rem' } }, '⤷'),
-                clm.supporting_clms.slice(0, 2).map(suppUid =>
-                    renderCLMBranch(suppUid, allNodes, depth + 1)
-                ),
-                clm.supporting_clms.length > 2 && React.createElement('span', {
-                    style: { color: '#999', fontSize: '0.625rem', marginLeft: '0.25rem' }
-                }, `+${clm.supporting_clms.length - 2}`)
-            )
-        );
-    };
-
-    const renderContainedNode = (uid, allNodes, depth = 1, parentUid = null) => {
-        const node = allNodes[uid];
-        if (!node) return null;
-
-        const maxDepth = 7;
-        if (depth > maxDepth) return React.createElement('div', { style: { color: '#999', fontSize: '0.6875rem', paddingLeft: '1rem' } }, '...');
-
-        const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-        const badgeClass = nodeType === 'QUE' ? 'dgt-badge-neutral' : nodeType === 'GRI' ? 'dgt-badge-info' : nodeType === 'EVD' ? 'dgt-badge-warning' : 'dgt-badge-success';
-
-        // Determinar ramas/hijos según el tipo
-        let childrenUids = [];
-        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
-        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
-        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
-
-        // Filtrar hijos según proyecto seleccionado para recortar la rama
-        if (selectedProject) {
-            childrenUids = childrenUids.filter(childUid => isNodeRelevant(childUid, allNodes, selectedProject));
-        }
-
-        const hasChildren = childrenUids.length > 0;
-        const isExpanded = expandedQuestions[uid] === true;
-
-        // Determinar si este nodo es una especialización válida de su padre
-        let isSpecialized = false;
-        if (parentUid && allNodes[parentUid]) {
-            const parentProject = allNodes[parentUid].project;
-            const nodeProject = node.project;
-            if (parentProject && nodeProject && nodeProject !== parentProject && nodeProject.startsWith(parentProject + '/')) {
-                isSpecialized = true;
-            }
-        }
-
-        return React.createElement('div', {
-            key: uid,
-            className: depth === 1 ? '' : 'dgt-panoramic-branch-line'
-        },
-            // Fila del nodo actual
-            React.createElement('div', {
-                onClick: hasChildren ? (e) => { e.stopPropagation(); toggleQuestion(uid); } : undefined,
-                className: `dgt-panoramic-node-row ${hasChildren ? 'has-children' : ''}`,
-                style: { cursor: hasChildren ? 'pointer' : 'default' }
-            },
-                // Icono de expandir/colapsar (espacio reservado aunque no tenga hijos)
-                React.createElement('span', {
-                    className: 'dgt-text-muted',
-                    style: {
-                        color: hasChildren ? 'var(--dgt-text-muted)' : 'transparent',
-                        fontSize: '0.6rem', width: '0.75rem', display: 'flex', alignItems: 'center', marginTop: '0.25rem', flexShrink: 0
-                    }
-                }, isExpanded ? '▼' : '▶'),
-
-                // Badge de tipo (para todos)
-                React.createElement('span', {
-                    className: `dgt-badge ${badgeClass} dgt-mr-xs`,
-                    style: { fontSize: '0.5625rem', flexShrink: 0, marginTop: '2px', padding: '2px 4px' }
-                }, nodeType),
-
-                // Indicador de nodo especializado
-                isSpecialized && React.createElement('span', {
-                    className: 'dgt-mr-xs',
-                    style: { fontSize: '0.625rem', marginTop: '2px', display: 'flex' },
-                    title: `Nodo Especializado: Su proyecto (${node.project}) es un sub-proyecto de su nodo padre (${allNodes[parentUid]?.project}).`
-                }, '🔀'),
-
-                // Título del nodo
-                React.createElement('span', {
-                    className: 'dgt-text-primary',
-                    style: { fontSize: '0.8125rem', wordBreak: 'break-word', flex: 1 },
-                    title: node.title
-                }, renderMarkdownTitle(cleanTitle(node.title, nodeType)))
-            ),
-
-            // Hijos recursivos
-            hasChildren && isExpanded && React.createElement('div', null,
-                childrenUids.map((childUid) =>
-                    renderContainedNode(childUid, allNodes, depth + 1, uid)
-                )
-            )
-        );
-    };
-
-    // --- Renderizar un nodo raíz (QUE o GRI) con sus ramas ---
+    // --- Renderizar un nodo raíz (QUE o GRI) como fila plana ---
     // showDragHandle: controla si se muestra el drag handle (false en modo agrupado, los nodos dentro de un grupo no se arrastran)
     const renderQuestion = (question, allNodes, showDragHandle = true, qIndex = -1) => {
         const nodeType = DiscourseGraphToolkit.getNodeType(question.title) || 'QUE';
-        const isExpanded = expandedQuestions[question.uid] === true; // Colapsado por defecto
-
-        // Determinar ramas según el tipo
-        let clms, directEvds, containedNodes, totalBranches;
-        if (nodeType === 'GRI') {
-            containedNodes = question.contained_nodes || [];
-            clms = [];
-            directEvds = [];
-        } else {
-            clms = question.related_clms || [];
-            directEvds = question.direct_evds || [];
-            containedNodes = [];
-        }
-
-        if (selectedProject) {
-            containedNodes = containedNodes.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
-            clms = clms.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
-            directEvds = directEvds.filter(uid => isNodeRelevant(uid, allNodes, selectedProject));
-        }
-
-        totalBranches = containedNodes.length + clms.length + directEvds.length;
 
         const badgeClass = nodeType === 'GRI' ? 'dgt-badge-info' : 'dgt-badge-neutral';
 
@@ -7719,9 +7557,8 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             onDrop: showDragHandle && selectedProject ? (e) => handleDrop(e, qIndex) : undefined,
             style: { opacity: isDragging ? 0.4 : 1 }
         },
-            // Header del nodo raíz
+            // Fila plana del nodo raíz (sin expandir)
             React.createElement('div', {
-                onClick: () => toggleQuestion(question.uid),
                 className: 'dgt-panoramic-node-row',
                 style: { padding: '8px 8px 8px 0', gap: '6px' }
             },
@@ -7731,10 +7568,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     title: 'Mantén presionado y arrastra para reordenar',
                     onClick: (e) => e.stopPropagation()
                 }, '⋮⋮'),
-                React.createElement('span', {
-                    className: 'dgt-text-muted dgt-text-xs',
-                    style: { marginTop: '4px', width: '12px', textAlign: 'center' }
-                }, isExpanded ? '▼' : '▶'),
                 // Badge de tipo (QUE/GRI)
                 React.createElement('span', {
                     className: `dgt-badge ${badgeClass}`,
@@ -7749,24 +7582,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                     className: 'dgt-badge dgt-badge-neutral',
                     style: { fontSize: '0.625rem', backgroundColor: 'transparent', border: '1px solid var(--dgt-border-color)' }
                 }, displayProject)
-            ),
-
-            // Ramas (expandidas)
-            isExpanded && React.createElement('div', {
-                style: { paddingLeft: '0.5rem', paddingBottom: '0.5rem' }
-            },
-                // Renderizar todos los nodos contenidos directamente (que se encargarán de sus propios hijos recursivamente)
-                nodeType === 'GRI' ?
-                    containedNodes.map((cnUid) => renderContainedNode(cnUid, allNodes, 1, question.uid)) :
-                    React.createElement(React.Fragment, null,
-                        clms.map((clmUid) => renderContainedNode(clmUid, allNodes, 1, question.uid)),
-                        directEvds.map((evdUid) => renderContainedNode(evdUid, allNodes, 1, question.uid))
-                    ),
-
-                // Mensaje si no hay ramas
-                totalBranches === 0 && React.createElement('span', {
-                    className: 'dgt-text-muted dgt-text-xs', style: { fontStyle: 'italic', paddingLeft: '1.5rem' }
-                }, nodeType === 'GRI' ? 'Sin nodos contenidos' : 'Sin respuestas')
             )
         );
     };
@@ -8010,37 +7825,21 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         )
                     )
                 ),
-                // Fila 2: Botones expandir/colapsar
+                // Fila 2: Botones expandir/colapsar (solo para grupos en modo agrupado)
                 panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
                     React.createElement('button', {
                         onClick: () => {
                             const allExpanded = {};
-                            // Expandir raíces
-                            filteredQuestions.forEach(q => allExpanded[q.uid] = true);
                             // Expandir grupos si modo agrupado
                             if (isGroupedMode) {
                                 orderedGroupKeys.forEach(gk => allExpanded[`group:${gk}`] = true);
-                                // También expandir nodos dentro de los grupos
-                                orderedGroupKeys.forEach(gk => {
-                                    getOrderedNodesForGroup(gk).forEach(q => allExpanded[q.uid] = true);
-                                });
                             }
-                            // Expandir todos los nodos internos que tengan hijos
-                            Object.values(panoramicData.allNodes).forEach(node => {
-                                const nType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
-                                let hasCh = false;
-                                if (nType === 'GRI') hasCh = (node.contained_nodes || []).length > 0;
-                                else if (nType === 'QUE') hasCh = ((node.related_clms || []).length + (node.direct_evds || []).length) > 0;
-                                else if (nType === 'CLM') hasCh = ((node.related_evds || []).length + (node.supporting_clms || []).length) > 0;
-
-                                if (hasCh) allExpanded[node.uid] = true;
-                            });
                             setExpandedQuestions(allExpanded);
                             DiscourseGraphToolkit.savePanoramicExpandedQuestions(allExpanded);
                         },
                         className: 'dgt-btn-ghost dgt-text-xs',
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
-                    }, '➕ Expandir'),
+                    }, '➕ Expandir grupos'),
                     React.createElement('button', {
                         onClick: () => {
                             setExpandedQuestions({});
@@ -8048,18 +7847,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         },
                         className: 'dgt-btn-ghost dgt-text-xs',
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
-                    }, '➖ Colapsar')
+                    }, '➖ Colapsar todo')
                 ),
-                // Fila 3: Estadísticas compactas
+                // Fila 3: Estadísticas compactas (solo QUE y GRI)
                 panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
                         `QUE: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
-                        `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-success' },
-                        `CLM: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'CLM').length}`),
-                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning' },
-                        `EVD: ${Object.values(panoramicData.allNodes).filter(n => n.type === 'EVD').length}`)
+                        `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`)
                 )
             )
         ),
