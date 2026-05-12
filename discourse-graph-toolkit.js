@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.47
- * Bundled build: 2026-05-12 17:09:03
+ * DISCOURSE GRAPH TOOLKIT v1.5.48
+ * Bundled build: 2026-05-12 17:41:25
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.47";
+    DiscourseGraphToolkit.VERSION = "1.5.48";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -30,7 +30,7 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de bloque ---
-    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType) {
+    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType, formatOptions) {
         var content = '';
         if (!visitedBlocks) visitedBlocks = {};
         if (indentLevel === undefined) indentLevel = 0;
@@ -81,7 +81,8 @@ var MarkdownCore = {
                         }
                     } else {
                         var indent = '';
-                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        var indentStr = (formatOptions && formatOptions.compactIndentation) ? ' ' : '  ';
+                        for (var i = 0; i < indentLevel; i++) indent += indentStr;
                         content += indent + '- ' + blockString + '\\n';
                     }
                 }
@@ -91,7 +92,7 @@ var MarkdownCore = {
         var children = block.children || block[':block/children'] || [];
         if (Array.isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
+                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType, formatOptions);
                 if (childContent) content += childContent;
             }
         }
@@ -101,7 +102,7 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de nodo ---
-    extractNodeContent: function (nodeData, includeContent, nodeType, excludeBitacora, flatMode) {
+    extractNodeContent: function (nodeData, includeContent, nodeType, excludeBitacora, flatMode, formatOptions) {
         var detailedContent = '';
         if (!nodeData) return detailedContent;
 
@@ -120,7 +121,7 @@ var MarkdownCore = {
                 }
 
                 if (!isStructuralMetadata) {
-                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
+                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType, formatOptions);
                     if (childContent) detailedContent += childContent;
                 }
             }
@@ -165,7 +166,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -188,7 +189,7 @@ var MarkdownCore = {
 
         // Contenido del nodo — SKIP en modo esqueleto
         if (config[type] && !skeletonMode) {
-            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
+            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode, formatOptions);
             if (content) {
                 result += content + '\\n';
             } else if (type === 'EVD' && !skeletonMode) {
@@ -200,7 +201,7 @@ var MarkdownCore = {
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -208,7 +209,7 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -220,7 +221,7 @@ var MarkdownCore = {
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -228,7 +229,7 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -236,7 +237,7 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -251,7 +252,7 @@ var MarkdownCore = {
 
     // --- Generación de Markdown completo ---
     // rootNodes: array de nodos raíz (GRI y/o QUE)
-    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode) {
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode, formatOptions) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
@@ -266,8 +267,36 @@ var MarkdownCore = {
             result = '# Estructura de Investigación\\n\\n';
         }
 
+        var lastNamespace = null;
+
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
+            
+            // --- Lógica de Agrupamiento por Namespace ---
+            if (formatOptions && formatOptions.groupNamespaces && rootNode._project) {
+                var projectParts = rootNode._project.split('/');
+                var lastParts = lastNamespace ? lastNamespace.split('/') : [];
+                
+                var diffIndex = 0;
+                while (diffIndex < projectParts.length && diffIndex < lastParts.length && projectParts[diffIndex] === lastParts[diffIndex]) {
+                    diffIndex++;
+                }
+                
+                // Empezar a imprimir desde la primera diferencia, pero SIEMPRE omitir el índice 0 (proyecto raíz)
+                var startIndex = Math.max(diffIndex, 1);
+                
+                for (var i = startIndex; i < projectParts.length; i++) {
+                    var currentPart = projectParts[i];
+                    if (currentPart) {
+                        var capitalizedPart = currentPart.charAt(0).toUpperCase() + currentPart.slice(1);
+                        result += '# ' + capitalizedPart + '\\n\\n';
+                    }
+                }
+                
+                lastNamespace = rootNode._project;
+            }
+            // ------------------------------------------
+
             try {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
@@ -283,7 +312,7 @@ var MarkdownCore = {
 
                     // Contenido QUE — SKIP en modo esqueleto
                     if (config.QUE && !skeletonMode) {
-                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
+                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode, formatOptions);
                         if (queContent) result += queContent + '\\n';
                     }
 
@@ -301,14 +330,14 @@ var MarkdownCore = {
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     }
 
@@ -324,14 +353,14 @@ var MarkdownCore = {
 
                     // Contenido GRI — SKIP en modo esqueleto
                     if (config.GRI && !skeletonMode) {
-                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
+                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode, formatOptions);
                         if (griContent) result += griContent + '\\n';
                     }
 
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\\n\\n';
@@ -339,7 +368,7 @@ var MarkdownCore = {
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode);
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                 }
 
             } catch (err) {
@@ -3872,7 +3901,7 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de bloque ---
-    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType) {
+    extractBlockContent: function (block, indentLevel, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType, formatOptions) {
         var content = '';
         if (!visitedBlocks) visitedBlocks = {};
         if (indentLevel === undefined) indentLevel = 0;
@@ -3923,7 +3952,8 @@ var MarkdownCore = {
                         }
                     } else {
                         var indent = '';
-                        for (var i = 0; i < indentLevel; i++) indent += '  ';
+                        var indentStr = (formatOptions && formatOptions.compactIndentation) ? ' ' : '  ';
+                        for (var i = 0; i < indentLevel; i++) indent += indentStr;
                         content += indent + '- ' + blockString + '\n';
                     }
                 }
@@ -3933,7 +3963,7 @@ var MarkdownCore = {
         var children = block.children || block[':block/children'] || [];
         if (Array.isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType);
+                var childContent = this.extractBlockContent(children[i], indentLevel + 1, skipMetadata, visitedBlocks, maxDepth, excludeBitacora, flatMode, nodeType, formatOptions);
                 if (childContent) content += childContent;
             }
         }
@@ -3943,7 +3973,7 @@ var MarkdownCore = {
     },
 
     // --- Extracción de contenido de nodo ---
-    extractNodeContent: function (nodeData, includeContent, nodeType, excludeBitacora, flatMode) {
+    extractNodeContent: function (nodeData, includeContent, nodeType, excludeBitacora, flatMode, formatOptions) {
         var detailedContent = '';
         if (!nodeData) return detailedContent;
 
@@ -3962,7 +3992,7 @@ var MarkdownCore = {
                 }
 
                 if (!isStructuralMetadata) {
-                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType);
+                    var childContent = this.extractBlockContent(child, 0, false, null, this.MAX_RECURSION_DEPTH, excludeBitacora, flatMode, nodeType, formatOptions);
                     if (childContent) detailedContent += childContent;
                 }
             }
@@ -4007,7 +4037,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -4030,7 +4060,7 @@ var MarkdownCore = {
 
         // Contenido del nodo — SKIP en modo esqueleto
         if (config[type] && !skeletonMode) {
-            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode);
+            var content = this.extractNodeContent(node.data, true, type, excludeBitacora, flatMode, formatOptions);
             if (content) {
                 result += content + '\n';
             } else if (type === 'EVD' && !skeletonMode) {
@@ -4042,7 +4072,7 @@ var MarkdownCore = {
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -4050,7 +4080,7 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -4062,7 +4092,7 @@ var MarkdownCore = {
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -4070,7 +4100,7 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -4078,7 +4108,7 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode);
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
             }
         }
 
@@ -4093,7 +4123,7 @@ var MarkdownCore = {
 
     // --- Generación de Markdown completo ---
     // rootNodes: array de nodos raíz (GRI y/o QUE)
-    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode) {
+    generateMarkdown: function (rootNodes, allNodes, config, excludeBitacora, flatMode, skeletonMode, formatOptions) {
         var self = this;
 
         // Compatibilidad: si config es booleano, convertir a objeto
@@ -4108,8 +4138,36 @@ var MarkdownCore = {
             result = '# Estructura de Investigación\n\n';
         }
 
+        var lastNamespace = null;
+
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
+            
+            // --- Lógica de Agrupamiento por Namespace ---
+            if (formatOptions && formatOptions.groupNamespaces && rootNode._project) {
+                var projectParts = rootNode._project.split('/');
+                var lastParts = lastNamespace ? lastNamespace.split('/') : [];
+                
+                var diffIndex = 0;
+                while (diffIndex < projectParts.length && diffIndex < lastParts.length && projectParts[diffIndex] === lastParts[diffIndex]) {
+                    diffIndex++;
+                }
+                
+                // Empezar a imprimir desde la primera diferencia, pero SIEMPRE omitir el índice 0 (proyecto raíz)
+                var startIndex = Math.max(diffIndex, 1);
+                
+                for (var i = startIndex; i < projectParts.length; i++) {
+                    var currentPart = projectParts[i];
+                    if (currentPart) {
+                        var capitalizedPart = currentPart.charAt(0).toUpperCase() + currentPart.slice(1);
+                        result += '# ' + capitalizedPart + '\n\n';
+                    }
+                }
+                
+                lastNamespace = rootNode._project;
+            }
+            // ------------------------------------------
+
             try {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
 
@@ -4125,7 +4183,7 @@ var MarkdownCore = {
 
                     // Contenido QUE — SKIP en modo esqueleto
                     if (config.QUE && !skeletonMode) {
-                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode);
+                        var queContent = self.extractNodeContent(rootNode.data || rootNode, true, 'QUE', excludeBitacora, flatMode, formatOptions);
                         if (queContent) result += queContent + '\n';
                     }
 
@@ -4143,14 +4201,14 @@ var MarkdownCore = {
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     }
 
@@ -4166,14 +4224,14 @@ var MarkdownCore = {
 
                     // Contenido GRI — SKIP en modo esqueleto
                     if (config.GRI && !skeletonMode) {
-                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode);
+                        var griContent = self.extractNodeContent(rootNode.data || rootNode, true, 'GRI', excludeBitacora, flatMode, formatOptions);
                         if (griContent) result += griContent + '\n';
                     }
 
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode);
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                         }
                     } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
@@ -4181,7 +4239,7 @@ var MarkdownCore = {
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode);
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
                 }
 
             } catch (err) {
@@ -5133,14 +5191,14 @@ DiscourseGraphToolkit.HtmlGenerator = {
 // ============================================================================
 
 DiscourseGraphToolkit.MarkdownGenerator = {
-    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false, skeletonMode = false) {
+    generateMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, flatMode = false, skeletonMode = false, formatOptions = {}) {
         // Delegar completamente a MarkdownCore
-        return MarkdownCore.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, flatMode, skeletonMode);
+        return MarkdownCore.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, flatMode, skeletonMode, formatOptions);
     },
 
     // Convenience wrapper for flat markdown export (EPUB-ready)
-    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, skeletonMode = false) {
-        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true, skeletonMode);
+    generateFlatMarkdown: function (questions, allNodes, contentConfig = true, excludeBitacora = true, skeletonMode = false, formatOptions = {}) {
+        return this.generateMarkdown(questions, allNodes, contentConfig, excludeBitacora, true, skeletonMode, formatOptions);
     }
 };
 
@@ -7898,7 +7956,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
-        previewPages, setPreviewPages
+        previewPages, setPreviewPages,
+        compactIndentation, setCompactIndentation,
+        groupNamespaces, setGroupNamespaces
     } = DiscourseGraphToolkit.useExport();
 
     // --- Favorites ---
@@ -7915,7 +7975,9 @@ DiscourseGraphToolkit.ExportTab = function () {
             selectedTypes: { ...selectedTypes },
             contentConfig: { ...contentConfig },
             excludeBitacora: excludeBitacora,
-            skeletonMode: skeletonMode
+            skeletonMode: skeletonMode,
+            compactIndentation: compactIndentation,
+            groupNamespaces: groupNamespaces
         };
         // El nombre se genera automáticamente desde selectedProjects (por namespace)
         const updated = DiscourseGraphToolkit.FavoritesService.add('export', null, data);
@@ -7932,6 +7994,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         if (data.contentConfig) setContentConfig({ ...data.contentConfig });
         if (data.excludeBitacora !== undefined) setExcludeBitacora(data.excludeBitacora);
         if (data.skeletonMode !== undefined) setSkeletonMode(data.skeletonMode);
+        if (data.compactIndentation !== undefined) setCompactIndentation(data.compactIndentation);
+        if (data.groupNamespaces !== undefined) setGroupNamespaces(data.groupNamespaces);
         DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
     };
 
@@ -7969,6 +8033,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         // Comparar flags
         if (data.excludeBitacora !== undefined && data.excludeBitacora !== excludeBitacora) return false;
         if (data.skeletonMode !== undefined && data.skeletonMode !== skeletonMode) return false;
+        if (data.compactIndentation !== undefined && data.compactIndentation !== compactIndentation) return false;
+        if (data.groupNamespaces !== undefined && data.groupNamespaces !== groupNamespaces) return false;
         return true;
     };
 
@@ -8380,9 +8446,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode, formatOptions
             );
 
             setExportStatus("Descargando...");
@@ -8414,9 +8482,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode, formatOptions
             );
 
             setExportStatus("Descargando...");
@@ -8448,9 +8518,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode, formatOptions
             );
 
             setExportStatus("Cargando librería EPUB...");
@@ -8686,6 +8758,29 @@ DiscourseGraphToolkit.ExportTab = function () {
                                 onChange: e => setExcludeBitacora(e.target.checked)
                             }),
                             ' Excluir contenido de [[bitácora]]'
+                        )
+                    ),
+                    React.createElement('div', { style: { marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '0.625rem' } },
+                        React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Formato (para impresión):'),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: groupNamespaces,
+                                    onChange: e => setGroupNamespaces(e.target.checked)
+                                }),
+                                ' Usar namespaces como títulos de sección'
+                            )
+                        ),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: compactIndentation,
+                                    onChange: e => setCompactIndentation(e.target.checked)
+                                }),
+                                ' Usar indentación compacta (1 espacio)'
+                            )
                         )
                     )
                 )
@@ -8985,6 +9080,8 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
+    const [compactIndentation, setCompactIndentation] = React.useState(false);
+    const [groupNamespaces, setGroupNamespaces] = React.useState(false);
 
     const value = React.useMemo(() => ({
         selectedProjects, setSelectedProjects,
@@ -8994,8 +9091,10 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
-        previewPages, setPreviewPages
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages]);
+        previewPages, setPreviewPages,
+        compactIndentation, setCompactIndentation,
+        groupNamespaces, setGroupNamespaces
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, compactIndentation, groupNamespaces]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

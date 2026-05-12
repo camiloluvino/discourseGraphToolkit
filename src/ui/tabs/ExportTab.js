@@ -13,7 +13,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         skeletonMode, setSkeletonMode,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
-        previewPages, setPreviewPages
+        previewPages, setPreviewPages,
+        compactIndentation, setCompactIndentation,
+        groupNamespaces, setGroupNamespaces
     } = DiscourseGraphToolkit.useExport();
 
     // --- Favorites ---
@@ -30,7 +32,9 @@ DiscourseGraphToolkit.ExportTab = function () {
             selectedTypes: { ...selectedTypes },
             contentConfig: { ...contentConfig },
             excludeBitacora: excludeBitacora,
-            skeletonMode: skeletonMode
+            skeletonMode: skeletonMode,
+            compactIndentation: compactIndentation,
+            groupNamespaces: groupNamespaces
         };
         // El nombre se genera automáticamente desde selectedProjects (por namespace)
         const updated = DiscourseGraphToolkit.FavoritesService.add('export', null, data);
@@ -47,6 +51,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         if (data.contentConfig) setContentConfig({ ...data.contentConfig });
         if (data.excludeBitacora !== undefined) setExcludeBitacora(data.excludeBitacora);
         if (data.skeletonMode !== undefined) setSkeletonMode(data.skeletonMode);
+        if (data.compactIndentation !== undefined) setCompactIndentation(data.compactIndentation);
+        if (data.groupNamespaces !== undefined) setGroupNamespaces(data.groupNamespaces);
         DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
     };
 
@@ -84,6 +90,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         // Comparar flags
         if (data.excludeBitacora !== undefined && data.excludeBitacora !== excludeBitacora) return false;
         if (data.skeletonMode !== undefined && data.skeletonMode !== skeletonMode) return false;
+        if (data.compactIndentation !== undefined && data.compactIndentation !== compactIndentation) return false;
+        if (data.groupNamespaces !== undefined && data.groupNamespaces !== groupNamespaces) return false;
         return true;
     };
 
@@ -495,9 +503,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, false, skeletonMode, formatOptions
             );
 
             setExportStatus("Descargando...");
@@ -529,9 +539,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode, formatOptions
             );
 
             setExportStatus("Descargando...");
@@ -563,9 +575,11 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
+            const formatOptions = { compactIndentation, groupNamespaces };
+
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
-                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode
+                questionsToExport, allNodes, contentConfig, excludeBitacora, skeletonMode, formatOptions
             );
 
             setExportStatus("Cargando librería EPUB...");
@@ -801,6 +815,29 @@ DiscourseGraphToolkit.ExportTab = function () {
                                 onChange: e => setExcludeBitacora(e.target.checked)
                             }),
                             ' Excluir contenido de [[bitácora]]'
+                        )
+                    ),
+                    React.createElement('div', { style: { marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '0.625rem' } },
+                        React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Formato (para impresión):'),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: groupNamespaces,
+                                    onChange: e => setGroupNamespaces(e.target.checked)
+                                }),
+                                ' Usar namespaces como títulos de sección'
+                            )
+                        ),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: compactIndentation,
+                                    onChange: e => setCompactIndentation(e.target.checked)
+                                }),
+                                ' Usar indentación compacta (1 espacio)'
+                            )
                         )
                     )
                 )

@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.47
+**Versión:** 1.5.48
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -64,6 +64,9 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
 - **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidación infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un límite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
 - **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)** y **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), preservando el contexto del discurso en lecturas lineales.
+- **Opciones de Formato para Impresión (NUEVO):**
+  - **Agrupación por Namespaces:** Genera automáticamente encabezados de sección (`# Título`) basados en la jerarquía de proyectos, omitiendo el proyecto raíz para mayor claridad (ej. de `tesis/marco` extrae `# Marco`).
+  - **Indentación Compacta:** Opción para reducir el sangrado a 1 espacio, maximizando el ancho de página para impresión de grafos profundos.
 - **HTML:** Documento interactivo con profundidad dinámica. Los niveles superiores a 6 mantienen la jerarquía visual mediante indentación CSS progresiva.
 - **Markdown:** Indentación bulleted infinita en exportación estándar y headings jerárquicos `#` dinámicos.
 

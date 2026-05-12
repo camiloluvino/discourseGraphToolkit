@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.47**
+**v1.5.48**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.48 (Mayo 2026)
+- **Feature: Opciones de Formato para Impresión (Markdown).** Se añadieron nuevas configuraciones en la pestaña Exportar para optimizar los archivos resultantes para su impresión o conversión a Word/PDF.
+- **Formato: Agrupación Jerárquica por Namespace.** Al exportar, el sistema ahora puede generar automáticamente encabezados de sección (`# Título`) basados en la estructura de proyectos. La lógica es inteligente: omite el proyecto raíz (ej. `tesis`) y genera títulos de primer nivel para cada sub-namespace nuevo (ej. `# Marco Teórico`, `# Metodología`), facilitando la navegación en documentos largos.
+- **Formato: Indentación Compacta.** Nueva opción para reducir el espaciado de las viñetas a un solo espacio. Esto resuelve el problema de "texto arrinconado" en grafos con mucha profundidad, maximizando el ancho útil del papel.
+- **UX: Persistencia de Preferencias.** Las nuevas opciones se integran con el sistema de Favoritos, permitiendo guardar perfiles de exportación específicos para impresión.
 
 ### v1.5.47 (Mayo 2026)
 - **Feature: Centralización del Orden de Exportación (Conexión Absoluta).** Se migró la funcionalidad de reordenamiento (Drag & Drop) de la pestaña Exportar a la pestaña **Panorámica**. Ahora existe una única "fuente de verdad" en `localStorage` gestionada desde la Panorámica, eliminando la redundancia y desincronización.
