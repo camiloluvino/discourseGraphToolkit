@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.45
+**Versión:** 1.5.47
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -68,16 +68,16 @@ Exporta tus grafos de discurso en múltiples formatos:
 - **Markdown:** Indentación bulleted infinita en exportación estándar y headings jerárquicos `#` dinámicos.
 
 - **Selector de Proyectos Jerárquico:** Los proyectos se muestran en un árbol colapsable. Seleccionar un padre selecciona automáticamente todos los sub-proyectos (selección en cascada).
-- **Reordenamiento de Preguntas:** Gestiona el orden de tus preguntas (QUE) desde la pestaña **Panorámica** usando los botones ↑↓. El orden personalizado se aplica automáticamente a todos los formatos de exportación.
+- **Reordenamiento Centralizado:** Gestiona el orden de tus preguntas (QUE) y sub-proyectos (GRI) directamente desde la pestaña **Panorámica** mediante Drag & Drop. El orden personalizado se persiste en `localStorage` y se aplica automáticamente a todos los formatos de exportación (JSON, HTML, Markdown, EPUB).
 
 ### 5. Vista Panorámica Simplificada (Solo Nodos Raíz)
 Vista sintética de todas las ramas del grafo mostrando únicamente los nodos raíz (QUE y GRI) como filas planas:
 - **Vista Limpia:** Muestra solo preguntas (QUE) y grupos (GRI) como filas individuales con su badge de tipo y proyecto asociado.
-- **Drag & Drop:** Reordena nodos raíz arrastrándolos libremente. El orden se persiste por proyecto.
+- **Drag & Drop Nativo:** Reordena nodos raíz arrastrándolos libremente. El orden se persiste instantáneamente por proyecto/sub-proyecto.
 - **Agrupación Automática:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
-- **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre.
+- **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre y rige la estructura de exportación.
 - **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto.
-- **Sin Expansión de Árbol:** Los nodos inferiores (CLM, EVD) ya no se renderizan en esta vista, manteniendo el foco en la estructura de alto nivel.
+- **Foco Estructural:** Los nodos inferiores (CLM, EVD) ya no se renderizan en esta vista para mantener la claridad en la organización de alto nivel.
 
 ### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42 - v1.5.45)
 Se ha realizado una auditoría de calidad integral y refactorización del motor interno:

@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.46**
+**v1.5.47**
 
 ## Estado de Funcionalidades
 
@@ -17,11 +17,18 @@
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
 | Verificación de coherencia (Ramas) | ✅ Mejorado | Selección en cualquier nivel de profundidad, propagación masiva y rediseño |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
-| **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con bloques draggables |
-| Exportación JSON | ✅ Estable | Formato nativo de Roam |
-| Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI e integración Paso 3 |
-| Exportación Markdown | ✅ Muy Mejorado | Nuevo flujo con Paso 3 (Ordenación) y fix de sincronización |
-| Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+| **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
+| Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
+| Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
+| Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
+| Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.47 (Mayo 2026)
+- **Feature: Centralización del Orden de Exportación (Conexión Absoluta).** Se migró la funcionalidad de reordenamiento (Drag & Drop) de la pestaña Exportar a la pestaña **Panorámica**. Ahora existe una única "fuente de verdad" en `localStorage` gestionada desde la Panorámica, eliminando la redundancia y desincronización.
+- **UX: Panorámica como Centro de Mando.** El reordenamiento ahora se realiza en el espacio amplio de la Panorámica. Al mover un nodo o bloque, el cambio se persiste instantáneamente.
+- **Simplificación: Exportación como Motor "Tonto".** Se eliminó el "Paso 3" de la pestaña Exportar. Ahora la exportación simplemente consulta el orden guardado en la Panorámica y lo aplica automáticamente al generar los archivos.
+- **Fix: Estabilidad en Panorámica.** Se corrigió un error de referencia (`ReferenceError`) en la firma de `renderQuestion` que causaba el cierre de la aplicación al intentar arrastrar nodos.
+- **Refactor:** Eliminación de estados de ordenamiento redundantes en `ExportContext` y optimización del flujo de carga de páginas para exportar.
 
 ### v1.5.46 (Mayo 2026)
 - **Feature: Rediseño del Flujo de Exportación (Paso 3).** Se implementó un nuevo botón "Generar Orden de Exportación" en la pestaña Exportar para separar el cálculo de nodos de la descarga del archivo. Esto permite al usuario previsualizar y organizar los nodos antes de exportar.
