@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.48
- * Bundled build: 2026-05-12 18:07:01
+ * Bundled build: 2026-05-12 18:20:21
  */
 
 (function () {
@@ -8829,38 +8829,38 @@ DiscourseGraphToolkit.ExportTab = function () {
                             }),
                             ' Excluir contenido de [[bitácora]]'
                         )
+                    )
+                ),
+                React.createElement('div', { style: { marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '0.625rem' } },
+                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Formato (para impresión):'),
+                    React.createElement('div', { style: { marginTop: '0.25rem' } },
+                        React.createElement('label', null,
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: groupNamespaces,
+                                onChange: e => setGroupNamespaces(e.target.checked)
+                            }),
+                            ' Usar namespaces como títulos de sección'
+                        )
                     ),
-                    React.createElement('div', { style: { marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '0.625rem' } },
-                        React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Formato (para impresión):'),
-                        React.createElement('div', { style: { marginTop: '0.25rem' } },
-                            React.createElement('label', null,
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: groupNamespaces,
-                                    onChange: e => setGroupNamespaces(e.target.checked)
-                                }),
-                                ' Usar namespaces como títulos de sección'
-                            )
-                        ),
-                        React.createElement('div', { style: { marginTop: '0.25rem' } },
-                            React.createElement('label', null,
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: hideNodeLabels,
-                                    onChange: e => setHideNodeLabels(e.target.checked)
-                                }),
-                                ' Ocultar etiquetas de nodo ([[QUE]], etc.)'
-                            )
-                        ),
-                        React.createElement('div', { style: { marginTop: '0.25rem' } },
-                            React.createElement('label', null,
-                                React.createElement('input', {
-                                    type: 'checkbox',
-                                    checked: useAcademicNumbering,
-                                    onChange: e => setUseAcademicNumbering(e.target.checked)
-                                }),
-                                ' Usar numeración jerárquica (Ej: 1.1.1.)'
-                            )
+                    React.createElement('div', { style: { marginTop: '0.25rem' } },
+                        React.createElement('label', null,
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: hideNodeLabels,
+                                onChange: e => setHideNodeLabels(e.target.checked)
+                            }),
+                            ' Ocultar etiquetas de nodo ([[QUE]], etc.)'
+                        )
+                    ),
+                    React.createElement('div', { style: { marginTop: '0.25rem' } },
+                        React.createElement('label', null,
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: useAcademicNumbering,
+                                onChange: e => setUseAcademicNumbering(e.target.checked)
+                            }),
+                            ' Usar numeración jerárquica (Ej: 1.1.1.)'
                         )
                     )
                 )
