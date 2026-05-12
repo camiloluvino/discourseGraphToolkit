@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.48**
+**v1.5.49**
 
 ## Estado de Funcionalidades
 
@@ -23,10 +23,16 @@
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
 
+### v1.5.49 (Mayo 2026)
+- **Feature: Limpieza de Etiquetas de Nodo.** Nueva opción "Ocultar etiquetas de nodo" en la pestaña Exportar. Permite remover los prefijos `[[QUE]]`, `[[CLM]]`, `[[EVD]]`, `[[GRI]]` del texto exportado, resultando en un documento mucho más legible y profesional para impresión.
+- **Feature: Numeración Jerárquica Académica.** Se implementó el sistema de numeración automática (ej. 1., 1.1., 1.1.1.) que se integra con la estructura del grafo. Esta numeración facilita enormemente el seguimiento de la jerarquía en documentos impresos donde las viñetas (bullets) pueden ser difíciles de distinguir.
+- **Fix: Interacción de Namespaces y Etiquetas.** Se resolvió un problema crítico donde los títulos de sección (Namespaces) desaparecían al ocultar las etiquetas de nodo.
+- **Refactor: Eliminación de Indentación Compacta.** Se eliminó la opción de indentación de 1 espacio por ser redundante y visualmente inferior a la combinación de Namespaces + Numeración Jerárquica.
+- **UX: Corrección de UI en ExportTab.** Se corrigió un error de anidamiento en los elementos de React que impedía seleccionar correctamente las nuevas opciones de formato de forma simultánea.
+
 ### v1.5.48 (Mayo 2026)
 - **Feature: Opciones de Formato para Impresión (Markdown).** Se añadieron nuevas configuraciones en la pestaña Exportar para optimizar los archivos resultantes para su impresión o conversión a Word/PDF.
 - **Formato: Agrupación Jerárquica por Namespace.** Al exportar, el sistema ahora puede generar automáticamente encabezados de sección (`# Título`) basados en la estructura de proyectos. La lógica es inteligente: omite el proyecto raíz (ej. `tesis`) y genera títulos de primer nivel para cada sub-namespace nuevo (ej. `# Marco Teórico`, `# Metodología`), facilitando la navegación en documentos largos.
-- **Formato: Indentación Compacta.** Nueva opción para reducir el espaciado de las viñetas a un solo espacio. Esto resuelve el problema de "texto arrinconado" en grafos con mucha profundidad, maximizando el ancho útil del papel.
 - **UX: Persistencia de Preferencias.** Las nuevas opciones se integran con el sistema de Favoritos, permitiendo guardar perfiles de exportación específicos para impresión.
 
 ### v1.5.47 (Mayo 2026)
