@@ -1,13 +1,13 @@
-/**
- * DISCOURSE GRAPH TOOLKIT v1.5.44
- * Bundled build: 2026-05-11 13:01:25
+﻿/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.45
+ * Bundled build: 2026-05-11 21:27:39
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.44";
+    DiscourseGraphToolkit.VERSION = "1.5.45";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1772,19 +1772,21 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
     const escapedProject = this.escapeDatalogString(trimmedProject);
     const escapedProjectPrefix = this.escapeDatalogString(trimmedProject + '/');
 
-    // Query con OR: match exacto O sub-proyecto (prefijo/)
+    // Query optimizada: usa índices de relaciones de Roam (:block/refs)
     const query = `[
             :find ?page-title ?page-uid
             :where
+            [?project-page :node/title ?project-title]
+            (or 
+                [(= ?project-title "${escapedProject}")]
+                [(clojure.string/starts-with? ?project-title "${escapedProjectPrefix}")]
+            )
+            [?block :block/refs ?project-page]
+            [?block :block/page ?page]
             [?page :node/title ?page-title]
             [?page :block/uid ?page-uid]
-            [?block :block/page ?page]
             [?block :block/string ?string]
             [(clojure.string/includes? ?string "${escapedPattern}")]
-            (or
-                [(clojure.string/includes? ?string "[[${escapedProject}]]")]
-                [(clojure.string/includes? ?string "[[${escapedProjectPrefix}")]
-            )
         ]`;
 
     const results = await window.roamAlphaAPI.data.async.q(query);
@@ -6628,8 +6630,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
             React.createElement('span', { className: 'dgt-text-muted dgt-text-xs', style: { width: '16px', textAlign: 'center' } },
                 hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
             React.createElement('div', { className: 'dgt-flex-row', style: { flex: 1, gap: '0.75rem', alignItems: 'center' } },
-                // Checkbox de selección (permitido en todos los niveles)
-                React.createElement('input', {
+                // Checkbox de selección (solo hasta nivel 1)
+                (depth <= 1) && React.createElement('input', {
                     type: 'checkbox',
                     checked: selectedProjects.has(node.project || '(sin proyecto)'),
                     onChange: (e) => {

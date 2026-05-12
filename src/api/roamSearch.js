@@ -13,19 +13,21 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
     const escapedProject = this.escapeDatalogString(trimmedProject);
     const escapedProjectPrefix = this.escapeDatalogString(trimmedProject + '/');
 
-    // Query con OR: match exacto O sub-proyecto (prefijo/)
+    // Query optimizada: usa índices de relaciones de Roam (:block/refs)
     const query = `[
             :find ?page-title ?page-uid
             :where
+            [?project-page :node/title ?project-title]
+            (or 
+                [(= ?project-title "${escapedProject}")]
+                [(clojure.string/starts-with? ?project-title "${escapedProjectPrefix}")]
+            )
+            [?block :block/refs ?project-page]
+            [?block :block/page ?page]
             [?page :node/title ?page-title]
             [?page :block/uid ?page-uid]
-            [?block :block/page ?page]
             [?block :block/string ?string]
             [(clojure.string/includes? ?string "${escapedPattern}")]
-            (or
-                [(clojure.string/includes? ?string "[[${escapedProject}]]")]
-                [(clojure.string/includes? ?string "[[${escapedProjectPrefix}")]
-            )
         ]`;
 
     const results = await window.roamAlphaAPI.data.async.q(query);

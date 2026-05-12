@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-11
+**Última actualización:** 2026-05-12
 
 ## Versión Actual
 
-**v1.5.44**
+**v1.5.45**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,10 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI y profundidad recursiva |
 | Exportación Markdown | ✅ Mejorado | Soporta sub-proyectos con solo CLM/EVD (sin QUE/GRI propio) |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (soporta cualquier nivel jerárquico) |
+
+### v1.5.45 (Mayo 2026)
+- **Performance: Optimización Crítica en Consultas de Exportación.** Se rediseñó la función `findPagesWithProject` para utilizar índices nativos de Roam (`:block/refs`) en lugar de escaneo de texto completo. Esta mejora elimina el cuello de botella O(N) en la búsqueda de proyectos, permitiendo que el proceso de exportación se inicie de forma casi instantánea incluso en grafos con cientos de miles de bloques.
+- **Tech:** Sincronización de versión en el bundle final y limpieza de consultas redundantes en el flujo de exportación.
 
 ### v1.5.44 (Mayo 2026)
 - **Feature: Sistema de Favoritos (Perfiles de Selección Rápida).** Nueva barra ⭐ Favoritos en las pestañas **Ramas** y **Exportar** que permite guardar y restaurar configuraciones de selección con un clic.

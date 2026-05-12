@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.44
+**Versión:** 1.5.45
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -78,8 +78,9 @@ Gestiona la estructura global de tu investigación con una interfaz orientada a 
 - **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto y gestionar sus nodos individualmente.
 - **Modo Individual:** En proyectos "hoja" (sin sub-proyectos), el sistema permite el reordenamiento granular de nodos individuales.
 
-### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42)
+### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42 - v1.5.45)
 Se ha realizado una auditoría de calidad integral y refactorización del motor interno:
+- **Optimización Crítica de Exportación (v1.5.45):** Se rediseñó la consulta Datalog fundamental (`findPagesWithProject`) para utilizar los índices de referencias nativos de Roam (`:block/refs`) en lugar de escaneos de texto completo (`clojure.string/includes?`). Esto reduce drásticamente el tiempo de carga del proceso de exportación, pasando de segundos/minutos a milisegundos en grafos grandes.
 - **Seguridad (SRI):** Se agregó verificación de integridad hash (SRI) en la carga dinámica de dependencias (JSZip) para prevenir vulnerabilidades de cadena de suministro (supply-chain).
 - **Seguridad (XSS):** Implementación de una capa estricta de escape HTML en los generadores de exportación para títulos de nodos y metadatos, previniendo la inyección de código malicioso.
 - **Deduplicación O(1):** El mapeo de relaciones ahora utiliza `Set` internamente en lugar de búsquedas `Array.includes()`, eliminando cuellos de botella de complejidad O(N²) en grafos con cientos de conexiones.
