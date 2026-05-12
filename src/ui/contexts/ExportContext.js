@@ -19,6 +19,8 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [previewPages, setPreviewPages] = React.useState([]);
     const [compactIndentation, setCompactIndentation] = React.useState(false);
     const [groupNamespaces, setGroupNamespaces] = React.useState(false);
+    const [hideNodeLabels, setHideNodeLabels] = React.useState(false);
+    const [useAcademicNumbering, setUseAcademicNumbering] = React.useState(false);
 
     const value = React.useMemo(() => ({
         selectedProjects, setSelectedProjects,
@@ -30,8 +32,10 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         compactIndentation, setCompactIndentation,
-        groupNamespaces, setGroupNamespaces
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, compactIndentation, groupNamespaces]);
+        groupNamespaces, setGroupNamespaces,
+        hideNodeLabels, setHideNodeLabels,
+        useAcademicNumbering, setUseAcademicNumbering
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, compactIndentation, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

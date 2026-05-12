@@ -154,7 +154,7 @@ var MarkdownCore = {
     },
 
     // --- Recursión genérica para renderizar un nodo CLM o EVD y sus hijos ---
-    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions) {
+    renderNodeTree: function (nodeUid, allNodes, headingLevel, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, numberingPath) {
         if (!nodeUid || !allNodes[nodeUid]) return '';
         if (headingLevel > this.MAX_NODE_DEPTH + 2) return ''; // +2 porque QUE empieza en nivel 2
         if (visited[nodeUid]) return ''; // Evitar ciclos
@@ -167,8 +167,17 @@ var MarkdownCore = {
         // Generar heading dinámico (###, ####, #####, etc.)
         var hashes = '';
         for (var h = 0; h < headingLevel; h++) hashes += '#';
+        
         var title = this.cleanText((node.title || '').replace('[[' + type + ']] - ', ''));
-        result += hashes + ' [[' + type + ']] - ' + title + '\n\n';
+        var displayTitle = title;
+        if (!(formatOptions && formatOptions.hideNodeLabels)) {
+            displayTitle = '[[' + type + ']] - ' + displayTitle;
+        }
+        if (formatOptions && formatOptions.useAcademicNumbering && numberingPath && numberingPath.length > 0) {
+            displayTitle = numberingPath.join('.') + '. ' + displayTitle;
+        }
+
+        result += hashes + ' ' + displayTitle + '\n\n';
 
         // Metadata — SKIP en modo esqueleto
         if (!skeletonMode) {
@@ -185,11 +194,14 @@ var MarkdownCore = {
             }
         }
 
+        var childCounter = 1;
+
         // Hijos: CLMs de soporte (recursión)
         var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
         if (hasSupportingClms) {
             for (var s = 0; s < node.supporting_clms.length; s++) {
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
+                var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
             }
         }
 
@@ -197,7 +209,8 @@ var MarkdownCore = {
         var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
         if (hasRelatedEvds) {
             for (var e = 0; e < node.related_evds.length; e++) {
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
+                var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
             }
         }
 
@@ -209,7 +222,8 @@ var MarkdownCore = {
         // Hijos: Nodos contenidos (para GRI vía #Contains)
         if (node.contained_nodes && node.contained_nodes.length > 0) {
             for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
+                var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
             }
         }
 
@@ -217,7 +231,8 @@ var MarkdownCore = {
         var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
         if (hasRelatedClms) {
             for (var c = 0; c < node.related_clms.length; c++) {
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
+                var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
             }
         }
 
@@ -225,7 +240,8 @@ var MarkdownCore = {
         var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
         if (hasDirectEvds) {
             for (var d = 0; d < node.direct_evds.length; d++) {
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions);
+                var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
             }
         }
 
@@ -256,6 +272,7 @@ var MarkdownCore = {
         }
 
         var lastNamespace = null;
+        var rootCounter = 1;
 
         for (var q = 0; q < rootNodes.length; q++) {
             var rootNode = rootNodes[q];
@@ -287,11 +304,16 @@ var MarkdownCore = {
 
             try {
                 var nodeType = rootNode.type || self.getNodeType(rootNode.title);
+                var numberingPath = (formatOptions && formatOptions.useAcademicNumbering) ? [rootCounter++] : [];
 
                 if (nodeType === 'QUE') {
                     // Renderizado específico de QUE
                     var qTitle = self.cleanText((rootNode.title || '').replace('[[QUE]] - ', ''));
-                    result += '## [[QUE]] - ' + qTitle + '\n\n';
+                    var displayTitleQ = qTitle;
+                    if (!(formatOptions && formatOptions.hideNodeLabels)) displayTitleQ = '[[QUE]] - ' + displayTitleQ;
+                    if (formatOptions && formatOptions.useAcademicNumbering) displayTitleQ = numberingPath.join('.') + '. ' + displayTitleQ;
+                    
+                    result += '## ' + displayTitleQ + '\n\n';
 
                     // Metadata — SKIP en modo esqueleto
                     if (!skeletonMode) {
@@ -315,24 +337,32 @@ var MarkdownCore = {
                         continue;
                     }
 
+                    var childCounter = 1;
+                    
                     // CLMs respondidos (recursión desde nivel 3)
                     if (rootNode.related_clms) {
                         for (var c = 0; c < rootNode.related_clms.length; c++) {
-                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
+                            var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
+                            result += self.renderNodeTree(rootNode.related_clms[c], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumC);
                         }
                     }
 
                     // EVDs directos de la pregunta (nivel 3)
                     if (rootNode.direct_evds) {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
-                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
+                            var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
+                            result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumD);
                         }
                     }
 
                 } else if (nodeType === 'GRI') {
                     // Renderizado de GRI como nodo raíz
                     var gTitle = self.cleanText((rootNode.title || '').replace('[[GRI]] - ', ''));
-                    result += '## [[GRI]] - ' + gTitle + '\n\n';
+                    var displayTitleG = gTitle;
+                    if (!(formatOptions && formatOptions.hideNodeLabels)) displayTitleG = '[[GRI]] - ' + displayTitleG;
+                    if (formatOptions && formatOptions.useAcademicNumbering) displayTitleG = numberingPath.join('.') + '. ' + displayTitleG;
+
+                    result += '## ' + displayTitleG + '\n\n';
 
                     // Metadata — SKIP en modo esqueleto
                     if (!skeletonMode) {
@@ -345,10 +375,13 @@ var MarkdownCore = {
                         if (griContent) result += griContent + '\n';
                     }
 
+                    var childCounterG = 1;
+                    
                     // Nodos contenidos (recursión desde nivel 3)
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
-                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
+                            var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCN);
                         }
                     } else if (!skeletonMode) {
                         result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
@@ -356,7 +389,7 @@ var MarkdownCore = {
 
                 } else {
                     // Fallback: renderizar con renderNodeTree genérico
-                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions);
+                    result += self.renderNodeTree(rootNode.uid, allNodes, 2, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, numberingPath);
                 }
 
             } catch (err) {

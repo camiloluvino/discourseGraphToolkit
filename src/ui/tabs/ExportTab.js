@@ -15,7 +15,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         compactIndentation, setCompactIndentation,
-        groupNamespaces, setGroupNamespaces
+        groupNamespaces, setGroupNamespaces,
+        hideNodeLabels, setHideNodeLabels,
+        useAcademicNumbering, setUseAcademicNumbering
     } = DiscourseGraphToolkit.useExport();
 
     // --- Favorites ---
@@ -34,7 +36,9 @@ DiscourseGraphToolkit.ExportTab = function () {
             excludeBitacora: excludeBitacora,
             skeletonMode: skeletonMode,
             compactIndentation: compactIndentation,
-            groupNamespaces: groupNamespaces
+            groupNamespaces: groupNamespaces,
+            hideNodeLabels: hideNodeLabels,
+            useAcademicNumbering: useAcademicNumbering
         };
         // El nombre se genera automáticamente desde selectedProjects (por namespace)
         const updated = DiscourseGraphToolkit.FavoritesService.add('export', null, data);
@@ -53,6 +57,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         if (data.skeletonMode !== undefined) setSkeletonMode(data.skeletonMode);
         if (data.compactIndentation !== undefined) setCompactIndentation(data.compactIndentation);
         if (data.groupNamespaces !== undefined) setGroupNamespaces(data.groupNamespaces);
+        if (data.hideNodeLabels !== undefined) setHideNodeLabels(data.hideNodeLabels);
+        if (data.useAcademicNumbering !== undefined) setUseAcademicNumbering(data.useAcademicNumbering);
         DiscourseGraphToolkit.showToast('Favorito aplicado: ' + fav.name, 'success');
     };
 
@@ -92,6 +98,8 @@ DiscourseGraphToolkit.ExportTab = function () {
         if (data.skeletonMode !== undefined && data.skeletonMode !== skeletonMode) return false;
         if (data.compactIndentation !== undefined && data.compactIndentation !== compactIndentation) return false;
         if (data.groupNamespaces !== undefined && data.groupNamespaces !== groupNamespaces) return false;
+        if (data.hideNodeLabels !== undefined && data.hideNodeLabels !== hideNodeLabels) return false;
+        if (data.useAcademicNumbering !== undefined && data.useAcademicNumbering !== useAcademicNumbering) return false;
         return true;
     };
 
@@ -503,7 +511,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { compactIndentation, groupNamespaces };
+            const formatOptions = { compactIndentation, groupNamespaces, hideNodeLabels, useAcademicNumbering };
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
@@ -539,7 +547,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { compactIndentation, groupNamespaces };
+            const formatOptions = { compactIndentation, groupNamespaces, hideNodeLabels, useAcademicNumbering };
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -837,6 +845,26 @@ DiscourseGraphToolkit.ExportTab = function () {
                                     onChange: e => setCompactIndentation(e.target.checked)
                                 }),
                                 ' Usar indentación compacta (1 espacio)'
+                            )
+                        ),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: hideNodeLabels,
+                                    onChange: e => setHideNodeLabels(e.target.checked)
+                                }),
+                                ' Ocultar etiquetas de nodo ([[QUE]], etc.)'
+                            )
+                        ),
+                        React.createElement('div', { style: { marginTop: '0.25rem' } },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: useAcademicNumbering,
+                                    onChange: e => setUseAcademicNumbering(e.target.checked)
+                                }),
+                                ' Usar numeración jerárquica (Ej: 1.1.1.)'
                             )
                         )
                     )
