@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.47
- * Bundled build: 2026-05-12 16:51:46
+ * Bundled build: 2026-05-12 17:09:03
  */
 
 (function () {
@@ -8038,11 +8038,14 @@ DiscourseGraphToolkit.ExportTab = function () {
             setExportStatus("Buscando páginas...");
             let allPages = [];
             const uidToProject = {};
-            for (let p of pNames) {
+            // Ordenar pNames por longitud descendente para que los sub-proyectos específicos ganen en el mapeo
+            const sortedPNames = [...pNames].sort((a, b) => b.length - a.length);
+            
+            for (let p of sortedPNames) {
                 const pages = await DiscourseGraphToolkit.queryDiscoursePages(p, tTypes);
                 for (const page of pages) {
                     if (!uidToProject[page.pageUid]) {
-                        uidToProject[page.pageUid] = p; // primer proyecto encontrado gana
+                        uidToProject[page.pageUid] = p; // proyecto más específico gana
                     }
                 }
                 allPages = allPages.concat(pages);
