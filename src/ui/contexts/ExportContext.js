@@ -17,7 +17,6 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
-    const [compactIndentation, setCompactIndentation] = React.useState(false);
     const [groupNamespaces, setGroupNamespaces] = React.useState(false);
     const [hideNodeLabels, setHideNodeLabels] = React.useState(false);
     const [useAcademicNumbering, setUseAcademicNumbering] = React.useState(false);
@@ -31,11 +30,10 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
-        compactIndentation, setCompactIndentation,
         groupNamespaces, setGroupNamespaces,
         hideNodeLabels, setHideNodeLabels,
         useAcademicNumbering, setUseAcademicNumbering
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, compactIndentation, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

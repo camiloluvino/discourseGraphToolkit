@@ -69,7 +69,7 @@ var MarkdownCore = {
                         }
                     } else {
                         var indent = '';
-                        var indentStr = (formatOptions && formatOptions.compactIndentation) ? ' ' : '  ';
+                        var indentStr = '  '; // 2 espacios estandar
                         for (var i = 0; i < indentLevel; i++) indent += indentStr;
                         content += indent + '- ' + blockString + '\n';
                     }
