@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.49
- * Bundled build: 2026-05-12 18:28:52
+ * Bundled build: 2026-05-18 15:31:43
  */
 
 (function () {
@@ -8750,14 +8750,15 @@ DiscourseGraphToolkit.ExportTab = function () {
                         })
                 )
             ),
-            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem' } },
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexShrink: 0 } },
                     React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
                     React.createElement('span', {
                         onClick: selectAllTypes,
                         style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
                     }, 'Seleccionar todos')
                 ),
+                React.createElement('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '0.25rem', paddingBottom: '0.5rem' } },
                 ['GRI', 'QUE', 'CLM', 'EVD'].map(t =>
                     React.createElement('div', { key: t },
                         React.createElement('label', null,
@@ -8863,6 +8864,7 @@ DiscourseGraphToolkit.ExportTab = function () {
                             ' Usar numeración jerárquica (Ej: 1.1.1.)'
                         )
                     )
+                )
                 )
             )
         ),
