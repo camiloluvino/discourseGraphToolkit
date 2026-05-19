@@ -24,6 +24,7 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
 
 ### v1.5.50 (Mayo 2026)
+- **Feature: Sincronización del Orden en el Árbol de Exportación.** Se implementó el ordenamiento dinámico de carpetas en el árbol de selección de la pestaña **Exportar** (y **Ramas**) para reflejar fielmente la jerarquía y el orden personalizado definido por el usuario mediante arrastrar y soltar (Drag & Drop) en la pestaña **Panorámica**.
 - **Fix: Asociación y Exportación de Metadatos de Proyecto.** Se resolvió un bug importante donde la opción de "Incluir información de Proyecto (metadatos)" se exportaba vacía. Ahora el Toolkit escanea dinámicamente el primer bloque de la página en Roam y extrae de forma limpia y robusta el proyecto asociado y la sección narrativa (admitiendo múltiples formatos de dos puntos como `:` o `::`, y con o sin dobles corchetes `[[ ]]`).
 
 ### v1.5.49 (Mayo 2026)

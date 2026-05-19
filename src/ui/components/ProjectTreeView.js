@@ -53,6 +53,29 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
         return expandedNodes[nodePath] === undefined ? defaultExpanded : expandedNodes[nodePath];
     };
 
+    // --- Helper para ordenar las carpetas según el orden de la panorámica ---
+    const sortKeys = (keys, parentProject, children) => {
+        if (!parentProject) {
+            return [...keys].sort();
+        }
+        const savedGroupOrder = DiscourseGraphToolkit.loadGroupOrder(parentProject);
+        if (savedGroupOrder && savedGroupOrder.length > 0) {
+            return [...keys].sort((a, b) => {
+                const pathA = children[a].project;
+                const pathB = children[b].project;
+                const indexA = savedGroupOrder.indexOf(pathA);
+                const indexB = savedGroupOrder.indexOf(pathB);
+
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+
+                return a.localeCompare(b);
+            });
+        }
+        return [...keys].sort();
+    };
+
     // --- Render recursivo de nodo ---
     const renderNode = (node, key, depth) => {
         const isExpanded = isNodeExpanded(node.project);
@@ -70,7 +93,7 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
                 // Contenido específico del nodo (preguntas, etc.)
                 renderNodeContent && renderNodeContent(node, depth),
                 // Hijos recursivos
-                hasChildren && Object.keys(node.children).sort().map(childKey =>
+                hasChildren && sortKeys(Object.keys(node.children), node.project, node.children).map(childKey =>
                     renderNode(node.children[childKey], childKey, depth + 1)
                 )
             )
@@ -91,7 +114,7 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
                 style: { padding: '2px 6px', fontSize: '0.6875rem' }
             }, '➖ Colapsar Todo')
         ),
-        Object.keys(tree).sort().map(projectKey =>
+        sortKeys(Object.keys(tree), null, tree).map(projectKey =>
             renderNode(tree[projectKey], projectKey, 0)
         )
     );
