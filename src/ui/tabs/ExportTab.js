@@ -11,6 +11,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
         skeletonMode, setSkeletonMode,
+        includeProjectMetadata, setIncludeProjectMetadata,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
@@ -34,6 +35,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             contentConfig: { ...contentConfig },
             excludeBitacora: excludeBitacora,
             skeletonMode: skeletonMode,
+            includeProjectMetadata: includeProjectMetadata,
             groupNamespaces: groupNamespaces,
             hideNodeLabels: hideNodeLabels,
             useAcademicNumbering: useAcademicNumbering
@@ -53,6 +55,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         if (data.contentConfig) setContentConfig({ ...data.contentConfig });
         if (data.excludeBitacora !== undefined) setExcludeBitacora(data.excludeBitacora);
         if (data.skeletonMode !== undefined) setSkeletonMode(data.skeletonMode);
+        if (data.includeProjectMetadata !== undefined) setIncludeProjectMetadata(data.includeProjectMetadata);
         if (data.groupNamespaces !== undefined) setGroupNamespaces(data.groupNamespaces);
         if (data.hideNodeLabels !== undefined) setHideNodeLabels(data.hideNodeLabels);
         if (data.useAcademicNumbering !== undefined) setUseAcademicNumbering(data.useAcademicNumbering);
@@ -93,6 +96,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         // Comparar flags
         if (data.excludeBitacora !== undefined && data.excludeBitacora !== excludeBitacora) return false;
         if (data.skeletonMode !== undefined && data.skeletonMode !== skeletonMode) return false;
+        if (data.includeProjectMetadata !== undefined && data.includeProjectMetadata !== includeProjectMetadata) return false;
         if (data.groupNamespaces !== undefined && data.groupNamespaces !== groupNamespaces) return false;
         if (data.hideNodeLabels !== undefined && data.hideNodeLabels !== hideNodeLabels) return false;
         if (data.useAcademicNumbering !== undefined && data.useAcademicNumbering !== useAcademicNumbering) return false;
@@ -102,7 +106,13 @@ DiscourseGraphToolkit.ExportTab = function () {
     // --- Limpiar preview cuando cambian los proyectos seleccionados ---
     React.useEffect(() => {
         setPreviewPages([]);
-    }, [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
+    }, [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, includeProjectMetadata, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
+
+    // --- Sincronizar skeletonMode dinámicamente con contentConfig ---
+    React.useEffect(() => {
+        const anyContent = Object.values(contentConfig).some(x => x);
+        setSkeletonMode(!anyContent);
+    }, [contentConfig]);
 
     // --- Árbol jerárquico de proyectos (calculado) ---
     const projectTree = React.useMemo(() => {
@@ -194,7 +204,7 @@ DiscourseGraphToolkit.ExportTab = function () {
         // Nota: Aunque skeletonMode esté activo, necesitamos los datos estructurales (hijos, refs)
         // para que el RelationshipMapper descubra las relaciones entre nodos.
         // El filtrado de contenido se hace en los renderers (markdownCore, htmlNodeRenderers).
-        const includeContent = Object.values(contentConfig).some(x => x);
+        const includeContent = true;
 
         setExportStatus("Obteniendo datos...");
         const result = await DiscourseGraphToolkit.exportPagesNative(
@@ -489,7 +499,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             setExportStatus("Generando HTML...");
             const htmlContent = DiscourseGraphToolkit.HtmlGenerator.generateHtml(
-                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora, skeletonMode
+                questionsToExport, allNodes, `Mapa de Discurso: ${pNames.join(', ')}`, contentConfig, excludeBitacora, skeletonMode, includeProjectMetadata
             );
 
             setExportStatus("Descargando...");
@@ -521,7 +531,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { groupNamespaces, hideNodeLabels, useAcademicNumbering };
+            const formatOptions = { groupNamespaces, hideNodeLabels, useAcademicNumbering, includeProjectMetadata };
 
             setExportStatus("Generando Markdown...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateMarkdown(
@@ -557,7 +567,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { groupNamespaces, hideNodeLabels, useAcademicNumbering };
+            const formatOptions = { groupNamespaces, hideNodeLabels, useAcademicNumbering, includeProjectMetadata };
 
             setExportStatus("Generando Markdown Plano...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -593,7 +603,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { compactIndentation, groupNamespaces };
+            const formatOptions = { compactIndentation, groupNamespaces, includeProjectMetadata };
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
@@ -756,120 +766,186 @@ DiscourseGraphToolkit.ExportTab = function () {
                 )
             ),
             React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
-                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexShrink: 0 } },
-                    React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem' } }, '2. Tipos'),
+                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.75rem', flexShrink: 0 } },
+                    React.createElement('h4', { style: { marginTop: 0, marginBottom: 0, fontSize: '0.875rem', fontWeight: 600 } }, '2. Configuración de Nodos'),
                     React.createElement('span', {
                         onClick: selectAllTypes,
-                        style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline' }
+                        style: { fontSize: '0.75rem', color: '#2196F3', cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto' }
                     }, 'Seleccionar todos')
                 ),
                 React.createElement('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '0.25rem', paddingBottom: '0.5rem' } },
-                ['GRI', 'QUE', 'CLM', 'EVD'].map(t =>
-                    React.createElement('div', { key: t },
-                        React.createElement('label', null,
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: selectedTypes[t],
-                                onChange: e => setSelectedTypes({ ...selectedTypes, [t]: e.target.checked })
-                            }),
-                            ` ${t}`
-                        )
-                    )
-                ),
-                React.createElement('div', {
-                    style: {
-                        fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem', marginBottom: '0.5rem',
-                        lineHeight: '1.3'
-                    }
-                }, 'Controla qu\u00e9 tipos de nodos se incluyen en el \u00e1rbol de exportaci\u00f3n.'),
-                React.createElement('div', { style: { marginTop: '0.625rem', marginBottom: '0.625rem' } },
-                    React.createElement('label', {
-                        style: { fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }
+                    // Table/Matrix
+                    React.createElement('table', {
+                        style: {
+                            width: '100%',
+                            borderCollapse: 'collapse',
+                            fontSize: '0.8125rem',
+                            marginBottom: '0.75rem',
+                            backgroundColor: 'var(--dgt-bg-primary, #fff)',
+                            border: '1px solid var(--dgt-border-color, #eee)',
+                            borderRadius: 'var(--dgt-radius-md, 6px)',
+                            overflow: 'hidden'
+                        }
                     },
-                        React.createElement('input', {
-                            type: 'checkbox',
-                            checked: skeletonMode,
-                            onChange: e => setSkeletonMode(e.target.checked)
-                        }),
-                        ' Exportar solo esqueleto (solo títulos y relaciones)'
+                        React.createElement('thead', null,
+                            React.createElement('tr', { style: { backgroundColor: 'var(--dgt-bg-secondary, #fafafa)', borderBottom: '1px solid var(--dgt-border-color, #eee)' } },
+                                React.createElement('th', { style: { textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: 600 } }, 'Tipo de Nodo'),
+                                React.createElement('th', { style: { textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: 600, width: '4.5rem' } }, 'Incluir'),
+                                React.createElement('th', { style: { textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: 600, width: '7.5rem' } }, 'Texto Completo')
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            ['GRI', 'QUE', 'CLM', 'EVD'].map(t => {
+                                const label = DiscourseGraphToolkit.TYPES[t].label;
+                                const isSelected = selectedTypes[t];
+                                return React.createElement('tr', {
+                                    key: t,
+                                    style: {
+                                        borderBottom: '1px solid var(--dgt-border-color, #eee)',
+                                        opacity: isSelected ? 1 : 0.6,
+                                        transition: 'opacity 0.15s ease'
+                                    }
+                                },
+                                    React.createElement('td', { style: { padding: '0.5rem 0.75rem', fontWeight: 500 } },
+                                        t === 'GRI' ? '📁 ' : t === 'QUE' ? '❓ ' : t === 'CLM' ? '💬 ' : '📄 ',
+                                        `${label} (${t})`
+                                    ),
+                                    React.createElement('td', { style: { padding: '0.5rem 0.75rem', textAlign: 'center' } },
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: isSelected,
+                                            onChange: e => {
+                                                setSelectedTypes({ ...selectedTypes, [t]: e.target.checked });
+                                            },
+                                            style: { cursor: 'pointer' }
+                                        })
+                                    ),
+                                    React.createElement('td', { style: { padding: '0.5rem 0.75rem', textAlign: 'center' } },
+                                        React.createElement('input', {
+                                            type: 'checkbox',
+                                            checked: contentConfig[t],
+                                            disabled: !isSelected,
+                                            onChange: e => {
+                                                setContentConfig({ ...contentConfig, [t]: e.target.checked });
+                                            },
+                                            style: { cursor: isSelected ? 'pointer' : 'not-allowed' }
+                                        })
+                                    )
+                                );
+                            })
+                        )
                     ),
+
+                    // Acciones Rápidas (Solo Títulos / Todo Completo)
                     React.createElement('div', {
                         style: {
-                            fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem', marginLeft: '1.375rem',
-                            lineHeight: '1.3'
+                            display: 'flex',
+                            gap: '0.5rem',
+                            marginBottom: '1rem',
+                            justifyContent: 'flex-end'
                         }
-                    }, 'Modo "rayos X": omite todo el contenido, metadata y mensajes informativos.')
-                ),
-                React.createElement('div', { style: { marginTop: '0.625rem' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', opacity: skeletonMode ? 0.4 : 1 } }, 'Extraer contenido detallado por tipo:'),
-                    ['GRI', 'QUE', 'CLM', 'EVD'].map(type =>
-                        React.createElement('div', { key: type, style: { marginLeft: '0.625rem' } },
-                            React.createElement('label', {
-                                style: { opacity: skeletonMode ? 0.4 : 1 }
+                    },
+                        React.createElement('button', {
+                            onClick: () => {
+                                setContentConfig({ GRI: false, QUE: false, CLM: false, EVD: false });
+                                DiscourseGraphToolkit.showToast('Configurado: Solo Títulos (Esqueleto)', 'info');
                             },
+                            style: {
+                                fontSize: '0.725rem',
+                                padding: '0.25rem 0.5rem',
+                                border: '1px solid var(--dgt-border-color, #ccc)',
+                                borderRadius: 'var(--dgt-radius-sm, 4px)',
+                                backgroundColor: 'var(--dgt-bg-secondary, #f9f9f9)',
+                                cursor: 'pointer',
+                                color: 'var(--dgt-text-secondary, #666)'
+                            }
+                        }, '⚡ Solo Títulos'),
+                        React.createElement('button', {
+                            onClick: () => {
+                                setContentConfig({ GRI: true, QUE: true, CLM: true, EVD: true });
+                                DiscourseGraphToolkit.showToast('Configurado: Todo Texto Completo', 'info');
+                            },
+                            style: {
+                                fontSize: '0.725rem',
+                                padding: '0.25rem 0.5rem',
+                                border: '1px solid var(--dgt-border-color, #ccc)',
+                                borderRadius: 'var(--dgt-radius-sm, 4px)',
+                                backgroundColor: 'var(--dgt-bg-secondary, #f9f9f9)',
+                                cursor: 'pointer',
+                                color: 'var(--dgt-text-secondary, #666)'
+                            }
+                        }, '⚡ Texto Completo')
+                    ),
+
+                    // 3. Filtros y Metadatos
+                    React.createElement('div', {
+                        style: {
+                            borderTop: '1px solid var(--dgt-border-color, #eee)',
+                            paddingTop: '0.75rem',
+                            marginBottom: '1rem'
+                        }
+                    },
+                        React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 } }, '3. Filtros y Metadatos'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.8125rem' } },
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' } },
                                 React.createElement('input', {
                                     type: 'checkbox',
-                                    checked: contentConfig[type],
-                                    disabled: skeletonMode,
-                                    onChange: e => setContentConfig({ ...contentConfig, [type]: e.target.checked })
+                                    checked: includeProjectMetadata,
+                                    onChange: e => setIncludeProjectMetadata(e.target.checked)
                                 }),
-                                ` ${DiscourseGraphToolkit.TYPES[type].label} (${type})`
+                                React.createElement('span', null, 'Incluir información de Proyecto (metadatos)'),
+                                React.createElement('span', {
+                                    title: 'Conserva el proyecto y sección asociada incluso en modo solo títulos',
+                                    style: { cursor: 'help', opacity: 0.6, fontSize: '0.75rem' }
+                                }, ' ℹ️')
+                            ),
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' } },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: excludeBitacora,
+                                    onChange: e => setExcludeBitacora(e.target.checked)
+                                }),
+                                'Excluir contenido de [[bitácora]]'
                             )
                         )
                     ),
+
+                    // 4. Formato de Impresión (Markdown)
                     React.createElement('div', {
                         style: {
-                            fontSize: '0.6875rem', color: '#888', marginTop: '0.25rem',
-                            lineHeight: '1.3'
+                            borderTop: '1px solid var(--dgt-border-color, #eee)',
+                            paddingTop: '0.75rem',
+                            paddingBottom: '0.5rem'
                         }
-                    }, 'Los t\u00edtulos siempre aparecen. Marca un tipo para incluir adem\u00e1s el texto de sus bloques internos.'),
-                    React.createElement('div', { style: { marginTop: '0.625rem' } },
-                        React.createElement('label', {
-                            style: { opacity: skeletonMode ? 0.4 : 1 }
-                        },
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: excludeBitacora,
-                                disabled: skeletonMode,
-                                onChange: e => setExcludeBitacora(e.target.checked)
-                            }),
-                            ' Excluir contenido de [[bitácora]]'
+                    },
+                        React.createElement('h4', { style: { marginTop: 0, marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 } }, '4. Formato de Impresión (Markdown)'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.8125rem' } },
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' } },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: groupNamespaces,
+                                    onChange: e => setGroupNamespaces(e.target.checked)
+                                }),
+                                'Usar namespaces como títulos de sección'
+                            ),
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' } },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: hideNodeLabels,
+                                    onChange: e => setHideNodeLabels(e.target.checked)
+                                }),
+                                'Ocultar etiquetas de nodo (ej: [[QUE]])'
+                            ),
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' } },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: useAcademicNumbering,
+                                    onChange: e => setUseAcademicNumbering(e.target.checked)
+                                }),
+                                'Usar numeración jerárquica (Ej: 1.1.1.)'
+                            )
                         )
                     )
-                ),
-                React.createElement('div', { style: { marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '0.625rem' } },
-                    React.createElement('strong', { style: { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem' } }, 'Formato (para impresión):'),
-                    React.createElement('div', { style: { marginTop: '0.25rem' } },
-                        React.createElement('label', null,
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: groupNamespaces,
-                                onChange: e => setGroupNamespaces(e.target.checked)
-                            }),
-                            ' Usar namespaces como títulos de sección'
-                        )
-                    ),
-                    React.createElement('div', { style: { marginTop: '0.25rem' } },
-                        React.createElement('label', null,
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: hideNodeLabels,
-                                onChange: e => setHideNodeLabels(e.target.checked)
-                            }),
-                            ' Ocultar etiquetas de nodo ([[QUE]], etc.)'
-                        )
-                    ),
-                    React.createElement('div', { style: { marginTop: '0.25rem' } },
-                        React.createElement('label', null,
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: useAcademicNumbering,
-                                onChange: e => setUseAcademicNumbering(e.target.checked)
-                            }),
-                            ' Usar numeración jerárquica (Ej: 1.1.1.)'
-                        )
-                    )
-                )
                 )
             )
         ),

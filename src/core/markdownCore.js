@@ -180,7 +180,8 @@ var MarkdownCore = {
         result += hashes + ' ' + displayTitle + '\n\n';
 
         // Metadata — SKIP en modo esqueleto
-        if (!skeletonMode) {
+        var includeProj = (formatOptions && formatOptions.includeProjectMetadata !== undefined) ? formatOptions.includeProjectMetadata : !skeletonMode;
+        if (includeProj) {
             result += this.renderMetadata(node.project_metadata || {}, flatMode);
         }
 
@@ -316,7 +317,8 @@ var MarkdownCore = {
                     result += '## ' + displayTitleQ + '\n\n';
 
                     // Metadata — SKIP en modo esqueleto
-                    if (!skeletonMode) {
+                    var includeProj = (formatOptions && formatOptions.includeProjectMetadata !== undefined) ? formatOptions.includeProjectMetadata : !skeletonMode;
+                    if (includeProj) {
                         result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
                     }
 
@@ -365,7 +367,8 @@ var MarkdownCore = {
                     result += '## ' + displayTitleG + '\n\n';
 
                     // Metadata — SKIP en modo esqueleto
-                    if (!skeletonMode) {
+                    var includeProj = (formatOptions && formatOptions.includeProjectMetadata !== undefined) ? formatOptions.includeProjectMetadata : !skeletonMode;
+                    if (includeProj) {
                         result += self.renderMetadata(rootNode.project_metadata || {}, flatMode);
                     }
 

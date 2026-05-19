@@ -14,6 +14,7 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
     const [contentConfig, setContentConfig] = React.useState({ GRI: true, QUE: true, CLM: true, EVD: true });
     const [excludeBitacora, setExcludeBitacora] = React.useState(true);
     const [skeletonMode, setSkeletonMode] = React.useState(false);
+    const [includeProjectMetadata, setIncludeProjectMetadata] = React.useState(true);
     const [isExporting, setIsExporting] = React.useState(false);
     const [exportStatus, setExportStatus] = React.useState('');
     const [previewPages, setPreviewPages] = React.useState([]);
@@ -27,13 +28,14 @@ DiscourseGraphToolkit.ExportProvider = function ({ children }) {
         contentConfig, setContentConfig,
         excludeBitacora, setExcludeBitacora,
         skeletonMode, setSkeletonMode,
+        includeProjectMetadata, setIncludeProjectMetadata,
         isExporting, setIsExporting,
         exportStatus, setExportStatus,
         previewPages, setPreviewPages,
         groupNamespaces, setGroupNamespaces,
         hideNodeLabels, setHideNodeLabels,
         useAcademicNumbering, setUseAcademicNumbering
-    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, isExporting, exportStatus, previewPages, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
+    }), [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, includeProjectMetadata, isExporting, exportStatus, previewPages, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
 
     return React.createElement(DiscourseGraphToolkit.ExportContext.Provider, { value }, children);
 };

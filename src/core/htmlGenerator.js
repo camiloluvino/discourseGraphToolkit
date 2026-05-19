@@ -6,7 +6,7 @@
 
 DiscourseGraphToolkit.HtmlGenerator = {
 
-    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true, skeletonMode = false) {
+    generateHtml: function (questions, allNodes, title = "Mapa de Discurso", contentConfig = true, excludeBitacora = true, skeletonMode = false, includeProjectMetadata = true) {
         // Compatibilidad legacy: si contentConfig es boolean, convertir a objeto
         let config = contentConfig;
         if (typeof contentConfig === 'boolean') {
@@ -45,11 +45,11 @@ DiscourseGraphToolkit.HtmlGenerator = {
 
                 if (nodeType === 'GRI') {
                     html += DiscourseGraphToolkit.HtmlNodeRenderers.renderRootNode(
-                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode
+                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode, includeProjectMetadata
                     );
                 } else {
                     html += DiscourseGraphToolkit.HtmlNodeRenderers.renderQuestion(
-                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode
+                        rootNode, i, allNodes, config, excludeBitacora, skeletonMode, includeProjectMetadata
                     );
                 }
             } catch (e) {

@@ -38,6 +38,33 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     if (pullData[':create/user']) transformed[':create/user'] = { ':user/uid': pullData[':create/user'][':user/uid'] };
     if (pullData[':edit/user']) transformed[':edit/user'] = { ':user/uid': pullData[':edit/user'][':user/uid'] };
 
+    // Extraer metadatos de proyecto en el nivel raíz (página)
+    if (depth === 0) {
+        transformed['project_metadata'] = {};
+        const children = pullData[':block/children'];
+        if (Array.isArray(children)) {
+            const PM = DiscourseGraphToolkit.ProjectManager;
+            const projectFieldName = PM.getFieldName();
+            const projRegex = new RegExp(projectFieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "(?::|::)\\s*(?:\\[\\[)?([^\\]\\n:]+)(?:\\]\\])?", 'i');
+            const seccionRegex = /Secci[oó]n\s+Narrativa(?::|::)\s*(?:\[\[)?([^\#\]\n:]+)(?:\\]\\])?/i;
+
+            for (const child of children) {
+                const str = child[':block/string'] || "";
+                if (!str) continue;
+
+                const projMatch = str.match(projRegex);
+                if (projMatch && !transformed['project_metadata']['proyecto_asociado']) {
+                    transformed['project_metadata']['proyecto_asociado'] = projMatch[1].trim();
+                }
+
+                const seccionMatch = str.match(seccionRegex);
+                if (seccionMatch && !transformed['project_metadata']['seccion_tesis']) {
+                    transformed['project_metadata']['seccion_tesis'] = seccionMatch[1].trim();
+                }
+            }
+        }
+    }
+
     // Solo procesar hijos si includeContent es true O si es el nivel raíz (depth 0 es la página, sus hijos son los bloques)
     // Pero espera, si depth 0 es la página, sus hijos son el contenido.
     // Si includeContent es false, queremos la página (título, uid) pero NO sus hijos.

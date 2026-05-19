@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.49**
+**v1.5.50**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,9 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.50 (Mayo 2026)
+- **Fix: Asociación y Exportación de Metadatos de Proyecto.** Se resolvió un bug importante donde la opción de "Incluir información de Proyecto (metadatos)" se exportaba vacía. Ahora el Toolkit escanea dinámicamente el primer bloque de la página en Roam y extrae de forma limpia y robusta el proyecto asociado y la sección narrativa (admitiendo múltiples formatos de dos puntos como `:` o `::`, y con o sin dobles corchetes `[[ ]]`).
 
 ### v1.5.49 (Mayo 2026)
 - **Fix: Duplicación en Exportación con Proyectos Jerárquicos.** Se corrigió un error crítico donde las preguntas y su estructura descendiente se duplicaban en los archivos exportados (Markdown, HTML, EPUB) al seleccionar simultáneamente un proyecto padre (ej. `articuloRA`) y sus subproyectos (ej. `articuloRA/amistad`). La exportación ahora realiza una deduplicación inteligente de UIDs de primer nivel basados en los namespaces más específicos.
