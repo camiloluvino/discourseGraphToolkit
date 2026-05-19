@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.49
- * Bundled build: 2026-05-18 15:31:43
+ * Bundled build: 2026-05-19 00:23:10
  */
 
 (function () {
@@ -8394,15 +8394,29 @@ DiscourseGraphToolkit.ExportTab = function () {
                 : Array.from(subProjectSet).sort();
 
             let finalUidOrder = [];
+            const addedUids = new Set();
             for (const gk of orderedGroups) {
                 const groupNodes = annotated.filter(q => q._project === gk || (q._project && q._project.startsWith(gk + '/')));
+                const uniqueGroupNodes = groupNodes.filter(q => !addedUids.has(q.uid));
+                if (uniqueGroupNodes.length === 0) continue;
+
                 const savedQ = DiscourseGraphToolkit.loadQuestionOrder(gk);
                 if (savedQ && savedQ.length > 0) {
-                    const ordered = savedQ.map(uid => groupNodes.find(q => q.uid === uid)).filter(Boolean);
-                    const unseen = groupNodes.filter(q => !savedQ.includes(q.uid));
-                    finalUidOrder.push(...ordered.map(q => q.uid), ...unseen.map(q => q.uid));
+                    const ordered = savedQ.map(uid => uniqueGroupNodes.find(q => q.uid === uid)).filter(Boolean);
+                    const unseen = uniqueGroupNodes.filter(q => !savedQ.includes(q.uid));
+                    ordered.forEach(q => {
+                        finalUidOrder.push(q.uid);
+                        addedUids.add(q.uid);
+                    });
+                    unseen.forEach(q => {
+                        finalUidOrder.push(q.uid);
+                        addedUids.add(q.uid);
+                    });
                 } else {
-                    finalUidOrder.push(...groupNodes.map(q => q.uid));
+                    uniqueGroupNodes.forEach(q => {
+                        finalUidOrder.push(q.uid);
+                        addedUids.add(q.uid);
+                    });
                 }
             }
             

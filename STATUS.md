@@ -1,6 +1,6 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-05-19
 
 ## Versión Actual
 
@@ -24,6 +24,7 @@
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
 
 ### v1.5.49 (Mayo 2026)
+- **Fix: Duplicación en Exportación con Proyectos Jerárquicos.** Se corrigió un error crítico donde las preguntas y su estructura descendiente se duplicaban en los archivos exportados (Markdown, HTML, EPUB) al seleccionar simultáneamente un proyecto padre (ej. `articuloRA`) y sus subproyectos (ej. `articuloRA/amistad`). La exportación ahora realiza una deduplicación inteligente de UIDs de primer nivel basados en los namespaces más específicos.
 - **Feature: Limpieza de Etiquetas de Nodo.** Nueva opción "Ocultar etiquetas de nodo" en la pestaña Exportar. Permite remover los prefijos `[[QUE]]`, `[[CLM]]`, `[[EVD]]`, `[[GRI]]` del texto exportado, resultando en un documento mucho más legible y profesional para impresión.
 - **Feature: Numeración Jerárquica Académica.** Se implementó el sistema de numeración automática (ej. 1., 1.1., 1.1.1.) que se integra con la estructura del grafo. Esta numeración facilita enormemente el seguimiento de la jerarquía en documentos impresos donde las viñetas (bullets) pueden ser difíciles de distinguir.
 - **Fix: Interacción de Namespaces y Etiquetas.** Se resolvió un problema crítico donde los títulos de sección (Namespaces) desaparecían al ocultar las etiquetas de nodo.
