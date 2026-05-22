@@ -11,7 +11,7 @@ DiscourseGraphToolkit.NodesTab = function () {
 
     // --- Helpers (shared) ---
     const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
-    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage.bind(DiscourseGraphToolkit);
 
     // --- Handlers ---
     const handleFindOrphans = async () => {

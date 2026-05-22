@@ -25,7 +25,8 @@ DiscourseGraphToolkit.loadProjectsFromRoam = async function () {
     try {
         const pageUid = await this.findProjectsPage();
         if (!pageUid) return [];
-        const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const query = `[:find ?string :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
         const results = await window.roamAlphaAPI.data.async.q(query);
         return results.map(r => r[0].trim()).filter(p => p !== '');
     } catch (e) {
@@ -42,7 +43,8 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
             await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
         }
 
-        const existingQuery = `[:find ?uid ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid] [?child :block/string ?string]]`;
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const existingQuery = `[:find ?uid ?string :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid] [?child :block/string ?string]]`;
         const existingResults = await window.roamAlphaAPI.data.async.q(existingQuery);
         const existingBlocks = new Map(existingResults.map(r => [r[1].trim(), r[0]]));
 

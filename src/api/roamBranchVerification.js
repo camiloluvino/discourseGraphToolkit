@@ -173,10 +173,11 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
 DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
     const PM = this.ProjectManager;
     const escapedPattern = PM.getEscapedFieldPattern();
+    const escapedPageUid = this.escapeDatalogString(pageUid);
 
     const query = `[:find ?string
                    :where 
-                   [?page :block/uid "${pageUid}"]
+                   [?page :block/uid "${escapedPageUid}"]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
@@ -335,9 +336,10 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
 
     // PRIMERO: Actualizar el nodo raíz (QUE) para que futuras verificaciones muestren el valor correcto
     try {
+        const escapedRootUid = this.escapeDatalogString(rootUid);
         const rootQuery = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${rootUid}"]
+                           [?page :block/uid "${escapedRootUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -372,9 +374,10 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     for (const node of nodesToUpdate) {
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
+            const escapedNodeUid = this.escapeDatalogString(node.uid);
             const query = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${node.uid}"]
+                           [?page :block/uid "${escapedNodeUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -439,9 +442,10 @@ DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
 
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
+            const escapedNodeUid = this.escapeDatalogString(node.uid);
             const query = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${node.uid}"]
+                           [?page :block/uid "${escapedNodeUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -613,6 +617,7 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
 
     try {
         const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
+        const escapedContainerSuffix = this.escapeDatalogString(containerSuffix);
 
         // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
         // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
@@ -622,7 +627,7 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
                         [?que-page :block/uid ?que-uid]
                         [?container :node/title ?container-title]
                         [?container :block/uid ?container-uid]
-                        [(clojure.string/ends-with? ?container-title "${containerSuffix}")]
+                        [(clojure.string/ends-with? ?container-title "${escapedContainerSuffix}")]
                         [?container :block/children ?block]
                         [?block :block/refs ?que-page]]`;
 

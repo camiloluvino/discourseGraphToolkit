@@ -46,7 +46,8 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         const data = JSON.stringify({ config, templates });
 
         // Limpiar hijos anteriores
-        const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
         for (let child of children) {
             await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
         }

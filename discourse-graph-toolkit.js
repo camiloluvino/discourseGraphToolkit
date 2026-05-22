@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.50
- * Bundled build: 2026-05-19 12:36:49
+ * DISCOURSE GRAPH TOOLKIT v1.5.51
+ * Bundled build: 2026-05-22 02:37:25
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.50";
+    DiscourseGraphToolkit.VERSION = "1.5.51";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1326,7 +1326,8 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         const data = JSON.stringify({ config, templates });
 
         // Limpiar hijos anteriores
-        const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
         for (let child of children) {
             await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
         }
@@ -1662,7 +1663,8 @@ DiscourseGraphToolkit.loadProjectsFromRoam = async function () {
     try {
         const pageUid = await this.findProjectsPage();
         if (!pageUid) return [];
-        const query = `[:find ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const query = `[:find ?string :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/string ?string] [?child :block/order ?order] :order (asc ?order)]`;
         const results = await window.roamAlphaAPI.data.async.q(query);
         return results.map(r => r[0].trim()).filter(p => p !== '');
     } catch (e) {
@@ -1679,7 +1681,8 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
             await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
         }
 
-        const existingQuery = `[:find ?uid ?string :where [?page :block/uid "${pageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid] [?child :block/string ?string]]`;
+        const escapedPageUid = this.escapeDatalogString(pageUid);
+        const existingQuery = `[:find ?uid ?string :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid] [?child :block/string ?string]]`;
         const existingResults = await window.roamAlphaAPI.data.async.q(existingQuery);
         const existingBlocks = new Map(existingResults.map(r => [r[1].trim(), r[0]]));
 
@@ -2108,10 +2111,11 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
 DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
     const PM = this.ProjectManager;
     const escapedPattern = PM.getEscapedFieldPattern();
+    const escapedPageUid = this.escapeDatalogString(pageUid);
 
     const query = `[:find ?string
                    :where 
-                   [?page :block/uid "${pageUid}"]
+                   [?page :block/uid "${escapedPageUid}"]
                    [?block :block/page ?page]
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
@@ -2270,9 +2274,10 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
 
     // PRIMERO: Actualizar el nodo raíz (QUE) para que futuras verificaciones muestren el valor correcto
     try {
+        const escapedRootUid = this.escapeDatalogString(rootUid);
         const rootQuery = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${rootUid}"]
+                           [?page :block/uid "${escapedRootUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -2307,9 +2312,10 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
     for (const node of nodesToUpdate) {
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
+            const escapedNodeUid = this.escapeDatalogString(node.uid);
             const query = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${node.uid}"]
+                           [?page :block/uid "${escapedNodeUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -2374,9 +2380,10 @@ DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
 
         try {
             // Buscar si ya tiene un bloque con Proyecto Asociado
+            const escapedNodeUid = this.escapeDatalogString(node.uid);
             const query = `[:find ?block-uid ?string
                            :where 
-                           [?page :block/uid "${node.uid}"]
+                           [?page :block/uid "${escapedNodeUid}"]
                            [?block :block/page ?page]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
@@ -2548,6 +2555,7 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
 
     try {
         const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
+        const escapedContainerSuffix = this.escapeDatalogString(containerSuffix);
 
         // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
         // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
@@ -2557,7 +2565,7 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
                         [?que-page :block/uid ?que-uid]
                         [?container :node/title ?container-title]
                         [?container :block/uid ?container-uid]
-                        [(clojure.string/ends-with? ?container-title "${containerSuffix}")]
+                        [(clojure.string/ends-with? ?container-title "${escapedContainerSuffix}")]
                         [?container :block/children ?block]
                         [?block :block/refs ?que-page]]`;
 
@@ -2861,7 +2869,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         let newBlockString = `[[${newPageTitle}]]`;
 
         // Verificar existencia
-        let safeTitle = newPageTitle.replace(/"/g, '\\"');
+        let safeTitle = this.escapeDatalogString(newPageTitle);
         let existing = window.roamAlphaAPI.q(`[:find ?uid :where [?page :node/title "${safeTitle}"] [?page :block/uid ?uid]]`);
 
         if (existing && existing.length > 0) {
@@ -2893,10 +2901,10 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         this.showToast("Error: " + error.message, "error");
         // Rollback simple
         if (pageWasCreated && pageUid) {
-            window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
+            await window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
         }
         if (blockUid && originalBlockContent) {
-            window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
+            await window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
         }
     }
 };
@@ -3249,7 +3257,7 @@ DiscourseGraphToolkit.importPage = async function (pageData) {
 
 DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
     // Ordenar por 'order' si existe, para mantener la estructura
-    const sortedChildren = children.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const sortedChildren = [...children].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     // Optimización: Importar hijos en paralelo usando Promise.all
     // Roam API maneja el ordenamiento mediante la propiedad 'order', por lo que es seguro lanzarlos juntos.
@@ -6593,7 +6601,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
     // --- Helpers (shared) ---
     const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
-    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage.bind(DiscourseGraphToolkit);
 
     // --- Handlers ---
     const handleBulkVerifyAll = async () => {
@@ -7243,7 +7251,7 @@ DiscourseGraphToolkit.NodesTab = function () {
 
     // --- Helpers (shared) ---
     const parseMarkdownBold = DiscourseGraphToolkit.parseMarkdownBold;
-    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage;
+    const handleNavigateToPage = DiscourseGraphToolkit.navigateToPage.bind(DiscourseGraphToolkit);
 
     // --- Handlers ---
     const handleFindOrphans = async () => {
@@ -8668,7 +8676,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { compactIndentation, groupNamespaces, includeProjectMetadata };
+            const formatOptions = { groupNamespaces, includeProjectMetadata };
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(

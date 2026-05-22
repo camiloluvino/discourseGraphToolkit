@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.50**
+**v1.5.51**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,13 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.51 (Mayo 2026)
+- **Fix (Inyección Datalog):** Se sanitizaron las variables dinámicas en consultas `.q()` mediante `escapeDatalogString` en múltiples archivos core y api (`src/core/nodes.js`, `src/state.js`, `src/api/roamBranchVerification.js`, `src/api/roamProjects.js`) para evitar inyecciones maliciosas de Datalog.
+- **Fix (ReferenceError):** Se eliminó la referencia a la variable inexistente `compactIndentation` en `src/ui/tabs/ExportTab.js` que provocaba un crash al configurar la exportación a EPUB.
+- **Fix (Pérdida de Contexto UI):** Se vinculó (`bind`) el método `navigateToPage` en `src/ui/tabs/BranchesTab.js` y `src/ui/tabs/NodesTab.js` para asegurar que el contexto `this` se mantenga al navegar.
+- **Fix (Mutación de Arrays):** Se clonó el array `children` antes de ordenarlo en `src/core/import.js` (`[...children].sort(...)`) evitando mutaciones no deseadas de estado externo.
+- **Fix (Rollbacks de BD):** Se agregaron los operadores `await` faltantes en las operaciones de rollback al eliminar páginas y actualizar bloques dentro de `src/core/nodes.js`.
 
 ### v1.5.50 (Mayo 2026)
 - **Feature: Sincronización del Orden en el Árbol de Exportación.** Se implementó el ordenamiento dinámico de carpetas en el árbol de selección de la pestaña **Exportar** (y **Ramas**) para reflejar fielmente la jerarquía y el orden personalizado definido por el usuario mediante arrastrar y soltar (Drag & Drop) en la pestaña **Panorámica**.

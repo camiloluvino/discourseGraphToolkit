@@ -84,7 +84,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         let newBlockString = `[[${newPageTitle}]]`;
 
         // Verificar existencia
-        let safeTitle = newPageTitle.replace(/"/g, '\\"');
+        let safeTitle = this.escapeDatalogString(newPageTitle);
         let existing = window.roamAlphaAPI.q(`[:find ?uid :where [?page :node/title "${safeTitle}"] [?page :block/uid ?uid]]`);
 
         if (existing && existing.length > 0) {
@@ -116,10 +116,10 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         this.showToast("Error: " + error.message, "error");
         // Rollback simple
         if (pageWasCreated && pageUid) {
-            window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
+            await window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
         }
         if (blockUid && originalBlockContent) {
-            window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
+            await window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
         }
     }
 };

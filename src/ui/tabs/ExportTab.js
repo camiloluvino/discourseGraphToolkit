@@ -603,7 +603,7 @@ DiscourseGraphToolkit.ExportTab = function () {
             // questions ya viene ordenado desde prepareExportData
             const questionsToExport = questions;
 
-            const formatOptions = { compactIndentation, groupNamespaces, includeProjectMetadata };
+            const formatOptions = { groupNamespaces, includeProjectMetadata };
 
             setExportStatus("Generando Markdown para EPUB...");
             const mdContent = DiscourseGraphToolkit.MarkdownGenerator.generateFlatMarkdown(
