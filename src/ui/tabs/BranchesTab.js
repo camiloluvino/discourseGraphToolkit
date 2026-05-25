@@ -477,10 +477,12 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 React.createElement('span', { title: node.project },
                     node.project ? node.project.split('/').pop() : '(sin proyecto)'
                 ),
-                // Indicadores de error visuales en la carpeta
-                (miss > 0 || diff > 0) && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs', style: { marginLeft: 'auto' } },
-                    miss > 0 && React.createElement('span', { title: `${miss} ramas sin proyecto`, style: { fontSize: '0.75rem' } }, '❌'),
-                    diff > 0 && React.createElement('span', { title: `${diff} ramas con proyecto diferente`, style: { fontSize: '0.75rem' } }, '⚠️')
+                // Indicador de error minimalista (punto rojo)
+                (miss > 0 || diff > 0) && React.createElement('div', { style: { marginLeft: 'auto', display: 'flex', alignItems: 'center' } },
+                    React.createElement('div', {
+                        title: `${miss} sin proyecto, ${diff} con proyecto diferente`,
+                        style: { width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ef4444' }
+                    })
                 ),
                 // Contador total
                 React.createElement('span', {
@@ -506,31 +508,188 @@ DiscourseGraphToolkit.BranchesTab = function () {
         no_container:{ icon: '📄', label: 'Sin página contenedora encontrada', color: 'var(--dgt-text-muted)' }
     };
 
-    // Render de una fila de QUE individual
-    const renderQueRow = (result, depth) =>
-        React.createElement('div', {
+    // Render de una fila de QUE individual con resolución inline minimalista
+    const renderQueRow = (result, depth) => {
+        const isSelected = selectedBulkQuestion?.question.pageUid === result.question.pageUid;
+        const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
+        const hasError = result.status === 'different' || result.status === 'missing';
+
+        return React.createElement('div', {
             key: result.question.pageUid,
-            onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
-            className: 'dgt-flex-row dgt-text-sm',
+            className: 'dgt-flex-column',
             style: {
-                padding: '0.6rem 0.75rem',
-                paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
                 borderBottom: '1px solid var(--dgt-border-color)',
-                cursor: 'pointer',
-                backgroundColor: selectedBulkQuestion?.question.pageUid === result.question.pageUid ? 'var(--dgt-bg-secondary)' : 'transparent',
-                alignItems: 'flex-start',
-                gap: '0.75rem'
+                backgroundColor: isSelected ? 'var(--dgt-bg-secondary)' : 'transparent'
             }
         },
-            React.createElement('span', { style: { fontSize: '0.875rem', flexShrink: 0, marginTop: '1px' }, title: result.status },
-                (result.status === 'coherent' || result.status === 'specialized') ? '✅' : result.status === 'different' ? '⚠️' : '❌'),
-            React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.25rem' } },
-                React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
-                    parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
-                React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
-                    `${result.branchNodes.length} nodos`)
+            // Fila cliqueable
+            React.createElement('div', {
+                onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(result); },
+                className: 'dgt-flex-row dgt-text-sm',
+                style: {
+                    padding: '0.6rem 0.75rem',
+                    paddingLeft: `${0.75 + (depth + 1) * 0.75}rem`,
+                    cursor: 'pointer',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                }
+            },
+                // Punto rojo sutil para errores, o nada para coherentes
+                React.createElement('div', {
+                    style: {
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: hasError ? '#ef4444' : 'transparent',
+                        flexShrink: 0
+                    },
+                    title: result.status
+                }),
+                React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.15rem' } },
+                    React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
+                        parseMarkdownBold(result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
+                    React.createElement('span', { className: 'dgt-text-secondary', style: { fontSize: '0.6875rem' } },
+                        `${result.branchNodes.length} nodos`)
+                ),
+                isSelected && React.createElement('span', { style: { color: 'var(--dgt-accent-blue)', fontSize: '0.8rem', fontWeight: 'bold' } }, '▼')
+            ),
+            // Área de resolución expandida (inline)
+            isSelected && totalProblematic > 0 && React.createElement('div', {
+                style: {
+                    padding: '1rem',
+                    paddingLeft: `${0.75 + (depth + 2) * 0.75}rem`,
+                    backgroundColor: '#fafafa',
+                    borderTop: '1px solid var(--dgt-border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem'
+                }
+            },
+                // Entrada del proyecto (solo si se necesita ver/editar)
+                React.createElement('div', {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.8125rem',
+                        marginBottom: '0.25rem'
+                    }
+                },
+                    React.createElement('span', { style: { fontWeight: '500', color: 'var(--dgt-text-secondary)' } }, 'Proyecto de la Rama:'),
+                    React.createElement('input', {
+                        type: 'text',
+                        value: editableProject,
+                        onChange: (e) => setEditableProject(e.target.value),
+                        style: {
+                            padding: '3px 6px',
+                            fontSize: '0.75rem',
+                            border: '1px solid var(--dgt-border-color)',
+                            borderRadius: '4px',
+                            width: '200px',
+                            backgroundColor: '#fff'
+                        }
+                    })
+                ),
+                // Lista de discrepancias
+                React.createElement('div', {
+                    style: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                    }
+                },
+                    // Diferencias de proyecto
+                    result.coherence.different.map(node =>
+                        React.createElement('div', {
+                            key: node.uid,
+                            style: {
+                                display: 'flex',
+                                flexDirection: 'column',
+                                fontSize: '0.8125rem',
+                                color: 'var(--dgt-text-primary)',
+                                borderBottom: '1px dashed var(--dgt-border-color)',
+                                paddingBottom: '0.4rem'
+                            }
+                        },
+                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                React.createElement('span', {
+                                    style: {
+                                        fontSize: '0.65rem',
+                                        padding: '1px 4px',
+                                        background: '#fef3c7',
+                                        color: '#92400e',
+                                        borderRadius: '4px',
+                                        fontWeight: 'bold',
+                                        border: '1px solid #fde68a'
+                                    }
+                                }, node.type),
+                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            ),
+                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                React.createElement('span', { style: { textDecoration: 'line-through' } }, node.project || '(sin proyecto)'),
+                                React.createElement('span', null, '→'),
+                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject)
+                            )
+                        )
+                    ),
+                    // Sin proyecto
+                    result.coherence.missing.map(node =>
+                        React.createElement('div', {
+                            key: node.uid,
+                            style: {
+                                display: 'flex',
+                                flexDirection: 'column',
+                                fontSize: '0.8125rem',
+                                color: 'var(--dgt-text-primary)',
+                                borderBottom: '1px dashed var(--dgt-border-color)',
+                                paddingBottom: '0.4rem'
+                            }
+                        },
+                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                React.createElement('span', {
+                                    style: {
+                                        fontSize: '0.65rem',
+                                        padding: '1px 4px',
+                                        background: '#fee2e2',
+                                        color: '#991b1b',
+                                        borderRadius: '4px',
+                                        fontWeight: 'bold',
+                                        border: '1px solid #fca5a5'
+                                    }
+                                }, node.type),
+                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            ),
+                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                React.createElement('span', { style: { textDecoration: 'line-through' } }, '(sin proyecto)'),
+                                React.createElement('span', null, '→'),
+                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject || editableProject)
+                            )
+                        )
+                    )
+                ),
+                // Botón de sincronizar rama
+                React.createElement('div', {
+                    style: {
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        marginTop: '0.25rem'
+                    }
+                },
+                    React.createElement('button', {
+                        onClick: (e) => { e.stopPropagation(); handlePropagate(); },
+                        disabled: isPropagating || !editableProject.trim(),
+                        className: 'dgt-btn dgt-btn-primary',
+                        style: {
+                            backgroundColor: (isPropagating || !editableProject.trim()) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                            padding: '4px 12px',
+                            fontSize: '0.8125rem',
+                            cursor: 'pointer'
+                        }
+                    }, isPropagating ? '⏳ Sincronizando...' : `Sincronizar Rama (${totalProblematic})`)
+                )
             )
         );
+    };
 
     const renderBranchesNodeContent = (node, depth) => {
         if (!node.questions || node.questions.length === 0) return null;
@@ -793,89 +952,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     renderNodeContent: renderBranchesNodeContent,
                     defaultExpanded: activeFilter !== null // Auto expandir si hay un filtro
                 })
-            )
-        ),
-
-        // Panel de detalle (más compacto)
-        selectedBulkQuestion && React.createElement('div', { className: 'dgt-card dgt-card-body' },
-            React.createElement('h4', { className: 'dgt-mb-sm', style: { margin: 0, fontSize: '0.875rem', lineHeight: '1.4' } },
-                parseMarkdownBold(selectedBulkQuestion.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, ''))),
-
-            // Proyecto editable y botón de propagar unificado
-            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm dgt-mb-md', style: { alignItems: 'center', marginTop: '0.5rem' } },
-                React.createElement('span', { className: 'dgt-text-sm dgt-text-bold', style: { flexShrink: 0 } }, 'Proyecto:'),
-                React.createElement('input', {
-                    type: 'text',
-                    value: editableProject,
-                    onChange: (e) => setEditableProject(e.target.value),
-                    className: 'dgt-input',
-                    style: { flex: 1, minWidth: '10rem', padding: '6px 10px', fontSize: '0.875rem' }
-                }),
-                (() => {
-                    const totalProblematic = selectedBulkQuestion.coherence.different.length + selectedBulkQuestion.coherence.missing.length;
-                    return totalProblematic > 0 && React.createElement('button', {
-                        onClick: handlePropagate,
-                        disabled: isPropagating || !editableProject.trim(),
-                        className: 'dgt-btn dgt-btn-primary',
-                        title: 'Aplica el proyecto de los padres y corrige ramas sin proyecto automáticamente.',
-                        style: {
-                            backgroundColor: (isPropagating || !editableProject.trim()) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
-                            flexShrink: 0,
-                            padding: '6px 12px'
-                        }
-                    }, isPropagating ? '⏳ Propagando...' : `🔄 Propagar (${totalProblematic})`);
-                })()
-            ),
-
-            // Lista de nodos problemáticos con layout mejorado
-            (selectedBulkQuestion.coherence.different.length > 0 || selectedBulkQuestion.coherence.missing.length > 0) &&
-            React.createElement('div', { className: 'dgt-list-container dgt-scrollable', style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)' } },
-                // Sección: Proyecto Diferente
-                selectedBulkQuestion.coherence.different.length > 0 && React.createElement('details', { open: true, style: { borderBottom: selectedBulkQuestion.coherence.missing.length > 0 ? '1px solid var(--dgt-border-color)' : 'none' } },
-                    React.createElement('summary', { className: 'dgt-p-sm dgt-bg-secondary dgt-text-sm', style: { cursor: 'pointer', userSelect: 'none', fontWeight: '500' } }, 
-                        `⚠️ Diferencias de proyecto (${selectedBulkQuestion.coherence.different.length})`
-                    ),
-                    React.createElement('div', { className: 'dgt-p-0' },
-                        selectedBulkQuestion.coherence.different.map((node, i, arr) =>
-                            React.createElement('div', { 
-                                key: node.uid, 
-                                className: 'dgt-flex-row dgt-p-xs dgt-popover-item', 
-                                style: { alignItems: 'center', gap: '0.5rem', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' },
-                                title: `Debería heredar: ${node.parentProject}\nTiene: ${node.project}`
-                            },
-                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0, fontSize: '0.65rem' } }, node.type),
-                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-truncate', style: { flex: 1, paddingRight: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                                React.createElement('button', {
-                                    onClick: () => handleNavigateToPage(node.uid),
-                                    className: 'dgt-btn dgt-btn-ghost dgt-text-xs', style: { padding: '2px 8px', flexShrink: 0, border: '1px solid var(--dgt-border-color)' }
-                                }, '→ Ir')
-                            )
-                        )
-                    )
-                ),
-                // Sección: Sin Proyecto
-                selectedBulkQuestion.coherence.missing.length > 0 && React.createElement('details', { open: true },
-                    React.createElement('summary', { className: 'dgt-p-sm dgt-bg-secondary dgt-text-sm', style: { cursor: 'pointer', userSelect: 'none', fontWeight: '500' } }, 
-                        `❌ Sin proyecto (${selectedBulkQuestion.coherence.missing.length})`
-                    ),
-                    React.createElement('div', { className: 'dgt-p-0' },
-                        selectedBulkQuestion.coherence.missing.map((node, i, arr) =>
-                            React.createElement('div', { 
-                                key: node.uid, 
-                                className: 'dgt-flex-row dgt-p-xs dgt-popover-item', 
-                                style: { alignItems: 'center', gap: '0.5rem', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' },
-                                title: node.parentProject ? `Debería heredar: ${node.parentProject}` : ''
-                            },
-                                React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0, fontSize: '0.65rem' } }, node.type),
-                                React.createElement('div', { className: 'dgt-text-sm dgt-text-primary dgt-text-truncate', style: { flex: 1, paddingRight: '4px' } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, ''))),
-                                React.createElement('button', {
-                                    onClick: () => handleNavigateToPage(node.uid),
-                                    className: 'dgt-btn dgt-btn-ghost dgt-text-xs', style: { padding: '2px 8px', flexShrink: 0, border: '1px solid var(--dgt-border-color)' }
-                                }, '→ Ir')
-                            )
-                        )
-                    )
-                )
             )
         )
     );

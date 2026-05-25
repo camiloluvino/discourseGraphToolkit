@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-19
+**Última actualización:** 2026-05-25
 
 ## Versión Actual
 
-**v1.5.51**
+**v1.5.52**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.52 (Mayo 2026)
+- **Feature (Tests Unitarios):** Se implementó una suite completa de pruebas unitarias para las funciones puras del Toolkit (`tests/pureFunctions.test.js`).
+- **Feature (Visual Layout en Ramas):** Rediseño visual de la pestaña **Ramas** reemplazando el panel inferior de detalles por un layout expandible inline en cada fila de pregunta (QUE), lo que permite resolver discrepancias directamente en el contexto del árbol de búsqueda.
+- **Fix (Null pointer exception):** Se corrigió un posible fallo al validar nulos en `computeFavoriteName` (`src/config.js`).
+- **Fix (Estabilidad de Ramas):** Se revirtió la verificación paralela en lotes de `2da6291` al robusto procesamiento secuencial original, eliminando errores de sincronización y concurrencia.
 
 ### v1.5.51 (Mayo 2026)
 - **Fix (Inyección Datalog):** Se sanitizaron las variables dinámicas en consultas `.q()` mediante `escapeDatalogString` en múltiples archivos core y api (`src/core/nodes.js`, `src/state.js`, `src/api/roamBranchVerification.js`, `src/api/roamProjects.js`) para evitar inyecciones maliciosas de Datalog.

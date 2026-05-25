@@ -271,7 +271,7 @@ DiscourseGraphToolkit.computeFavoriteName = function (selectedProjects) {
     } else if (Array.isArray(selectedProjects)) {
         // Array: usar los valores directamente (ej: BranchesTab con Array.from(selectedProjects))
         projects = selectedProjects.filter(p => p && p !== '(sin proyecto)');
-    } else if (typeof selectedProjects === 'object') {
+    } else if (selectedProjects && typeof selectedProjects === 'object') {
         // Objeto { proyecto: bool }: usar las keys con valor true (ej: ExportTab)
         projects = Object.keys(selectedProjects).filter(k => selectedProjects[k]);
     } else {
