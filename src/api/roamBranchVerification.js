@@ -385,6 +385,9 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
 
             const results = await window.roamAlphaAPI.data.async.q(query);
 
+            const nodeTargetProject = node.parentProject || targetProject;
+            const nodeNewValue = PM.buildFieldValue(nodeTargetProject);
+
             if (results && results.length > 0) {
                 const blockUid = results[0][0];
                 const blockString = results[0][1];
@@ -394,21 +397,21 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
                 const currentProject = match ? match[1].trim() : null;
 
                 // Si ya es coherente (exacto o sub-namespace), respetar la especialización
-                if (currentProject && this.isHierarchicallyCoherent(targetProject, currentProject)) {
+                if (currentProject && this.isHierarchicallyCoherent(nodeTargetProject, currentProject)) {
                     skipped++;
                     continue;
                 }
 
                 // Actualizar solo si es incoherente
                 await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: newValue }
+                    block: { uid: blockUid, string: nodeNewValue }
                 });
                 updated++;
             } else {
                 // Crear nuevo bloque como primer hijo
                 await window.roamAlphaAPI.data.block.create({
                     location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: newValue }
+                    block: { string: nodeNewValue }
                 });
                 created++;
             }

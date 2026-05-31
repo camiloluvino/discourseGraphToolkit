@@ -604,32 +604,43 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             key: node.uid,
                             style: {
                                 display: 'flex',
-                                flexDirection: 'column',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 fontSize: '0.8125rem',
                                 color: 'var(--dgt-text-primary)',
                                 borderBottom: '1px dashed var(--dgt-border-color)',
-                                paddingBottom: '0.4rem'
+                                paddingBottom: '0.4rem',
+                                gap: '0.75rem'
                             }
                         },
-                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
-                                React.createElement('span', {
-                                    style: {
-                                        fontSize: '0.65rem',
-                                        padding: '1px 4px',
-                                        background: '#fef3c7',
-                                        color: '#92400e',
-                                        borderRadius: '4px',
-                                        fontWeight: 'bold',
-                                        border: '1px solid #fde68a'
-                                    }
-                                }, node.type),
-                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 } },
+                                React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                    React.createElement('span', {
+                                        style: {
+                                            fontSize: '0.65rem',
+                                            padding: '1px 4px',
+                                            background: '#fef3c7',
+                                            color: '#92400e',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            border: '1px solid #fde68a'
+                                        }
+                                    }, node.type),
+                                    React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                                ),
+                                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                    React.createElement('span', { style: { textDecoration: 'line-through' } }, node.project || '(sin proyecto)'),
+                                    React.createElement('span', null, '→'),
+                                    React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject)
+                                )
                             ),
-                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
-                                React.createElement('span', { style: { textDecoration: 'line-through' } }, node.project || '(sin proyecto)'),
-                                React.createElement('span', null, '→'),
-                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject)
-                            )
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                title: `Ir a: ${node.title || ''}`,
+                                style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' }
+                            }, '→')
                         )
                     ),
                     // Sin proyecto
@@ -638,32 +649,43 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             key: node.uid,
                             style: {
                                 display: 'flex',
-                                flexDirection: 'column',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 fontSize: '0.8125rem',
                                 color: 'var(--dgt-text-primary)',
                                 borderBottom: '1px dashed var(--dgt-border-color)',
-                                paddingBottom: '0.4rem'
+                                paddingBottom: '0.4rem',
+                                gap: '0.75rem'
                             }
                         },
-                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
-                                React.createElement('span', {
-                                    style: {
-                                        fontSize: '0.65rem',
-                                        padding: '1px 4px',
-                                        background: '#fee2e2',
-                                        color: '#991b1b',
-                                        borderRadius: '4px',
-                                        fontWeight: 'bold',
-                                        border: '1px solid #fca5a5'
-                                    }
-                                }, node.type),
-                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 } },
+                                React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                    React.createElement('span', {
+                                        style: {
+                                            fontSize: '0.65rem',
+                                            padding: '1px 4px',
+                                            background: '#fee2e2',
+                                            color: '#991b1b',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            border: '1px solid #fca5a5'
+                                        }
+                                    }, node.type),
+                                    React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                                ),
+                                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                    React.createElement('span', { style: { textDecoration: 'line-through' } }, '(sin proyecto)'),
+                                    React.createElement('span', null, '→'),
+                                    React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject || editableProject)
+                                )
                             ),
-                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
-                                React.createElement('span', { style: { textDecoration: 'line-through' } }, '(sin proyecto)'),
-                                React.createElement('span', null, '→'),
-                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject || editableProject)
-                            )
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                title: `Ir a: ${node.title || ''}`,
+                                style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' }
+                            }, '→')
                         )
                     )
                 ),

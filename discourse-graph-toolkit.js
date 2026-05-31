@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.52
- * Bundled build: 2026-05-25 15:41:52
+ * DISCOURSE GRAPH TOOLKIT v1.5.53
+ * Bundled build: 2026-05-31 03:06:48
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.52";
+    DiscourseGraphToolkit.VERSION = "1.5.53";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2323,6 +2323,9 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
 
             const results = await window.roamAlphaAPI.data.async.q(query);
 
+            const nodeTargetProject = node.parentProject || targetProject;
+            const nodeNewValue = PM.buildFieldValue(nodeTargetProject);
+
             if (results && results.length > 0) {
                 const blockUid = results[0][0];
                 const blockString = results[0][1];
@@ -2332,21 +2335,21 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
                 const currentProject = match ? match[1].trim() : null;
 
                 // Si ya es coherente (exacto o sub-namespace), respetar la especialización
-                if (currentProject && this.isHierarchicallyCoherent(targetProject, currentProject)) {
+                if (currentProject && this.isHierarchicallyCoherent(nodeTargetProject, currentProject)) {
                     skipped++;
                     continue;
                 }
 
                 // Actualizar solo si es incoherente
                 await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: newValue }
+                    block: { uid: blockUid, string: nodeNewValue }
                 });
                 updated++;
             } else {
                 // Crear nuevo bloque como primer hijo
                 await window.roamAlphaAPI.data.block.create({
                     location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: newValue }
+                    block: { string: nodeNewValue }
                 });
                 created++;
             }
@@ -6959,32 +6962,43 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             key: node.uid,
                             style: {
                                 display: 'flex',
-                                flexDirection: 'column',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 fontSize: '0.8125rem',
                                 color: 'var(--dgt-text-primary)',
                                 borderBottom: '1px dashed var(--dgt-border-color)',
-                                paddingBottom: '0.4rem'
+                                paddingBottom: '0.4rem',
+                                gap: '0.75rem'
                             }
                         },
-                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
-                                React.createElement('span', {
-                                    style: {
-                                        fontSize: '0.65rem',
-                                        padding: '1px 4px',
-                                        background: '#fef3c7',
-                                        color: '#92400e',
-                                        borderRadius: '4px',
-                                        fontWeight: 'bold',
-                                        border: '1px solid #fde68a'
-                                    }
-                                }, node.type),
-                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 } },
+                                React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                    React.createElement('span', {
+                                        style: {
+                                            fontSize: '0.65rem',
+                                            padding: '1px 4px',
+                                            background: '#fef3c7',
+                                            color: '#92400e',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            border: '1px solid #fde68a'
+                                        }
+                                    }, node.type),
+                                    React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                                ),
+                                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                    React.createElement('span', { style: { textDecoration: 'line-through' } }, node.project || '(sin proyecto)'),
+                                    React.createElement('span', null, '→'),
+                                    React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject)
+                                )
                             ),
-                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
-                                React.createElement('span', { style: { textDecoration: 'line-through' } }, node.project || '(sin proyecto)'),
-                                React.createElement('span', null, '→'),
-                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject)
-                            )
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                title: `Ir a: ${node.title || ''}`,
+                                style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' }
+                            }, '→')
                         )
                     ),
                     // Sin proyecto
@@ -6993,32 +7007,43 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             key: node.uid,
                             style: {
                                 display: 'flex',
-                                flexDirection: 'column',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 fontSize: '0.8125rem',
                                 color: 'var(--dgt-text-primary)',
                                 borderBottom: '1px dashed var(--dgt-border-color)',
-                                paddingBottom: '0.4rem'
+                                paddingBottom: '0.4rem',
+                                gap: '0.75rem'
                             }
                         },
-                            React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
-                                React.createElement('span', {
-                                    style: {
-                                        fontSize: '0.65rem',
-                                        padding: '1px 4px',
-                                        background: '#fee2e2',
-                                        color: '#991b1b',
-                                        borderRadius: '4px',
-                                        fontWeight: 'bold',
-                                        border: '1px solid #fca5a5'
-                                    }
-                                }, node.type),
-                                React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 } },
+                                React.createElement('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+                                    React.createElement('span', {
+                                        style: {
+                                            fontSize: '0.65rem',
+                                            padding: '1px 4px',
+                                            background: '#fee2e2',
+                                            color: '#991b1b',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            border: '1px solid #fca5a5'
+                                        }
+                                    }, node.type),
+                                    React.createElement('span', { style: { fontWeight: 500 } }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD)\]\] - /, '')))
+                                ),
+                                React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
+                                    React.createElement('span', { style: { textDecoration: 'line-through' } }, '(sin proyecto)'),
+                                    React.createElement('span', null, '→'),
+                                    React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject || editableProject)
+                                )
                             ),
-                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.2rem', color: 'var(--dgt-text-muted)', fontSize: '0.75rem' } },
-                                React.createElement('span', { style: { textDecoration: 'line-through' } }, '(sin proyecto)'),
-                                React.createElement('span', null, '→'),
-                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold' } }, node.parentProject || editableProject)
-                            )
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                title: `Ir a: ${node.title || ''}`,
+                                style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' }
+                            }, '→')
                         )
                     )
                 ),

@@ -1,6 +1,6 @@
-﻿# Discourse Graph Toolkit
+# Discourse Graph Toolkit
 
-**Versi├│n:** 1.5.51
+**Versi├│n:** 1.5.53
 **Autor:** Camilo Luvino
 
 ## Descripci├│n

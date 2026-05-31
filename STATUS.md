@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-25
+**Última actualización:** 2026-05-31
 
 ## Versión Actual
 
-**v1.5.52**
+**v1.5.53**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,10 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.53 (Mayo 2026)
+- **Fix (Propagación en Ramas):** Se corrigió un bug crítico en `propagateProjectToBranch` donde la propagación de coherencia de proyectos omitía incorrectamente nodos hijos desalineados porque validaba su coherencia contra el proyecto raíz (global) de la rama en lugar de su proyecto padre directo esperado.
+- **Feature (Navegación en Incoherencias):** Se implementó un botón de navegación rápida (`→`) en las listas de nodos con "Diferencias" y "Sin proyecto" de la pestaña **Ramas**, facilitando ir directamente a la página del bloque o página desalineada en Roam Research.
 
 ### v1.5.52 (Mayo 2026)
 - **Feature (Tests Unitarios):** Se implementó una suite completa de pruebas unitarias para las funciones puras del Toolkit (`tests/pureFunctions.test.js`).
