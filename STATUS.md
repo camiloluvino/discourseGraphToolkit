@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-05-31
+**Última actualización:** 2026-06-02
 
 ## Versión Actual
 
-**v1.5.53**
+**v1.5.54**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,19 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Selección en cualquier nivel de profundidad, propagación masiva y rediseño |
+| Verificación de coherencia (Ramas) | ✅ Mejorado | Selección en cualquier nivel de profundidad, propagación masiva, rediseño y alineación con contenedor |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.54 (Junio 2026)
+- **Feature (Alineación de Contenedor):** Se implementó la sugerencia de corrección automática para desalineaciones entre la página contenedora (`/grafoDeDiscurso`) y las preguntas QUE de primer nivel.
+  - Nueva API `fixContainerAlignment` para crear o actualizar el bloque `Proyecto Asociado::`.
+  - Integración en `BranchesTab.js` con botones de corrección bidireccionales en el popover del badge 🏛️ y un panel inline arriba de las discrepancias de rama.
+- **Fix (Bug de Filtrado Previo):** Se resolvió un problema donde las preguntas (QUE) sin proyecto no se analizaban ante un desajuste del contenedor si el usuario no tenía seleccionado el nodo `(sin proyecto)`. Ahora, el script resuelve los contenedores antes de filtrar y mantiene la pregunta si su contenedor pertenece a un proyecto seleccionado.
 
 ### v1.5.53 (Mayo 2026)
 - **Fix (Propagación en Ramas):** Se corrigió un bug crítico en `propagateProjectToBranch` donde la propagación de coherencia de proyectos omitía incorrectamente nodos hijos desalineados porque validaba su coherencia contra el proyecto raíz (global) de la rama en lugar de su proyecto padre directo esperado.

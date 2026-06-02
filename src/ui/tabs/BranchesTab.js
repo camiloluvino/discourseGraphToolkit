@@ -291,10 +291,22 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 });
             }
 
-            // Aplicar el filtro
+            // Obtener páginas contenedoras para todas las preguntas en lote antes de filtrar
+            setBulkVerifyStatus('⏳ Buscando páginas contenedoras...');
+            const containerPageMap = await DiscourseGraphToolkit.getContainerPagesForNodes(allUids);
+
+            // Aplicar el filtro: incluir si su propio proyecto coincide o si el proyecto de su contenedor coincide
             const filteredQuestions = allQuestions.filter(q => {
                 const proj = projectMap.get(q.pageUid) || '(sin proyecto)';
-                return selectedProjects.has(proj);
+                if (selectedProjects.has(proj)) {
+                    return true;
+                }
+                const containerInfo = containerPageMap.get(q.pageUid);
+                const containerProj = containerInfo ? (containerInfo.project || '(sin proyecto)') : null;
+                if (containerProj && selectedProjects.has(containerProj)) {
+                    return true;
+                }
+                return false;
             });
 
             if (filteredQuestions.length === 0) {
@@ -304,11 +316,6 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }
 
             setVerificationProgress({ current: 0, total: filteredQuestions.length, currentQuestion: '' });
-
-            // Obtener páginas contenedoras para todas las preguntas en lote
-            setBulkVerifyStatus('⏳ Buscando páginas contenedoras...');
-            const filteredUids = filteredQuestions.map(q => q.pageUid);
-            const containerPageMap = await DiscourseGraphToolkit.getContainerPagesForNodes(filteredUids);
 
             for (let i = 0; i < filteredQuestions.length; i++) {
                 // Cedemos control brevemente para permitir que el frontend repinte la UI
@@ -416,12 +423,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
         }
     };
 
-    const refreshSelectedQuestion = async () => {
-        setBulkVerifyStatus(`✅ Completado. Sincronizando con Roam...`);
-        await new Promise(resolve => setTimeout(resolve, 500));
+    const refreshQuestionByUid = async (rootUid) => {
+        setBulkVerifyStatus(`✅ Sincronizando con Roam...`);
+        await new Promise(resolve => setTimeout(resolve, 550));
 
         setBulkVerifyStatus(`✅ Refrescando datos...`);
-        const rootUid = selectedBulkQuestion.question.pageUid;
         const branchNodes = await DiscourseGraphToolkit.getBranchNodes(rootUid);
         const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(rootUid, branchNodes);
 
@@ -436,15 +442,59 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
         const containerPage = rawContainerInfo ? { ...rawContainerInfo, containerStatus } : null;
 
-        const updatedResult = { ...selectedBulkQuestion, branchNodes, coherence: cohResult, status, containerPage };
+        const existingResult = bulkVerificationResults.find(r => r.question.pageUid === rootUid);
+        const updatedResult = { ...existingResult, question: existingResult?.question || { pageUid: rootUid }, branchNodes, coherence: cohResult, status, containerPage };
+        
         const updatedResults = bulkVerificationResults.map(r =>
             r.question.pageUid === rootUid ? updatedResult : r
         );
         setBulkVerificationResults(updatedResults);
-        setSelectedBulkQuestion(updatedResult);
-        const statusMsg = `✅ Propagación completada.`;
+        if (selectedBulkQuestion?.question.pageUid === rootUid) {
+            setSelectedBulkQuestion(updatedResult);
+            setEditableProject(cohResult.rootProject || '');
+        }
+        const statusMsg = `✅ Sincronización completada.`;
         setBulkVerifyStatus(statusMsg);
         DiscourseGraphToolkit.saveVerificationCache(updatedResults, statusMsg);
+    };
+
+    const refreshSelectedQuestion = async () => {
+        if (!selectedBulkQuestion) return;
+        await refreshQuestionByUid(selectedBulkQuestion.question.pageUid);
+    };
+
+    const handleFixContainerAlignment = async (queUid, targetUid, newProject, promptMessage, isQue) => {
+        if (promptMessage && !window.confirm(promptMessage)) {
+            return;
+        }
+
+        setIsPropagating(true);
+        setBulkVerifyStatus('⏳ Alineando proyectos...');
+
+        try {
+            const res = await DiscourseGraphToolkit.fixContainerAlignment(targetUid, newProject);
+            if (res.success) {
+                // Si el contenedor fue modificado, múltiples QUEs en ese contenedor podrían haberse visto afectadas.
+                const affectedResults = bulkVerificationResults.filter(r => r.containerPage && r.containerPage.uid === targetUid);
+                if (!isQue && affectedResults.length > 1) {
+                    setBulkVerifyStatus('⏳ Refrescando ramas afectadas...');
+                    for (const r of affectedResults) {
+                        await refreshQuestionByUid(r.question.pageUid);
+                    }
+                } else {
+                    await refreshQuestionByUid(queUid);
+                }
+                DiscourseGraphToolkit.showToast('Proyecto alineado con éxito', 'success');
+            } else {
+                setBulkVerifyStatus('❌ Error al alinear: ' + (res.error || 'error desconocido'));
+                DiscourseGraphToolkit.showToast('Error al alinear proyecto: ' + (res.error || ''), 'error');
+            }
+        } catch (e) {
+            setBulkVerifyStatus('❌ Error: ' + e.message);
+            DiscourseGraphToolkit.showToast('Error: ' + e.message, 'error');
+        } finally {
+            setIsPropagating(false);
+        }
     };
 
     // --- Callbacks para ProjectTreeView ---
@@ -513,6 +563,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const isSelected = selectedBulkQuestion?.question.pageUid === result.question.pageUid;
         const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
         const hasError = result.status === 'different' || result.status === 'missing';
+        const hasContainerMismatch = result.containerPage && (result.containerPage.containerStatus === 'mismatched' || result.containerPage.containerStatus === 'no_project');
+        const showInlineResolution = isSelected && (totalProblematic > 0 || hasContainerMismatch);
 
         return React.createElement('div', {
             key: result.question.pageUid,
@@ -554,7 +606,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 isSelected && React.createElement('span', { style: { color: 'var(--dgt-accent-blue)', fontSize: '0.8rem', fontWeight: 'bold' } }, '▼')
             ),
             // Área de resolución expandida (inline)
-            isSelected && totalProblematic > 0 && React.createElement('div', {
+            showInlineResolution && React.createElement('div', {
                 style: {
                     padding: '1rem',
                     paddingLeft: `${0.75 + (depth + 2) * 0.75}rem`,
@@ -565,8 +617,98 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     gap: '0.75rem'
                 }
             },
+                // Alerta de desalineación con página contenedora
+                hasContainerMismatch && React.createElement('div', {
+                    style: {
+                        padding: '0.75rem',
+                        backgroundColor: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        fontSize: '0.8125rem',
+                        marginBottom: '0.25rem'
+                    }
+                },
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#b45309' } },
+                        React.createElement('span', null, '🏛️'),
+                        React.createElement('span', null, 'Desalineación con Página Contenedora')
+                    ),
+                    React.createElement('div', { style: { color: 'var(--dgt-text-primary)' } },
+                        `La página contenedora "${getContainerShortTitle(result.containerPage.title)}" tiene el proyecto ` +
+                        `"${result.containerPage.project || '(sin proyecto)'}", pero esta QUE tiene "${result.coherence.rootProject || '(sin proyecto)'}".`
+                    ),
+                    React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' } },
+                        // Botón: Propagar al contenedor
+                        (result.containerPage.containerStatus === 'no_project' && result.coherence.rootProject) && React.createElement('button', {
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                            disabled: isPropagating,
+                            style: { padding: '4px 10px', cursor: 'pointer', backgroundColor: 'var(--dgt-accent-blue)' },
+                            onClick: () => {
+                                handleFixContainerAlignment(
+                                    result.question.pageUid,
+                                    result.containerPage.uid,
+                                    result.coherence.rootProject,
+                                    `¿Asignar el proyecto "${result.coherence.rootProject}" de la QUE a la página contenedora?`,
+                                    false
+                                );
+                            }
+                        }, 'Propagar proyecto al contenedor'),
+
+                        // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
+                        (result.containerPage.containerStatus === 'mismatched' && !result.coherence.rootProject && result.containerPage.project) && React.createElement('button', {
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                            disabled: isPropagating,
+                            style: { padding: '4px 10px', cursor: 'pointer', backgroundColor: 'var(--dgt-accent-blue)' },
+                            onClick: () => {
+                                handleFixContainerAlignment(
+                                    result.question.pageUid,
+                                    result.question.pageUid,
+                                    result.containerPage.project,
+                                    `¿Asignar el proyecto del contenedor ("${result.containerPage.project}") a esta QUE?`,
+                                    true
+                                );
+                            }
+                        }, 'Heredar proyecto del contenedor'),
+
+                        // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
+                        (result.containerPage.containerStatus === 'mismatched' && result.coherence.rootProject && result.containerPage.project) && React.createElement(React.Fragment, null,
+                            React.createElement('button', {
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                disabled: isPropagating,
+                                style: { padding: '4px 10px', cursor: 'pointer', backgroundColor: 'var(--dgt-accent-blue)' },
+                                onClick: () => {
+                                    handleFixContainerAlignment(
+                                        result.question.pageUid,
+                                        result.question.pageUid,
+                                        result.containerPage.project,
+                                        `¿Cambiar el proyecto de la QUE de "${result.coherence.rootProject}" a "${result.containerPage.project}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
+                                        true
+                                    );
+                                }
+                            }, 'Alinear QUE al contenedor (cambia rama)'),
+                            React.createElement('button', {
+                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                disabled: isPropagating,
+                                style: { padding: '4px 10px', cursor: 'pointer', backgroundColor: 'var(--dgt-accent-blue)' },
+                                onClick: () => {
+                                    const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === result.containerPage.uid).length;
+                                    handleFixContainerAlignment(
+                                        result.question.pageUid,
+                                        result.containerPage.uid,
+                                        result.coherence.rootProject,
+                                        `¿Cambiar el proyecto del contenedor de "${result.containerPage.project}" a "${result.coherence.rootProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
+                                        false
+                                    );
+                                }
+                            }, 'Alinear contenedor a la QUE')
+                        )
+                    )
+                ),
+
                 // Entrada del proyecto (solo si se necesita ver/editar)
-                React.createElement('div', {
+                totalProblematic > 0 && React.createElement('div', {
                     style: {
                         display: 'flex',
                         alignItems: 'center',
@@ -591,7 +733,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     })
                 ),
                 // Lista de discrepancias
-                React.createElement('div', {
+                totalProblematic > 0 && React.createElement('div', {
                     style: {
                         display: 'flex',
                         flexDirection: 'column',
@@ -690,7 +832,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     )
                 ),
                 // Botón de sincronizar rama
-                React.createElement('div', {
+                totalProblematic > 0 && React.createElement('div', {
                     style: {
                         display: 'flex',
                         justifyContent: 'flex-end',
@@ -880,7 +1022,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 const shortName = base.split('/').pop() || base;
                                 const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
                                 const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
-                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '4px' } },
+                                
+                                const queUid = r.question.pageUid;
+                                const queProject = r.coherence.rootProject;
+                                const containerProject = cp.project;
+                                const containerUid = cp.uid;
+                                const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === containerUid).length;
+
+                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '6px' } },
                                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
                                         React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
                                         React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
@@ -892,10 +1041,83 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                         }, '→')
                                     ),
                                     React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
-                                        `${shortName} ${statusLabel}`
-                                    )
-                                );
-                            })
+                                        `${shortName} ${statusLabel} · QUE: ${queProject || '(sin proyecto)'}`
+                                    ),
+                                    React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap', style: { width: '100%', marginTop: '6px', gap: '6px', display: 'flex' } },
+                                        // Botón: Propagar al contenedor
+                                        (cp.containerStatus === 'no_project' && queProject) && React.createElement('button', {
+                                            className: 'dgt-btn dgt-text-xs',
+                                            disabled: isPropagating,
+                                            style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                            title: `Asignar el proyecto de la QUE ("${queProject}") al contenedor.`,
+                                            onClick: (e) => {
+                                                e.stopPropagation();
+                                                handleFixContainerAlignment(
+                                                    queUid,
+                                                    containerUid,
+                                                    queProject,
+                                                    `¿Asignar el proyecto "${queProject}" de la QUE a la página contenedora?`,
+                                                    false
+                                                );
+                                            }
+                                        }, 'Propagar al contenedor'),
+
+                                        // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
+                                        (cp.containerStatus === 'mismatched' && !queProject && containerProject) && React.createElement('button', {
+                                            className: 'dgt-btn dgt-text-xs',
+                                            disabled: isPropagating,
+                                            style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                            title: `Asignar el proyecto del contenedor ("${containerProject}") a la QUE.`,
+                                            onClick: (e) => {
+                                                e.stopPropagation();
+                                                handleFixContainerAlignment(
+                                                    queUid,
+                                                    queUid,
+                                                    containerProject,
+                                                    `¿Asignar el proyecto del contenedor ("${containerProject}") a esta QUE?`,
+                                                    true
+                                                 );
+                                            }
+                                        }, 'Heredar del contenedor'),
+
+                                        // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
+                                        (cp.containerStatus === 'mismatched' && queProject && containerProject) && React.createElement(React.Fragment, null,
+                                            React.createElement('button', {
+                                                className: 'dgt-btn dgt-text-xs',
+                                                disabled: isPropagating,
+                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                title: `Cambiar el proyecto de la QUE a "${containerProject}" (contenedor). Esto cambia el proyecto raíz de toda la rama.`,
+                                                onClick: (e) => {
+                                                     e.stopPropagation();
+                                                     handleFixContainerAlignment(
+                                                         queUid,
+                                                         queUid,
+                                                         containerProject,
+                                                         `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
+                                                         true
+                                                     );
+                                                }
+                                            }, 'QUE ← Contenedor'),
+                                            React.createElement('button', {
+                                                className: 'dgt-btn dgt-text-xs',
+                                                disabled: isPropagating,
+                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                title: `Cambiar el proyecto del contenedor a "${queProject}" (QUE). Este contenedor es compartido por ${sharedCount} QUE(s).`,
+                                                onClick: (e) => {
+                                                     e.stopPropagation();
+                                                     handleFixContainerAlignment(
+                                                         queUid,
+                                                         containerUid,
+                                                         queProject,
+                                                         `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
+                                                         false
+                                                     );
+                                                }
+                                            }, 'Contenedor ← QUE')
+                                         )
+                                     )
+                                 );
+                             })
                     )
                 ),
                 // ⚠️ Diferente — wrapper propio con popover

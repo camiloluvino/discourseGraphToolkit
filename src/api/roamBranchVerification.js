@@ -701,3 +701,52 @@ DiscourseGraphToolkit.calcContainerStatus = function (queProject, containerInfo)
     }
     return 'mismatched';
 };
+
+/**
+ * Corrige la alineación del proyecto en una página específica (ya sea la QUE o el contenedor).
+ * Busca si ya existe un bloque de Proyecto Asociado. Si existe, lo actualiza. Si no, lo crea como primer hijo.
+ *
+ * @param {string} targetUid - UID de la página a modificar (QUE o contenedor)
+ * @param {string} newProject - El nuevo proyecto a asignar
+ * @returns {Promise<{success: boolean, action: 'updated'|'created'|'none', error?: string}>}
+ */
+DiscourseGraphToolkit.fixContainerAlignment = async function (targetUid, newProject) {
+    if (!targetUid) {
+        return { success: false, action: 'none', error: 'No target UID provided' };
+    }
+    const PM = this.ProjectManager;
+    const newValue = PM.buildFieldValue(newProject);
+    const escapedPattern = PM.getEscapedFieldPattern();
+
+    try {
+        const escapedTargetUid = this.escapeDatalogString(targetUid);
+        const query = `[:find ?block-uid ?string
+                       :where 
+                       [?page :block/uid "${escapedTargetUid}"]
+                       [?block :block/page ?page]
+                       [?block :block/uid ?block-uid]
+                       [?block :block/string ?string]
+                       [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+
+        const results = await window.roamAlphaAPI.data.async.q(query);
+
+        if (results && results.length > 0) {
+            const blockUid = results[0][0];
+            await window.roamAlphaAPI.data.block.update({
+                block: { uid: blockUid, string: newValue }
+            });
+            return { success: true, action: 'updated' };
+        } else {
+            // Crear bloque como primer hijo de la página
+            await window.roamAlphaAPI.data.block.create({
+                location: { 'parent-uid': targetUid, order: 0 },
+                block: { string: newValue }
+            });
+            return { success: true, action: 'created' };
+        }
+    } catch (e) {
+        console.error(`Error aligning container/QUE project for UID ${targetUid}:`, e);
+        return { success: false, action: 'none', error: e.message };
+    }
+};
+
