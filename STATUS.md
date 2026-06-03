@@ -26,8 +26,11 @@
 ### v1.5.54 (Junio 2026)
 - **Feature (Alineación de Contenedor):** Se implementó la sugerencia de corrección automática para desalineaciones entre la página contenedora (`/grafoDeDiscurso`) y las preguntas QUE de primer nivel.
   - Nueva API `fixContainerAlignment` para crear o actualizar el bloque `Proyecto Asociado::`.
-  - Integración en `BranchesTab.js` con botones de corrección bidireccionales en el popover del badge 🏛️ y un panel inline arriba de las discrepancias de rama.
+  - Integración en `BranchesTab.js` con botones de corrección bidireccionales en el popover del badge 🏛️.
 - **Fix (Bug de Filtrado Previo):** Se resolvió un problema donde las preguntas (QUE) sin proyecto no se analizaban ante un desajuste del contenedor si el usuario no tenía seleccionado el nodo `(sin proyecto)`. Ahora, el script resuelve los contenedores antes de filtrar y mantiene la pregunta si su contenedor pertenece a un proyecto seleccionado.
+- **UI/UX (Rediseño a Overlay Sheet - Opción B):** Se reemplazó la resolución inline de coherencia de ramas por una ventana modal flotante centralizada.
+  - Se unificó visualmente el listado de los tres tipos de inconsistencias utilizando badges claros (`[CONT]`, `[CLM]`, `[EVD]`) y el estilo tachado (`~~old~~ → new`).
+  - Se optimizó el ancho de la tarjeta flotante a `1100px` y se configuró ajuste de línea automático (`word-wrap`) para títulos y rutas de proyectos sumamente largas para evitar el truncamiento.
 
 ### v1.5.53 (Mayo 2026)
 - **Fix (Propagación en Ramas):** Se corrigió un bug crítico en `propagateProjectToBranch` donde la propagación de coherencia de proyectos omitía incorrectamente nodos hijos desalineados porque validaba su coherencia contra el proyecto raíz (global) de la rama en lugar de su proyecto padre directo esperado.
