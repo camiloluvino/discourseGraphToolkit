@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-06-02
+**Última actualización:** 2026-06-08
 
 ## Versión Actual
 
-**v1.5.54**
+**v1.5.55**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,11 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.55 (Junio 2026)
+- **Fix (Robustez de Cierre del Modal):** Se mejoró la estabilidad al cerrar el modal principal y remover los overlays de pantalla completa.
+  - Se aisló la llamada a `ReactDOM.unmountComponentAtNode` para asegurar que el nodo HTML del modal se remueva del DOM incluso si React lanza un error durante el desmontaje.
+  - Se implementó limpieza automática de contenedores de modal huérfanos o dañados para prevenir que un overlay transparente bloquee los clics e interacciones con páginas y bloques de Roam.
 
 ### v1.5.54 (Junio 2026)
 - **Feature (Alineación de Contenedor):** Se implementó la sugerencia de corrección automática para desalineaciones entre la página contenedora (`/grafoDeDiscurso`) y las preguntas QUE de primer nivel.

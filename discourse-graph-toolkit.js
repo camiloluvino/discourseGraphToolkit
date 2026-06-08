@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.54
- * Bundled build: 2026-06-03 13:12:00
+ * DISCOURSE GRAPH TOOLKIT v1.5.55
+ * Bundled build: 2026-06-08 15:55:58
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.54";
+    DiscourseGraphToolkit.VERSION = "1.5.55";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -10070,9 +10070,18 @@ DiscourseGraphToolkit.openModal = function () {
         return;
     }
 
-    // Si existe y está visible, no hacer nada
+    // Si existe y está visible, pero no tiene hijos (dañado), limpiarlo para recrearlo
     if (existing) {
-        return;
+        if (!existing.hasChildNodes()) {
+            console.warn("[DiscourseGraphToolkit] Modal vacío o dañado detectado, limpiando...");
+            try {
+                if (existing.parentNode) existing.parentNode.removeChild(existing);
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            return;
+        }
     }
 
     const previousActiveElement = document.activeElement;
@@ -10142,12 +10151,34 @@ DiscourseGraphToolkit.openModal = function () {
     const close = () => {
         try {
             ReactDOM.unmountComponentAtNode(div);
-            if (div.parentNode) div.parentNode.removeChild(div);
-            // Ocultar botón flotante
-            const btn = document.getElementById('discourse-graph-toolkit-floating-btn');
-            if (btn) btn.style.display = 'none';
+        } catch (e) {
+            console.error("Error unmounting component:", e);
+        }
 
-            setTimeout(() => {
+        try {
+            if (div.parentNode) {
+                div.parentNode.removeChild(div);
+            }
+        } catch (e) {
+            console.error("Error removing div from DOM:", e);
+        }
+
+        // Limpiar cualquier otro modal duplicado o huérfano para evitar overlays bloqueantes
+        try {
+            const extraModals = document.querySelectorAll('#discourse-graph-toolkit-modal');
+            extraModals.forEach(m => {
+                if (m.parentNode) m.parentNode.removeChild(m);
+            });
+        } catch (e) {
+            console.error("Error cleaning up extra modals:", e);
+        }
+
+        // Ocultar botón flotante
+        const btn = document.getElementById('discourse-graph-toolkit-floating-btn');
+        if (btn) btn.style.display = 'none';
+
+        setTimeout(() => {
+            try {
                 if (previousActiveElement && document.body.contains(previousActiveElement)) {
                     previousActiveElement.focus();
                 } else {
@@ -10164,10 +10195,10 @@ DiscourseGraphToolkit.openModal = function () {
                         window.focus();
                     }
                 }
-            }, 100);
-        } catch (e) {
-            console.error("Error closing modal:", e);
-        }
+            } catch (e) {
+                console.error("Error restoring focus to Roam:", e);
+            }
+        }, 100);
     };
 
     ReactDOM.render(React.createElement(this.ToolkitModal, { onClose: close, onMinimize: minimize }), div);
