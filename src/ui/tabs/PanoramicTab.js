@@ -321,7 +321,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                                    :in $ [?page-uid ...]
                                    :where 
                                    [?page :block/uid ?page-uid]
-                                   [?block :block/page ?page]
+                                   [?page :block/children ?block]
                                    [?block :block/string ?string]
                                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 

@@ -114,7 +114,7 @@ DiscourseGraphToolkit.initializeProjectsSync = async function (retry = 0) {
 DiscourseGraphToolkit.validateProjectsInGraph = async function (projectNames) {
     const PM = this.ProjectManager;
     const escapedPattern = PM.getEscapedFieldPattern();
-    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+    const query = `[:find ?string :where [?page :block/children ?block] [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
     const results = await window.roamAlphaAPI.data.async.q(query);
     const inGraph = new Set();
     const regex = PM.getFieldRegex();
@@ -161,7 +161,7 @@ DiscourseGraphToolkit.discoverProjectsInGraph = async function () {
 
     // Query para encontrar todos los bloques con la propiedad de proyecto
     const escapedPattern = PM.getEscapedFieldPattern();
-    const query = `[:find ?string :where [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+    const query = `[:find ?string :where [?page :block/children ?block] [?block :block/string ?string] [(clojure.string/includes? ?string "${escapedPattern}")]]`;
     const results = await window.roamAlphaAPI.data.async.q(query);
 
     const discovered = new Set();

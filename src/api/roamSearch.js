@@ -23,7 +23,7 @@ DiscourseGraphToolkit.findPagesWithProject = async function (projectName) {
                 [(clojure.string/starts-with? ?project-title "${escapedProjectPrefix}")]
             )
             [?block :block/refs ?project-page]
-            [?block :block/page ?page]
+            [?page :block/children ?block]
             [?page :node/title ?page-title]
             [?page :block/uid ?page-uid]
             [?block :block/string ?string]

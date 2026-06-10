@@ -177,9 +177,9 @@ DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
 
     const query = `[:find ?string
                    :where 
-                   [?page :block/uid "${escapedPageUid}"]
-                   [?block :block/page ?page]
-                   [?block :block/string ?string]
+                    [?page :block/uid "${escapedPageUid}"]
+                    [?page :block/children ?block]
+                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
     try {
@@ -246,7 +246,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                    :in $ [?page-uid ...]
                    :where 
                    [?page :block/uid ?page-uid]
-                   [?block :block/page ?page]
+                   [?page :block/children ?block]
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
@@ -340,7 +340,7 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
         const rootQuery = `[:find ?block-uid ?string
                            :where 
                            [?page :block/uid "${escapedRootUid}"]
-                           [?block :block/page ?page]
+                           [?page :block/children ?block]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
                            [(clojure.string/includes? ?string "${escapedPattern}")]]`;
@@ -378,7 +378,7 @@ DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, target
             const query = `[:find ?block-uid ?string
                            :where 
                            [?page :block/uid "${escapedNodeUid}"]
-                           [?block :block/page ?page]
+                           [?page :block/children ?block]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
                            [(clojure.string/includes? ?string "${escapedPattern}")]]`;
@@ -449,7 +449,7 @@ DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
             const query = `[:find ?block-uid ?string
                            :where 
                            [?page :block/uid "${escapedNodeUid}"]
-                           [?block :block/page ?page]
+                           [?page :block/children ?block]
                            [?block :block/uid ?block-uid]
                            [?block :block/string ?string]
                            [(clojure.string/includes? ?string "${escapedPattern}")]]`;
@@ -497,7 +497,7 @@ DiscourseGraphToolkit.verifyProjectAssociation = async function (nodeUids) {
                    :in $ [?page-uid ...]
                    :where 
                    [?page :block/uid ?page-uid]
-                   [?block :block/page ?page]
+                   [?page :block/children ?block]
                    [?block :block/string ?string]
                    [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
@@ -545,7 +545,7 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
                               :in $ [?page-uid ...]
                               :where
                               [?page :block/uid ?page-uid]
-                              [?block :block/page ?page]
+                              [?page :block/children ?block]
                               [?block :block/string ?string]
                               [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
@@ -654,7 +654,7 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
                               :in $ [?page-uid ...]
                               :where
                               [?page :block/uid ?page-uid]
-                              [?block :block/page ?page]
+                              [?page :block/children ?block]
                               [?block :block/string ?string]
                               [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
@@ -723,7 +723,7 @@ DiscourseGraphToolkit.fixContainerAlignment = async function (targetUid, newProj
         const query = `[:find ?block-uid ?string
                        :where 
                        [?page :block/uid "${escapedTargetUid}"]
-                       [?block :block/page ?page]
+                       [?page :block/children ?block]
                        [?block :block/uid ?block-uid]
                        [?block :block/string ?string]
                        [(clojure.string/includes? ?string "${escapedPattern}")]]`;

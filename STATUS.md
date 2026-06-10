@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.55**
+**v1.5.56**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,10 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.56 (Junio 2026)
+- **Fix (Atribución de Proyectos a Bloques de Primer Nivel)**: Se restringió la obtención y validación del atributo `Proyecto Asociado::` a los bloques de nivel superior (primer hijo directo de la página) mediante la relación `[?page :block/children ?block]`. Esto evita atribuciones erróneas provenientes de bitácoras o bloques antiguos copiados en niveles profundos.
+- **Mejora (Filtrado de Proyectos Fantasma)**: Se aplicó esta misma restricción de primer nivel a las funciones globales de descubrimiento y validación de proyectos (`roamProjects.js`), logrando que dejen de listarse proyectos fantasmas y residuales en los menús de selección del plugin.
 
 ### v1.5.55 (Junio 2026)
 - **Fix (Robustez de Cierre del Modal):** Se mejoró la estabilidad al cerrar el modal principal y remover los overlays de pantalla completa.
