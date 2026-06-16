@@ -1,6 +1,6 @@
 ﻿/**
  * DISCOURSE GRAPH TOOLKIT v1.5.56
- * Bundled build: 2026-06-09 22:07:04
+ * Bundled build: 2026-06-16 17:48:44
  */
 
 (function () {
@@ -209,58 +209,143 @@ var MarkdownCore = {
 
         var childCounter = 1;
 
-        // Hijos: CLMs de soporte (recursión)
-        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
-        if (hasSupportingClms) {
-            for (var s = 0; s < node.supporting_clms.length; s++) {
-                var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+        // Hijos de GRI (Comodín Universal): contained_nodes, related_clms, direct_evds, related_gris, supporting_clms, related_evds, supporting_gris, connected_clms, connected_gris
+        if (type === 'GRI') {
+            var hasGRIChildren = false;
+            
+            if (node.contained_nodes && node.contained_nodes.length > 0) {
+                hasGRIChildren = true;
+                for (var cn = 0; cn < node.contained_nodes.length; cn++) {
+                    var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+                }
+            }
+            if (node.related_clms && node.related_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var rc = 0; rc < node.related_clms.length; rc++) {
+                    var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[rc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRC);
+                }
+            }
+            if (node.direct_evds && node.direct_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var de = 0; de < node.direct_evds.length; de++) {
+                    var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[de], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumDE);
+                }
+            }
+            if (node.related_gris && node.related_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+            if (node.supporting_clms && node.supporting_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var sc = 0; sc < node.supporting_clms.length; sc++) {
+                    var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[sc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSC);
+                }
+            }
+            if (node.related_evds && node.related_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var re = 0; re < node.related_evds.length; re++) {
+                    var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[re], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRE);
+                }
+            }
+            if (node.supporting_gris && node.supporting_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
+            }
+            if (node.connected_clms && node.connected_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var cc = 0; cc < node.connected_clms.length; cc++) {
+                    var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_clms[cc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCC);
+                }
+            }
+            if (node.connected_gris && node.connected_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var cg = 0; cg < node.connected_gris.length; cg++) {
+                    var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_gris[cg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCG);
+                }
+            }
+
+            if (!hasGRIChildren && !skeletonMode) {
+                result += '*No se encontraron contenidos para este grupo.*\\n\\n';
             }
         }
 
-        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
-        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
-        if (hasRelatedEvds) {
-            for (var e = 0; e < node.related_evds.length; e++) {
-                var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+        if (type !== 'GRI') {
+            // Hijos: CLMs de soporte (recursión)
+            var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+            if (hasSupportingClms) {
+                for (var s = 0; s < node.supporting_clms.length; s++) {
+                    var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+                }
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
-            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
-        }
-
-        // Hijos: Nodos contenidos (para GRI vía #Contains)
-        if (node.contained_nodes && node.contained_nodes.length > 0) {
-            for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+            // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+            var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+            if (hasRelatedEvds) {
+                for (var e = 0; e < node.related_evds.length; e++) {
+                    var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+                }
             }
-        }
 
-        // Hijos: CLMs relacionados (para QUE)
-        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
-        if (hasRelatedClms) {
-            for (var c = 0; c < node.related_clms.length; c++) {
-                var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+            // Hijos: GRIs de soporte (para CLM)
+            var hasSupportingGris = node.supporting_gris && node.supporting_gris.length > 0;
+            if (hasSupportingGris) {
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
             }
-        }
 
-        // Hijos: EVDs directos (para QUE)
-        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
-        if (hasDirectEvds) {
-            for (var d = 0; d < node.direct_evds.length; d++) {
-                var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !hasSupportingGris && !skeletonMode) {
+                result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\\n\\n';
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
-            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+            // Hijos: CLMs relacionados (para QUE)
+            var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+            if (hasRelatedClms) {
+                for (var c = 0; c < node.related_clms.length; c++) {
+                    var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+                }
+            }
+
+            // Hijos: EVDs directos (para QUE)
+            var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+            if (hasDirectEvds) {
+                for (var d = 0; d < node.direct_evds.length; d++) {
+                    var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+                }
+            }
+
+            // Hijos: GRIs relacionados (para QUE)
+            var hasRelatedGris = node.related_gris && node.related_gris.length > 0;
+            if (hasRelatedGris) {
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !hasRelatedGris && !skeletonMode) {
+                result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
+            }
         }
 
         visited[nodeUid] = false; // Liberar para ramas paralelas
@@ -342,9 +427,10 @@ var MarkdownCore = {
 
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
+                    var hasRelatedGris = rootNode.related_gris && rootNode.related_gris.length > 0;
 
                     // Mensaje informativo — SKIP en modo esqueleto
-                    if (!hasClms && !hasDirectEvds) {
+                    if (!hasClms && !hasDirectEvds && !hasRelatedGris) {
                         if (!skeletonMode) {
                             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\\n\\n';
                         }
@@ -366,6 +452,14 @@ var MarkdownCore = {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
                             var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
                             result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumD);
+                        }
+                    }
+
+                    // GRIs relacionados de la pregunta (nivel 3)
+                    if (rootNode.related_gris) {
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
                         }
                     }
 
@@ -391,15 +485,74 @@ var MarkdownCore = {
                     }
 
                     var childCounterG = 1;
-                    
-                    // Nodos contenidos (recursión desde nivel 3)
+                    var hasGRIChildren = false;
+
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+                        hasGRIChildren = true;
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
                             var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
                             result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCN);
                         }
-                    } else if (!skeletonMode) {
-                        result += '*No se encontraron nodos contenidos en este grupo.*\\n\\n';
+                    }
+                    if (rootNode.related_clms && rootNode.related_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rc = 0; rc < rootNode.related_clms.length; rc++) {
+                            var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_clms[rc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRC);
+                        }
+                    }
+                    if (rootNode.direct_evds && rootNode.direct_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var de = 0; de < rootNode.direct_evds.length; de++) {
+                            var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.direct_evds[de], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumDE);
+                        }
+                    }
+                    if (rootNode.related_gris && rootNode.related_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
+                        }
+                    }
+                    if (rootNode.supporting_clms && rootNode.supporting_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sc = 0; sc < rootNode.supporting_clms.length; sc++) {
+                            var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_clms[sc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSC);
+                        }
+                    }
+                    if (rootNode.related_evds && rootNode.related_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var re = 0; re < rootNode.related_evds.length; re++) {
+                            var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_evds[re], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRE);
+                        }
+                    }
+                    if (rootNode.supporting_gris && rootNode.supporting_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sg = 0; sg < rootNode.supporting_gris.length; sg++) {
+                            var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_gris[sg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSG);
+                        }
+                    }
+                    if (rootNode.connected_clms && rootNode.connected_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cc = 0; cc < rootNode.connected_clms.length; cc++) {
+                            var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_clms[cc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCC);
+                        }
+                    }
+                    if (rootNode.connected_gris && rootNode.connected_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cg = 0; cg < rootNode.connected_gris.length; cg++) {
+                            var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_gris[cg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCG);
+                        }
+                    }
+
+                    if (!hasGRIChildren && !skeletonMode) {
+                        result += '*No se encontraron contenidos para este grupo.*\\n\\n';
                     }
 
                 } else {
@@ -3527,30 +3680,34 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 1: Crear mapas de búsqueda
         const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
-        // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
-        this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
+        // Paso 2: Mapear QUE -> CLM/EVD/GRI (respuestas directas)
+        this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap, griTitleMap);
 
-        // Paso 3: Mapear CLM -> EVD/CLM (estructura estándar y relaciones laterales)
-        this._mapClmRelationships(allNodes, evdTitleMap, clmTitleMap);
+        // Paso 3: Mapear CLM -> EVD/CLM/GRI (estructura estándar y relaciones laterales)
+        this._mapClmRelationships(allNodes, evdTitleMap, clmTitleMap, griTitleMap);
 
-        // Paso 4: Mapear relaciones CLM-CLM y CLM-EVD vía #RelatedTo
-        this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
+        // Paso 4: Mapear relaciones CLM-CLM, CLM-EVD y CLM-GRI vía #RelatedTo
+        this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap, griTitleMap);
 
-        // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
+        // Paso 5: Mapear GRI -> QUE/CLM/GRI/EVD vía #Contains, #RespondedBy, #SupportedBy, #RelatedTo
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
         // Resumen de diagnóstico
-        let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
+        let queClmLinks = 0, queGriLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0, clmGriLinks = 0;
         for (const uid in allNodes) {
             const n = allNodes[uid];
-            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
+            if (n.type === 'QUE') {
+                queClmLinks += (n.related_clms || []).length;
+                queGriLinks += (n.related_gris || []).length;
+            }
             if (n.type === 'CLM') {
                 clmSuppLinks += (n.supporting_clms || []).length;
                 clmEvdLinks += (n.related_evds || []).length;
                 clmConnLinks += (n.connected_clms || []).length;
+                clmGriLinks += (n.supporting_gris || []).length;
             }
         }
-        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
+        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, QUE→GRI: ${queGriLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}, CLM→GRI(supporting): ${clmGriLinks}`);
     },
 
     _createTitleMaps: function (allNodes) {
@@ -3601,13 +3758,14 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _mapQueRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+    _mapQueRelationships: function (allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "QUE") continue;
 
             if (!node.related_clms) node.related_clms = [];
             if (!node.direct_evds) node.direct_evds = [];
+            if (!node.related_gris) node.related_gris = [];
 
             try {
                 const data = node.data;
@@ -3618,12 +3776,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#RespondedBy")) {
                         // Case 1: The block ITSELF is the response (e.g. "[[CLM]] - Title #RespondedBy")
-                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
 
                         // Case 2: The block is a header/container (e.g. "#RespondedBy" -> children are responses)
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
                             }
                         }
                     }
@@ -3631,7 +3789,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     // Novedad: Si encontramos un CLM anidado directamente en la pregunta (sin #RespondedBy explicit),
                     // O si ese CLM a su vez tiene #SupportedBy dentro del árbol de la QUE.
                     // Esto se maneja mejor delegando el procesamiento de sub-relaciones cuando encontramos una ref.
-                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap);
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para QUE ${uid}: ${e}`);
@@ -3641,8 +3799,8 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
     // Busca si un bloque hace referencia a un nodo y luego escanea sus HILOS (hijos) 
     // para encontrar conectores (ej: #SupportedBy) que le pertenezcan
-    _processInlineSubRelationships: function (block, rootUid, allNodes, clmTitleMap, evdTitleMap) {
-        const refsToCheck = this._getRefsFromBlockAndText(block, allNodes, clmTitleMap, evdTitleMap);
+    _processInlineSubRelationships: function (block, rootUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
+        const refsToCheck = this._getRefsFromBlockAndText(block, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
         if (refsToCheck.length === 0) return;
 
         for (const refUid of refsToCheck) {
@@ -3654,21 +3812,80 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 if (!referencedNode.connected_clms) referencedNode.connected_clms = [];
                 if (!referencedNode.supporting_clms) referencedNode.supporting_clms = [];
                 if (!referencedNode.related_evds) referencedNode.related_evds = [];
+                if (!referencedNode.supporting_gris) referencedNode.supporting_gris = [];
 
                 const children = block.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
                         // Similar a _mapClmRelationships pero ejecutado sobre el bloque anidado
-                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                             }
                         }
                     }
                     if (str.includes("#RelatedTo")) {
-                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap);
+                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+                }
+            } else if (referencedNode.type === "GRI") {
+                if (!referencedNode.contained_nodes) referencedNode.contained_nodes = [];
+                if (!referencedNode.supporting_gris) referencedNode.supporting_gris = [];
+                if (!referencedNode.related_clms) referencedNode.related_clms = [];
+                if (!referencedNode.direct_evds) referencedNode.direct_evds = [];
+                if (!referencedNode.supporting_clms) referencedNode.supporting_clms = [];
+                if (!referencedNode.connected_clms) referencedNode.connected_clms = [];
+                if (!referencedNode.connected_gris) referencedNode.connected_gris = [];
+                if (!referencedNode.related_gris) referencedNode.related_gris = [];
+
+                const children = block.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#Contains")) {
+                        this._extractContainedNodes(child, referencedNode, refUid, allNodes, null, clmTitleMap, griTitleMap, evdTitleMap);
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractContainedNodes(subChild, referencedNode, refUid, allNodes, null, clmTitleMap, griTitleMap, evdTitleMap);
+                            }
+                        }
+                    }
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#SupportedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#RelatedTo")) {
+                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+                }
+            } else if (referencedNode.type === "QUE") {
+                if (!referencedNode.related_clms) referencedNode.related_clms = [];
+                if (!referencedNode.direct_evds) referencedNode.direct_evds = [];
+                if (!referencedNode.related_gris) referencedNode.related_gris = [];
+
+                const children = block.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
                     }
                 }
             }
@@ -3676,7 +3893,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // Extrae todos los UIDs de referencias de un bloque (tanto links explícitos como [[texto]])
-    _getRefsFromBlockAndText: function (block, allNodes, clmTitleMap, evdTitleMap) {
+    _getRefsFromBlockAndText: function (block, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         const uids = new Set();
 
         // Refs (ROAM native)
@@ -3694,14 +3911,15 @@ DiscourseGraphToolkit.RelationshipMapper = {
         while ((match = pattern.exec(str)) !== null) {
             const refContent = match[1];
             // Match exacto en los mapas de títulos (O(1))
-            if (clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
-            if (evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
+            if (clmTitleMap && clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
+            if (evdTitleMap && evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
+            if (griTitleMap && griTitleMap[refContent]) uids.add(griTitleMap[refContent]);
         }
         return Array.from(uids);
     },
 
     // Helper genérico para extraer relaciones de un bloque (refs o texto)
-    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField) {
+    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, clmTargetField, evdTargetField, griTargetField) {
         try {
             const responseText = block.string || "";
 
@@ -3718,26 +3936,30 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 const refUid = ref.uid || "";
                 if (allNodes[refUid]) {
                     if (allNodes[refUid].type === "CLM") {
-                        if (!node[clmTargetField].includes(refUid)) {
+                        if (clmTargetField && node[clmTargetField] && !node[clmTargetField].includes(refUid)) {
                             node[clmTargetField].push(refUid);
                         }
                     } else if (allNodes[refUid].type === "EVD") {
-                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
+                        if (evdTargetField && node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
                             node[evdTargetField].push(refUid);
+                        }
+                    } else if (allNodes[refUid].type === "GRI") {
+                        if (griTargetField && node[griTargetField] && !node[griTargetField].includes(refUid)) {
+                            node[griTargetField].push(refUid);
                         }
                     }
                 }
             }
 
             // B. Relaciones por Texto ([[WikiLinks]])
-            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField);
+            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, griTitleMap, clmTargetField, evdTargetField, griTargetField);
 
         } catch (e) {
             console.warn(`⚠ Error processing block relationships: ${e}`);
         }
     },
 
-    _findEmbeddedRelationships: function (responseText, node, uid, clmTitleMap, evdTitleMap, clmField, evdField) {
+    _findEmbeddedRelationships: function (responseText, node, uid, clmTitleMap, evdTitleMap, griTitleMap, clmField, evdField, griField) {
         try {
             // Extraer todas las referencias [[...]] del texto
             const pattern = /\[\[([^\]]+)\]\]/g;
@@ -3749,17 +3971,22 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             if (references.length === 0) return;
 
-            // Buscar CLMs y EVDs usando match exacto (O(1))
+            // Buscar CLMs, EVDs y GRIs usando match exacto (O(1))
             for (const ref of references) {
-                if (ref.includes('CLM') && clmTitleMap[ref]) {
+                if (ref.includes('CLM') && clmTitleMap && clmTitleMap[ref]) {
                     const clmUid = clmTitleMap[ref];
-                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                    if (clmField && node[clmField] && !node[clmField].includes(clmUid) && clmUid !== uid) {
                         node[clmField].push(clmUid);
                     }
-                } else if (ref.includes('EVD') && evdTitleMap[ref]) {
+                } else if (ref.includes('EVD') && evdTitleMap && evdTitleMap[ref]) {
                     const evdUid = evdTitleMap[ref];
-                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
+                    if (evdField && node[evdField] && !node[evdField].includes(evdUid) && evdUid !== uid) {
                         node[evdField].push(evdUid);
+                    }
+                } else if (ref.includes('GRI') && griTitleMap && griTitleMap[ref]) {
+                    const griUid = griTitleMap[ref];
+                    if (griField && node[griField] && !node[griField].includes(griUid) && griUid !== uid) {
+                        node[griField].push(griUid);
                     }
                 }
             }
@@ -3769,7 +3996,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _mapClmRelationships: function (allNodes, evdTitleMap, clmTitleMap) {
+    _mapClmRelationships: function (allNodes, evdTitleMap, clmTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "CLM") continue;
@@ -3777,6 +4004,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (!node.related_evds) node.related_evds = [];
             if (!node.connected_clms) node.connected_clms = [];
             if (!node.supporting_clms) node.supporting_clms = [];
+            if (!node.supporting_gris) node.supporting_gris = [];
 
             try {
                 const data = node.data;
@@ -3786,17 +4014,17 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
                         // Case 1: Direct #SupportedBy on the node line
-                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
 
                         // Case 2: Container #SupportedBy
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                             }
                         }
                     }
 
-                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap);
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para CLM ${uid}: ${e}`);
@@ -3806,10 +4034,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
     // _processSupportedByChildren removed as it is replaced by generic helper logic above
 
-    _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+    _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "CLM") continue;
+
+            if (!node.connected_gris) node.connected_gris = [];
 
             try {
                 const data = node.data;
@@ -3818,7 +4048,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 this._traverseBlocks(children, (child) => {
                     const str = child.string || "";
                     if (str.includes("#RelatedTo")) {
-                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                     }
                 });
             } catch (e) {
@@ -3827,7 +4057,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _processRelatedToChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
+    _processRelatedToChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         const children = parentChild.children || [];
         for (const relatedItem of children) {
             try {
@@ -3851,12 +4081,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
                             if (!node.related_evds.includes(refUid)) {
                                 node.related_evds.push(refUid);
                             }
+                        } else if (referencedNode.type === "GRI") {
+                            if (!node.connected_gris.includes(refUid)) {
+                                node.connected_gris.push(refUid);
+                            }
                         }
                     }
                 }
 
                 const relatedText = relatedItem.string || "";
-                this._findEmbeddedRelationships(relatedText, node, uid, clmTitleMap, evdTitleMap, "connected_clms", "related_evds");
+                this._findEmbeddedRelationships(relatedText, node, uid, clmTitleMap, evdTitleMap, griTitleMap, "connected_clms", "related_evds", "connected_gris");
 
             } catch (e) {
                 console.warn(`⚠ Error procesando item #RelatedTo en CLM ${uid}: ${e}`);
@@ -3871,6 +4105,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (node.type !== "GRI") continue;
 
             if (!node.contained_nodes) node.contained_nodes = [];
+            if (!node.related_clms) node.related_clms = [];
+            if (!node.direct_evds) node.direct_evds = [];
+            if (!node.related_gris) node.related_gris = [];
+
+            if (!node.supporting_clms) node.supporting_clms = [];
+            if (!node.related_evds) node.related_evds = [];
+            if (!node.supporting_gris) node.supporting_gris = [];
+
+            if (!node.connected_clms) node.connected_clms = [];
+            if (!node.connected_gris) node.connected_gris = [];
 
             try {
                 const data = node.data;
@@ -3889,6 +4133,28 @@ DiscourseGraphToolkit.RelationshipMapper = {
                             }
                         }
                     }
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#SupportedBy")) {
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#RelatedTo")) {
+                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+
+                    // Traverse inline sub relationships if a child is referencing other things
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para GRI ${uid}: ${e}`);
@@ -4203,58 +4469,143 @@ var MarkdownCore = {
 
         var childCounter = 1;
 
-        // Hijos: CLMs de soporte (recursión)
-        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
-        if (hasSupportingClms) {
-            for (var s = 0; s < node.supporting_clms.length; s++) {
-                var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+        // Hijos de GRI (Comodín Universal): contained_nodes, related_clms, direct_evds, related_gris, supporting_clms, related_evds, supporting_gris, connected_clms, connected_gris
+        if (type === 'GRI') {
+            var hasGRIChildren = false;
+            
+            if (node.contained_nodes && node.contained_nodes.length > 0) {
+                hasGRIChildren = true;
+                for (var cn = 0; cn < node.contained_nodes.length; cn++) {
+                    var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+                }
+            }
+            if (node.related_clms && node.related_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var rc = 0; rc < node.related_clms.length; rc++) {
+                    var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[rc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRC);
+                }
+            }
+            if (node.direct_evds && node.direct_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var de = 0; de < node.direct_evds.length; de++) {
+                    var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[de], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumDE);
+                }
+            }
+            if (node.related_gris && node.related_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+            if (node.supporting_clms && node.supporting_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var sc = 0; sc < node.supporting_clms.length; sc++) {
+                    var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[sc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSC);
+                }
+            }
+            if (node.related_evds && node.related_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var re = 0; re < node.related_evds.length; re++) {
+                    var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[re], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRE);
+                }
+            }
+            if (node.supporting_gris && node.supporting_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
+            }
+            if (node.connected_clms && node.connected_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var cc = 0; cc < node.connected_clms.length; cc++) {
+                    var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_clms[cc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCC);
+                }
+            }
+            if (node.connected_gris && node.connected_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var cg = 0; cg < node.connected_gris.length; cg++) {
+                    var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_gris[cg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCG);
+                }
+            }
+
+            if (!hasGRIChildren && !skeletonMode) {
+                result += '*No se encontraron contenidos para este grupo.*\n\n';
             }
         }
 
-        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
-        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
-        if (hasRelatedEvds) {
-            for (var e = 0; e < node.related_evds.length; e++) {
-                var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+        if (type !== 'GRI') {
+            // Hijos: CLMs de soporte (recursión)
+            var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+            if (hasSupportingClms) {
+                for (var s = 0; s < node.supporting_clms.length; s++) {
+                    var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+                }
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
-            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
-        }
-
-        // Hijos: Nodos contenidos (para GRI vía #Contains)
-        if (node.contained_nodes && node.contained_nodes.length > 0) {
-            for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+            // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+            var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+            if (hasRelatedEvds) {
+                for (var e = 0; e < node.related_evds.length; e++) {
+                    var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+                }
             }
-        }
 
-        // Hijos: CLMs relacionados (para QUE)
-        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
-        if (hasRelatedClms) {
-            for (var c = 0; c < node.related_clms.length; c++) {
-                var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+            // Hijos: GRIs de soporte (para CLM)
+            var hasSupportingGris = node.supporting_gris && node.supporting_gris.length > 0;
+            if (hasSupportingGris) {
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
             }
-        }
 
-        // Hijos: EVDs directos (para QUE)
-        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
-        if (hasDirectEvds) {
-            for (var d = 0; d < node.direct_evds.length; d++) {
-                var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !hasSupportingGris && !skeletonMode) {
+                result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
-            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+            // Hijos: CLMs relacionados (para QUE)
+            var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+            if (hasRelatedClms) {
+                for (var c = 0; c < node.related_clms.length; c++) {
+                    var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+                }
+            }
+
+            // Hijos: EVDs directos (para QUE)
+            var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+            if (hasDirectEvds) {
+                for (var d = 0; d < node.direct_evds.length; d++) {
+                    var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+                }
+            }
+
+            // Hijos: GRIs relacionados (para QUE)
+            var hasRelatedGris = node.related_gris && node.related_gris.length > 0;
+            if (hasRelatedGris) {
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !hasRelatedGris && !skeletonMode) {
+                result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+            }
         }
 
         visited[nodeUid] = false; // Liberar para ramas paralelas
@@ -4336,9 +4687,10 @@ var MarkdownCore = {
 
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
+                    var hasRelatedGris = rootNode.related_gris && rootNode.related_gris.length > 0;
 
                     // Mensaje informativo — SKIP en modo esqueleto
-                    if (!hasClms && !hasDirectEvds) {
+                    if (!hasClms && !hasDirectEvds && !hasRelatedGris) {
                         if (!skeletonMode) {
                             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
                         }
@@ -4360,6 +4712,14 @@ var MarkdownCore = {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
                             var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
                             result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumD);
+                        }
+                    }
+
+                    // GRIs relacionados de la pregunta (nivel 3)
+                    if (rootNode.related_gris) {
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
                         }
                     }
 
@@ -4385,15 +4745,74 @@ var MarkdownCore = {
                     }
 
                     var childCounterG = 1;
-                    
-                    // Nodos contenidos (recursión desde nivel 3)
+                    var hasGRIChildren = false;
+
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+                        hasGRIChildren = true;
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
                             var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
                             result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCN);
                         }
-                    } else if (!skeletonMode) {
-                        result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
+                    }
+                    if (rootNode.related_clms && rootNode.related_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rc = 0; rc < rootNode.related_clms.length; rc++) {
+                            var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_clms[rc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRC);
+                        }
+                    }
+                    if (rootNode.direct_evds && rootNode.direct_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var de = 0; de < rootNode.direct_evds.length; de++) {
+                            var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.direct_evds[de], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumDE);
+                        }
+                    }
+                    if (rootNode.related_gris && rootNode.related_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
+                        }
+                    }
+                    if (rootNode.supporting_clms && rootNode.supporting_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sc = 0; sc < rootNode.supporting_clms.length; sc++) {
+                            var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_clms[sc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSC);
+                        }
+                    }
+                    if (rootNode.related_evds && rootNode.related_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var re = 0; re < rootNode.related_evds.length; re++) {
+                            var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_evds[re], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRE);
+                        }
+                    }
+                    if (rootNode.supporting_gris && rootNode.supporting_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sg = 0; sg < rootNode.supporting_gris.length; sg++) {
+                            var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_gris[sg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSG);
+                        }
+                    }
+                    if (rootNode.connected_clms && rootNode.connected_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cc = 0; cc < rootNode.connected_clms.length; cc++) {
+                            var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_clms[cc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCC);
+                        }
+                    }
+                    if (rootNode.connected_gris && rootNode.connected_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cg = 0; cg < rootNode.connected_gris.length; cg++) {
+                            var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_gris[cg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCG);
+                        }
+                    }
+
+                    if (!hasGRIChildren && !skeletonMode) {
+                        result += '*No se encontraron contenidos para este grupo.*\n\n';
                     }
 
                 } else {
@@ -5072,38 +5491,146 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             }
         }
 
-        // Hijos: CLMs de soporte (recursión)
-        const hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
-        if (hasSupportingClms) {
-            html += '<div class="supporting-clms">';
-            for (const suppUid of node.supporting_clms) {
-                html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '', skeletonMode, includeProjectMetadata);
+        // Hijos de GRI (Comodín Universal): contained_nodes, related_clms, direct_evds, related_gris, supporting_clms, related_evds, supporting_gris, connected_clms, connected_gris
+        if (type === 'GRI') {
+            let hasGRIChildren = false;
+
+            if (node.contained_nodes && node.contained_nodes.length > 0) {
+                hasGRIChildren = true;
+                html += '<div class="contained-nodes">';
+                for (let cn = 0; cn < node.contained_nodes.length; cn++) {
+                    const cnId = parentId ? `${parentId}_cn${cn}` : '';
+                    html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId, skeletonMode, includeProjectMetadata);
+                }
+                html += '</div>';
             }
-            html += '</div>';
+            if (node.related_clms && node.related_clms.length > 0) {
+                hasGRIChildren = true;
+                for (let rc = 0; rc < node.related_clms.length; rc++) {
+                    const rcId = parentId ? `${parentId}_rc${rc}` : '';
+                    html += this.renderNode(node.related_clms[rc], allNodes, config, excludeBitacora, depth + 1, visited, rcId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.direct_evds && node.direct_evds.length > 0) {
+                hasGRIChildren = true;
+                for (let de = 0; de < node.direct_evds.length; de++) {
+                    const deId = parentId ? `${parentId}_de${de}` : '';
+                    html += this.renderNode(node.direct_evds[de], allNodes, config, excludeBitacora, depth + 1, visited, deId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.related_gris && node.related_gris.length > 0) {
+                hasGRIChildren = true;
+                for (let rg = 0; rg < node.related_gris.length; rg++) {
+                    const rgId = parentId ? `${parentId}_rg${rg}` : '';
+                    html += this.renderNode(node.related_gris[rg], allNodes, config, excludeBitacora, depth + 1, visited, rgId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.supporting_clms && node.supporting_clms.length > 0) {
+                hasGRIChildren = true;
+                for (let sc = 0; sc < node.supporting_clms.length; sc++) {
+                    const scId = parentId ? `${parentId}_sc${sc}` : '';
+                    html += this.renderNode(node.supporting_clms[sc], allNodes, config, excludeBitacora, depth + 1, visited, scId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.related_evds && node.related_evds.length > 0) {
+                hasGRIChildren = true;
+                for (let re = 0; re < node.related_evds.length; re++) {
+                    const reId = parentId ? `${parentId}_re${re}` : '';
+                    html += this.renderNode(node.related_evds[re], allNodes, config, excludeBitacora, depth + 1, visited, reId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.supporting_gris && node.supporting_gris.length > 0) {
+                hasGRIChildren = true;
+                for (let sg = 0; sg < node.supporting_gris.length; sg++) {
+                    const sgId = parentId ? `${parentId}_sg${sg}` : '';
+                    html += this.renderNode(node.supporting_gris[sg], allNodes, config, excludeBitacora, depth + 1, visited, sgId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.connected_clms && node.connected_clms.length > 0) {
+                hasGRIChildren = true;
+                for (let cc = 0; cc < node.connected_clms.length; cc++) {
+                    const ccId = parentId ? `${parentId}_cc${cc}` : '';
+                    html += this.renderNode(node.connected_clms[cc], allNodes, config, excludeBitacora, depth + 1, visited, ccId, skeletonMode, includeProjectMetadata);
+                }
+            }
+            if (node.connected_gris && node.connected_gris.length > 0) {
+                hasGRIChildren = true;
+                for (let cg = 0; cg < node.connected_gris.length; cg++) {
+                    const cgId = parentId ? `${parentId}_cg${cg}` : '';
+                    html += this.renderNode(node.connected_gris[cg], allNodes, config, excludeBitacora, depth + 1, visited, cgId, skeletonMode, includeProjectMetadata);
+                }
+            }
+
+            if (!hasGRIChildren && !skeletonMode) {
+                html += '<p class="error-message">No se encontraron contenidos en este grupo.</p>';
+            }
         }
 
-        // Hijos: EVDs relacionados
-        const hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
-        if (hasRelatedEvds) {
-            for (let k = 0; k < node.related_evds.length; k++) {
-                const evdId = parentId ? `${parentId}_e${k}` : '';
-                html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId, skeletonMode, includeProjectMetadata);
+        if (type !== 'GRI') {
+            // Hijos: CLMs de soporte (recursión)
+            const hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+            if (hasSupportingClms) {
+                html += '<div class="supporting-clms">';
+                for (const suppUid of node.supporting_clms) {
+                    html += this.renderNode(suppUid, allNodes, config, excludeBitacora, depth + 1, visited, '', skeletonMode, includeProjectMetadata);
+                }
+                html += '</div>';
             }
-        }
 
-        // Hijos: Nodos contenidos (para GRI vía #Contains)
-        if (node.contained_nodes && node.contained_nodes.length > 0) {
-            html += '<div class="contained-nodes">';
-            for (let cn = 0; cn < node.contained_nodes.length; cn++) {
-                const cnId = parentId ? `${parentId}_cn${cn}` : '';
-                html += this.renderNode(node.contained_nodes[cn], allNodes, config, excludeBitacora, depth + 1, visited, cnId, skeletonMode, includeProjectMetadata);
+            // Hijos: EVDs relacionados
+            const hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+            if (hasRelatedEvds) {
+                for (let k = 0; k < node.related_evds.length; k++) {
+                    const evdId = parentId ? `${parentId}_e${k}` : '';
+                    html += this.renderNode(node.related_evds[k], allNodes, config, excludeBitacora, depth + 1, visited, evdId, skeletonMode, includeProjectMetadata);
+                }
             }
-            html += '</div>';
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
-            html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
+            // Hijos: GRIs de soporte (recursión para CLM)
+            const hasSupportingGris = node.supporting_gris && node.supporting_gris.length > 0;
+            if (hasSupportingGris) {
+                for (let sg = 0; sg < node.supporting_gris.length; sg++) {
+                    const sgId = parentId ? `${parentId}_sg${sg}` : '';
+                    html += this.renderNode(node.supporting_gris[sg], allNodes, config, excludeBitacora, depth + 1, visited, sgId, skeletonMode, includeProjectMetadata);
+                }
+            }
+
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !hasSupportingGris && !skeletonMode) {
+                html += '<p class="error-message">No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.</p>';
+            }
+
+            // Hijos: CLMs relacionados (para QUE)
+            const hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+            if (hasRelatedClms) {
+                for (let c = 0; c < node.related_clms.length; c++) {
+                    const clmId = parentId ? `${parentId}_c${c}` : '';
+                    html += this.renderNode(node.related_clms[c], allNodes, config, excludeBitacora, depth + 1, visited, clmId, skeletonMode, includeProjectMetadata);
+                }
+            }
+
+            // Hijos: EVDs directos (para QUE)
+            const hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+            if (hasDirectEvds) {
+                for (let d = 0; d < node.direct_evds.length; d++) {
+                    const evdId = parentId ? `${parentId}_de${d}` : '';
+                    html += this.renderNode(node.direct_evds[d], allNodes, config, excludeBitacora, depth + 1, visited, evdId, skeletonMode, includeProjectMetadata);
+                }
+            }
+
+            // Hijos: GRIs relacionados (para QUE)
+            const hasRelatedGris = node.related_gris && node.related_gris.length > 0;
+            if (hasRelatedGris) {
+                for (let rg = 0; rg < node.related_gris.length; rg++) {
+                    const rgId = parentId ? `${parentId}_rg${rg}` : '';
+                    html += this.renderNode(node.related_gris[rg], allNodes, config, excludeBitacora, depth + 1, visited, rgId, skeletonMode, includeProjectMetadata);
+                }
+            }
+
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !hasRelatedGris && !skeletonMode) {
+                html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
+            }
         }
 
         html += `</div></div>`;
@@ -5145,8 +5672,9 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
 
         const hasClms = question.related_clms && question.related_clms.length > 0;
         const hasDirectEvds = question.direct_evds && question.direct_evds.length > 0;
+        const hasRelatedGris = question.related_gris && question.related_gris.length > 0;
 
-        if (!hasClms && !hasDirectEvds) {
+        if (!hasClms && !hasDirectEvds && !hasRelatedGris) {
             if (!skeletonMode) {
                 html += '<p class="error-message">No se encontraron respuestas relacionadas con esta pregunta.</p>';
             }
@@ -5167,6 +5695,14 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             for (let j = 0; j < question.direct_evds.length; j++) {
                 const evdId = `q${qIndex}_de${j}`;
                 html += this.renderNode(question.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, evdId, skeletonMode, includeProjectMetadata);
+            }
+        }
+
+        // GRIs relacionados (profundidad 3)
+        if (question.related_gris) {
+            for (let j = 0; j < question.related_gris.length; j++) {
+                const griId = `q${qIndex}_rg${j}`;
+                html += this.renderNode(question.related_gris[j], allNodes, config, excludeBitacora, 3, {}, griId, skeletonMode, includeProjectMetadata);
             }
         }
 
@@ -5205,10 +5741,75 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             }
         }
 
-        // Nodos contenidos (vía #Contains)
-        const hasContained = rootNode.contained_nodes && rootNode.contained_nodes.length > 0;
+        // Nodos hijos de GRI (Comodín Universal)
+        let hasGRIChildren = false;
+        let griChildrenHtml = '';
 
-        if (!hasContained) {
+        if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.contained_nodes.length; j++) {
+                const cnId = `r${qIndex}_cn${j}`;
+                griChildrenHtml += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.related_clms && rootNode.related_clms.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.related_clms.length; j++) {
+                const rcId = `r${qIndex}_rc${j}`;
+                griChildrenHtml += this.renderNode(rootNode.related_clms[j], allNodes, config, excludeBitacora, 3, {}, rcId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.direct_evds && rootNode.direct_evds.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.direct_evds.length; j++) {
+                const deId = `r${qIndex}_de${j}`;
+                griChildrenHtml += this.renderNode(rootNode.direct_evds[j], allNodes, config, excludeBitacora, 3, {}, deId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.related_gris && rootNode.related_gris.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.related_gris.length; j++) {
+                const rgId = `r${qIndex}_rg${j}`;
+                griChildrenHtml += this.renderNode(rootNode.related_gris[j], allNodes, config, excludeBitacora, 3, {}, rgId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.supporting_clms && rootNode.supporting_clms.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.supporting_clms.length; j++) {
+                const scId = `r${qIndex}_sc${j}`;
+                griChildrenHtml += this.renderNode(rootNode.supporting_clms[j], allNodes, config, excludeBitacora, 3, {}, scId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.related_evds && rootNode.related_evds.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.related_evds.length; j++) {
+                const reId = `r${qIndex}_re${j}`;
+                griChildrenHtml += this.renderNode(rootNode.related_evds[j], allNodes, config, excludeBitacora, 3, {}, reId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.supporting_gris && rootNode.supporting_gris.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.supporting_gris.length; j++) {
+                const sgId = `r${qIndex}_sg${j}`;
+                griChildrenHtml += this.renderNode(rootNode.supporting_gris[j], allNodes, config, excludeBitacora, 3, {}, sgId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.connected_clms && rootNode.connected_clms.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.connected_clms.length; j++) {
+                const ccId = `r${qIndex}_cc${j}`;
+                griChildrenHtml += this.renderNode(rootNode.connected_clms[j], allNodes, config, excludeBitacora, 3, {}, ccId, skeletonMode, includeProjectMetadata);
+            }
+        }
+        if (rootNode.connected_gris && rootNode.connected_gris.length > 0) {
+            hasGRIChildren = true;
+            for (let j = 0; j < rootNode.connected_gris.length; j++) {
+                const cgId = `r${qIndex}_cg${j}`;
+                griChildrenHtml += this.renderNode(rootNode.connected_gris[j], allNodes, config, excludeBitacora, 3, {}, cgId, skeletonMode, includeProjectMetadata);
+            }
+        }
+
+        if (!hasGRIChildren) {
             if (!skeletonMode) {
                 html += '<p class="error-message">No se encontraron nodos contenidos en este grupo.</p>';
             }
@@ -5216,11 +5817,7 @@ DiscourseGraphToolkit.HtmlNodeRenderers = {
             return html;
         }
 
-        // Renderizar cada nodo contenido (recursión desde profundidad 3)
-        for (let j = 0; j < rootNode.contained_nodes.length; j++) {
-            const cnId = `r${qIndex}_cn${j}`;
-            html += this.renderNode(rootNode.contained_nodes[j], allNodes, config, excludeBitacora, 3, {}, cnId, skeletonMode, includeProjectMetadata);
-        }
+        html += griChildrenHtml;
 
         html += `</div></div>`;
         return html;
@@ -8048,9 +8645,31 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         // Check descendants
         const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
         let childrenUids = [];
-        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
-        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
-        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
+        if (nodeType === 'GRI') {
+            childrenUids = [
+                ...(node.contained_nodes || []),
+                ...(node.related_clms || []),
+                ...(node.direct_evds || []),
+                ...(node.related_gris || []),
+                ...(node.supporting_clms || []),
+                ...(node.related_evds || []),
+                ...(node.supporting_gris || []),
+                ...(node.connected_clms || []),
+                ...(node.connected_gris || [])
+            ];
+        } else if (nodeType === 'QUE') {
+            childrenUids = [
+                ...(node.related_clms || []),
+                ...(node.direct_evds || []),
+                ...(node.related_gris || [])
+            ];
+        } else if (nodeType === 'CLM') {
+            childrenUids = [
+                ...(node.related_evds || []),
+                ...(node.supporting_clms || []),
+                ...(node.supporting_gris || [])
+            ];
+        }
 
         for (const childUid of childrenUids) {
             if (isNodeRelevant(childUid, allNodes, targetProject, new Set(visited))) {
@@ -8132,12 +8751,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             const clmsWithEvds = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.related_evds || []).length > 0);
             console.log(`📊 CLMs con supporting_clms: ${clmsWithSupporting.length}, CLMs con related_evds: ${clmsWithEvds.length}`);
 
-            // 5.5 Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+            // 5.5 Construir set de nodos que son hijos de algún nodo (para excluirlos como raíz)
             const childNodeUids = new Set();
             Object.values(allNodes).forEach(node => {
-                if (node.type === 'GRI' && node.contained_nodes) {
-                    node.contained_nodes.forEach(uid => childNodeUids.add(uid));
-                }
+                if (node.contained_nodes) node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+                if (node.related_clms) node.related_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.direct_evds) node.direct_evds.forEach(uid => childNodeUids.add(uid));
+                if (node.related_gris) node.related_gris.forEach(uid => childNodeUids.add(uid));
+                if (node.supporting_clms) node.supporting_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.supporting_gris) node.supporting_gris.forEach(uid => childNodeUids.add(uid));
+                if (node.related_evds) node.related_evds.forEach(uid => childNodeUids.add(uid));
+                if (node.connected_clms) node.connected_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.connected_gris) node.connected_gris.forEach(uid => childNodeUids.add(uid));
             });
 
             // 6. Obtener proyectos de *todos* los nodos cargados en allNodes
@@ -8809,12 +9434,18 @@ DiscourseGraphToolkit.ExportTab = function () {
 
         DiscourseGraphToolkit.RelationshipMapper.mapRelationships(allNodes);
 
-        // Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+        // Construir set de nodos que son hijos de algún nodo (para excluirlos como raíz)
         const childNodeUids = new Set();
         Object.values(allNodes).forEach(node => {
-            if (node.type === 'GRI' && node.contained_nodes) {
-                node.contained_nodes.forEach(uid => childNodeUids.add(uid));
-            }
+            if (node.contained_nodes) node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+            if (node.related_clms) node.related_clms.forEach(uid => childNodeUids.add(uid));
+            if (node.direct_evds) node.direct_evds.forEach(uid => childNodeUids.add(uid));
+            if (node.related_gris) node.related_gris.forEach(uid => childNodeUids.add(uid));
+            if (node.supporting_clms) node.supporting_clms.forEach(uid => childNodeUids.add(uid));
+            if (node.supporting_gris) node.supporting_gris.forEach(uid => childNodeUids.add(uid));
+            if (node.related_evds) node.related_evds.forEach(uid => childNodeUids.add(uid));
+            if (node.connected_clms) node.connected_clms.forEach(uid => childNodeUids.add(uid));
+            if (node.connected_gris) node.connected_gris.forEach(uid => childNodeUids.add(uid));
         });
 
         let questions = result.data.filter(node => {
@@ -8863,9 +9494,15 @@ DiscourseGraphToolkit.ExportTab = function () {
                     // Recalcular childNodeUids
                     childNodeUids.clear();
                     Object.values(allNodes).forEach(node => {
-                        if (node.type === 'GRI' && node.contained_nodes) {
-                            node.contained_nodes.forEach(uid => childNodeUids.add(uid));
-                        }
+                        if (node.contained_nodes) node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+                        if (node.related_clms) node.related_clms.forEach(uid => childNodeUids.add(uid));
+                        if (node.direct_evds) node.direct_evds.forEach(uid => childNodeUids.add(uid));
+                        if (node.related_gris) node.related_gris.forEach(uid => childNodeUids.add(uid));
+                        if (node.supporting_clms) node.supporting_clms.forEach(uid => childNodeUids.add(uid));
+                        if (node.supporting_gris) node.supporting_gris.forEach(uid => childNodeUids.add(uid));
+                        if (node.related_evds) node.related_evds.forEach(uid => childNodeUids.add(uid));
+                        if (node.connected_clms) node.connected_clms.forEach(uid => childNodeUids.add(uid));
+                        if (node.connected_gris) node.connected_gris.forEach(uid => childNodeUids.add(uid));
                     });
                 }
 

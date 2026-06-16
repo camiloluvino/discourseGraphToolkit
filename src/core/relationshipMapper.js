@@ -10,30 +10,34 @@ DiscourseGraphToolkit.RelationshipMapper = {
         // Paso 1: Crear mapas de búsqueda
         const { clmTitleMap, evdTitleMap, griTitleMap, queTitleMap } = this._createTitleMaps(allNodes);
 
-        // Paso 2: Mapear QUE -> CLM/EVD (respuestas directas)
-        this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap);
+        // Paso 2: Mapear QUE -> CLM/EVD/GRI (respuestas directas)
+        this._mapQueRelationships(allNodes, clmTitleMap, evdTitleMap, griTitleMap);
 
-        // Paso 3: Mapear CLM -> EVD/CLM (estructura estándar y relaciones laterales)
-        this._mapClmRelationships(allNodes, evdTitleMap, clmTitleMap);
+        // Paso 3: Mapear CLM -> EVD/CLM/GRI (estructura estándar y relaciones laterales)
+        this._mapClmRelationships(allNodes, evdTitleMap, clmTitleMap, griTitleMap);
 
-        // Paso 4: Mapear relaciones CLM-CLM y CLM-EVD vía #RelatedTo
-        this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap);
+        // Paso 4: Mapear relaciones CLM-CLM, CLM-EVD y CLM-GRI vía #RelatedTo
+        this._mapClmRelatedToRelationships(allNodes, clmTitleMap, evdTitleMap, griTitleMap);
 
-        // Paso 5: Mapear GRI -> QUE/CLM/GRI vía #Contains
+        // Paso 5: Mapear GRI -> QUE/CLM/GRI/EVD vía #Contains, #RespondedBy, #SupportedBy, #RelatedTo
         this._mapGriRelationships(allNodes, queTitleMap, clmTitleMap, griTitleMap, evdTitleMap);
 
         // Resumen de diagnóstico
-        let queClmLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0;
+        let queClmLinks = 0, queGriLinks = 0, clmSuppLinks = 0, clmEvdLinks = 0, clmConnLinks = 0, clmGriLinks = 0;
         for (const uid in allNodes) {
             const n = allNodes[uid];
-            if (n.type === 'QUE') queClmLinks += (n.related_clms || []).length;
+            if (n.type === 'QUE') {
+                queClmLinks += (n.related_clms || []).length;
+                queGriLinks += (n.related_gris || []).length;
+            }
             if (n.type === 'CLM') {
                 clmSuppLinks += (n.supporting_clms || []).length;
                 clmEvdLinks += (n.related_evds || []).length;
                 clmConnLinks += (n.connected_clms || []).length;
+                clmGriLinks += (n.supporting_gris || []).length;
             }
         }
-        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}`);
+        console.log(`📊 Relaciones mapeadas: QUE→CLM: ${queClmLinks}, QUE→GRI: ${queGriLinks}, CLM→CLM(supporting): ${clmSuppLinks}, CLM→EVD: ${clmEvdLinks}, CLM→CLM(connected): ${clmConnLinks}, CLM→GRI(supporting): ${clmGriLinks}`);
     },
 
     _createTitleMaps: function (allNodes) {
@@ -84,13 +88,14 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _mapQueRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+    _mapQueRelationships: function (allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "QUE") continue;
 
             if (!node.related_clms) node.related_clms = [];
             if (!node.direct_evds) node.direct_evds = [];
+            if (!node.related_gris) node.related_gris = [];
 
             try {
                 const data = node.data;
@@ -101,12 +106,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#RespondedBy")) {
                         // Case 1: The block ITSELF is the response (e.g. "[[CLM]] - Title #RespondedBy")
-                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
 
                         // Case 2: The block is a header/container (e.g. "#RespondedBy" -> children are responses)
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "related_clms", "direct_evds");
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
                             }
                         }
                     }
@@ -114,7 +119,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     // Novedad: Si encontramos un CLM anidado directamente en la pregunta (sin #RespondedBy explicit),
                     // O si ese CLM a su vez tiene #SupportedBy dentro del árbol de la QUE.
                     // Esto se maneja mejor delegando el procesamiento de sub-relaciones cuando encontramos una ref.
-                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap);
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para QUE ${uid}: ${e}`);
@@ -124,8 +129,8 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
     // Busca si un bloque hace referencia a un nodo y luego escanea sus HILOS (hijos) 
     // para encontrar conectores (ej: #SupportedBy) que le pertenezcan
-    _processInlineSubRelationships: function (block, rootUid, allNodes, clmTitleMap, evdTitleMap) {
-        const refsToCheck = this._getRefsFromBlockAndText(block, allNodes, clmTitleMap, evdTitleMap);
+    _processInlineSubRelationships: function (block, rootUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
+        const refsToCheck = this._getRefsFromBlockAndText(block, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
         if (refsToCheck.length === 0) return;
 
         for (const refUid of refsToCheck) {
@@ -137,21 +142,80 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 if (!referencedNode.connected_clms) referencedNode.connected_clms = [];
                 if (!referencedNode.supporting_clms) referencedNode.supporting_clms = [];
                 if (!referencedNode.related_evds) referencedNode.related_evds = [];
+                if (!referencedNode.supporting_gris) referencedNode.supporting_gris = [];
 
                 const children = block.children || [];
                 for (const child of children) {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
                         // Similar a _mapClmRelationships pero ejecutado sobre el bloque anidado
-                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                             }
                         }
                     }
                     if (str.includes("#RelatedTo")) {
-                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap);
+                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+                }
+            } else if (referencedNode.type === "GRI") {
+                if (!referencedNode.contained_nodes) referencedNode.contained_nodes = [];
+                if (!referencedNode.supporting_gris) referencedNode.supporting_gris = [];
+                if (!referencedNode.related_clms) referencedNode.related_clms = [];
+                if (!referencedNode.direct_evds) referencedNode.direct_evds = [];
+                if (!referencedNode.supporting_clms) referencedNode.supporting_clms = [];
+                if (!referencedNode.connected_clms) referencedNode.connected_clms = [];
+                if (!referencedNode.connected_gris) referencedNode.connected_gris = [];
+                if (!referencedNode.related_gris) referencedNode.related_gris = [];
+
+                const children = block.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#Contains")) {
+                        this._extractContainedNodes(child, referencedNode, refUid, allNodes, null, clmTitleMap, griTitleMap, evdTitleMap);
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractContainedNodes(subChild, referencedNode, refUid, allNodes, null, clmTitleMap, griTitleMap, evdTitleMap);
+                            }
+                        }
+                    }
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#SupportedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#RelatedTo")) {
+                        this._processRelatedToChildren(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+                }
+            } else if (referencedNode.type === "QUE") {
+                if (!referencedNode.related_clms) referencedNode.related_clms = [];
+                if (!referencedNode.direct_evds) referencedNode.direct_evds = [];
+                if (!referencedNode.related_gris) referencedNode.related_gris = [];
+
+                const children = block.children || [];
+                for (const child of children) {
+                    const str = child.string || "";
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, referencedNode, refUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
                     }
                 }
             }
@@ -159,7 +223,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
     },
 
     // Extrae todos los UIDs de referencias de un bloque (tanto links explícitos como [[texto]])
-    _getRefsFromBlockAndText: function (block, allNodes, clmTitleMap, evdTitleMap) {
+    _getRefsFromBlockAndText: function (block, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         const uids = new Set();
 
         // Refs (ROAM native)
@@ -177,14 +241,15 @@ DiscourseGraphToolkit.RelationshipMapper = {
         while ((match = pattern.exec(str)) !== null) {
             const refContent = match[1];
             // Match exacto en los mapas de títulos (O(1))
-            if (clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
-            if (evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
+            if (clmTitleMap && clmTitleMap[refContent]) uids.add(clmTitleMap[refContent]);
+            if (evdTitleMap && evdTitleMap[refContent]) uids.add(evdTitleMap[refContent]);
+            if (griTitleMap && griTitleMap[refContent]) uids.add(griTitleMap[refContent]);
         }
         return Array.from(uids);
     },
 
     // Helper genérico para extraer relaciones de un bloque (refs o texto)
-    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField) {
+    _extractRelationshipsFromBlock: function (block, node, sourceUid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, clmTargetField, evdTargetField, griTargetField) {
         try {
             const responseText = block.string || "";
 
@@ -201,26 +266,30 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 const refUid = ref.uid || "";
                 if (allNodes[refUid]) {
                     if (allNodes[refUid].type === "CLM") {
-                        if (!node[clmTargetField].includes(refUid)) {
+                        if (clmTargetField && node[clmTargetField] && !node[clmTargetField].includes(refUid)) {
                             node[clmTargetField].push(refUid);
                         }
                     } else if (allNodes[refUid].type === "EVD") {
-                        if (node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
+                        if (evdTargetField && node[evdTargetField] && !node[evdTargetField].includes(refUid)) {
                             node[evdTargetField].push(refUid);
+                        }
+                    } else if (allNodes[refUid].type === "GRI") {
+                        if (griTargetField && node[griTargetField] && !node[griTargetField].includes(refUid)) {
+                            node[griTargetField].push(refUid);
                         }
                     }
                 }
             }
 
             // B. Relaciones por Texto ([[WikiLinks]])
-            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, clmTargetField, evdTargetField);
+            this._findEmbeddedRelationships(responseText, node, sourceUid, clmTitleMap, evdTitleMap, griTitleMap, clmTargetField, evdTargetField, griTargetField);
 
         } catch (e) {
             console.warn(`⚠ Error processing block relationships: ${e}`);
         }
     },
 
-    _findEmbeddedRelationships: function (responseText, node, uid, clmTitleMap, evdTitleMap, clmField, evdField) {
+    _findEmbeddedRelationships: function (responseText, node, uid, clmTitleMap, evdTitleMap, griTitleMap, clmField, evdField, griField) {
         try {
             // Extraer todas las referencias [[...]] del texto
             const pattern = /\[\[([^\]]+)\]\]/g;
@@ -232,17 +301,22 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
             if (references.length === 0) return;
 
-            // Buscar CLMs y EVDs usando match exacto (O(1))
+            // Buscar CLMs, EVDs y GRIs usando match exacto (O(1))
             for (const ref of references) {
-                if (ref.includes('CLM') && clmTitleMap[ref]) {
+                if (ref.includes('CLM') && clmTitleMap && clmTitleMap[ref]) {
                     const clmUid = clmTitleMap[ref];
-                    if (!node[clmField].includes(clmUid) && clmUid !== uid) {
+                    if (clmField && node[clmField] && !node[clmField].includes(clmUid) && clmUid !== uid) {
                         node[clmField].push(clmUid);
                     }
-                } else if (ref.includes('EVD') && evdTitleMap[ref]) {
+                } else if (ref.includes('EVD') && evdTitleMap && evdTitleMap[ref]) {
                     const evdUid = evdTitleMap[ref];
-                    if (!node[evdField].includes(evdUid) && evdUid !== uid) {
+                    if (evdField && node[evdField] && !node[evdField].includes(evdUid) && evdUid !== uid) {
                         node[evdField].push(evdUid);
+                    }
+                } else if (ref.includes('GRI') && griTitleMap && griTitleMap[ref]) {
+                    const griUid = griTitleMap[ref];
+                    if (griField && node[griField] && !node[griField].includes(griUid) && griUid !== uid) {
+                        node[griField].push(griUid);
                     }
                 }
             }
@@ -252,7 +326,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _mapClmRelationships: function (allNodes, evdTitleMap, clmTitleMap) {
+    _mapClmRelationships: function (allNodes, evdTitleMap, clmTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "CLM") continue;
@@ -260,6 +334,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (!node.related_evds) node.related_evds = [];
             if (!node.connected_clms) node.connected_clms = [];
             if (!node.supporting_clms) node.supporting_clms = [];
+            if (!node.supporting_gris) node.supporting_gris = [];
 
             try {
                 const data = node.data;
@@ -269,17 +344,17 @@ DiscourseGraphToolkit.RelationshipMapper = {
                     const str = child.string || "";
                     if (str.includes("#SupportedBy")) {
                         // Case 1: Direct #SupportedBy on the node line
-                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
 
                         // Case 2: Container #SupportedBy
                         if (child.children && child.children.length > 0) {
                             for (const subChild of child.children) {
-                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, "supporting_clms", "related_evds");
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
                             }
                         }
                     }
 
-                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap);
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para CLM ${uid}: ${e}`);
@@ -289,10 +364,12 @@ DiscourseGraphToolkit.RelationshipMapper = {
 
     // _processSupportedByChildren removed as it is replaced by generic helper logic above
 
-    _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap) {
+    _mapClmRelatedToRelationships: function (allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         for (const uid in allNodes) {
             const node = allNodes[uid];
             if (node.type !== "CLM") continue;
+
+            if (!node.connected_gris) node.connected_gris = [];
 
             try {
                 const data = node.data;
@@ -301,7 +378,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
                 this._traverseBlocks(children, (child) => {
                     const str = child.string || "";
                     if (str.includes("#RelatedTo")) {
-                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap);
+                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                     }
                 });
             } catch (e) {
@@ -310,7 +387,7 @@ DiscourseGraphToolkit.RelationshipMapper = {
         }
     },
 
-    _processRelatedToChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap) {
+    _processRelatedToChildren: function (parentChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap) {
         const children = parentChild.children || [];
         for (const relatedItem of children) {
             try {
@@ -334,12 +411,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
                             if (!node.related_evds.includes(refUid)) {
                                 node.related_evds.push(refUid);
                             }
+                        } else if (referencedNode.type === "GRI") {
+                            if (!node.connected_gris.includes(refUid)) {
+                                node.connected_gris.push(refUid);
+                            }
                         }
                     }
                 }
 
                 const relatedText = relatedItem.string || "";
-                this._findEmbeddedRelationships(relatedText, node, uid, clmTitleMap, evdTitleMap, "connected_clms", "related_evds");
+                this._findEmbeddedRelationships(relatedText, node, uid, clmTitleMap, evdTitleMap, griTitleMap, "connected_clms", "related_evds", "connected_gris");
 
             } catch (e) {
                 console.warn(`⚠ Error procesando item #RelatedTo en CLM ${uid}: ${e}`);
@@ -354,6 +435,16 @@ DiscourseGraphToolkit.RelationshipMapper = {
             if (node.type !== "GRI") continue;
 
             if (!node.contained_nodes) node.contained_nodes = [];
+            if (!node.related_clms) node.related_clms = [];
+            if (!node.direct_evds) node.direct_evds = [];
+            if (!node.related_gris) node.related_gris = [];
+
+            if (!node.supporting_clms) node.supporting_clms = [];
+            if (!node.related_evds) node.related_evds = [];
+            if (!node.supporting_gris) node.supporting_gris = [];
+
+            if (!node.connected_clms) node.connected_clms = [];
+            if (!node.connected_gris) node.connected_gris = [];
 
             try {
                 const data = node.data;
@@ -372,6 +463,28 @@ DiscourseGraphToolkit.RelationshipMapper = {
                             }
                         }
                     }
+                    if (str.includes("#RespondedBy")) {
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "related_clms", "direct_evds", "related_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#SupportedBy")) {
+                        this._extractRelationshipsFromBlock(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                        if (child.children && child.children.length > 0) {
+                            for (const subChild of child.children) {
+                                this._extractRelationshipsFromBlock(subChild, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap, "supporting_clms", "related_evds", "supporting_gris");
+                            }
+                        }
+                    }
+                    if (str.includes("#RelatedTo")) {
+                        this._processRelatedToChildren(child, node, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
+                    }
+
+                    // Traverse inline sub relationships if a child is referencing other things
+                    this._processInlineSubRelationships(child, uid, allNodes, clmTitleMap, evdTitleMap, griTitleMap);
                 });
             } catch (e) {
                 console.error(`❌ Error mapeando relaciones para GRI ${uid}: ${e}`);

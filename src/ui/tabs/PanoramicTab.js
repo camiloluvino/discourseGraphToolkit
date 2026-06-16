@@ -218,9 +218,31 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         // Check descendants
         const nodeType = node.type || DiscourseGraphToolkit.getNodeType(node.title);
         let childrenUids = [];
-        if (nodeType === 'GRI') childrenUids = node.contained_nodes || [];
-        else if (nodeType === 'QUE') childrenUids = [...(node.related_clms || []), ...(node.direct_evds || [])];
-        else if (nodeType === 'CLM') childrenUids = [...(node.related_evds || []), ...(node.supporting_clms || [])];
+        if (nodeType === 'GRI') {
+            childrenUids = [
+                ...(node.contained_nodes || []),
+                ...(node.related_clms || []),
+                ...(node.direct_evds || []),
+                ...(node.related_gris || []),
+                ...(node.supporting_clms || []),
+                ...(node.related_evds || []),
+                ...(node.supporting_gris || []),
+                ...(node.connected_clms || []),
+                ...(node.connected_gris || [])
+            ];
+        } else if (nodeType === 'QUE') {
+            childrenUids = [
+                ...(node.related_clms || []),
+                ...(node.direct_evds || []),
+                ...(node.related_gris || [])
+            ];
+        } else if (nodeType === 'CLM') {
+            childrenUids = [
+                ...(node.related_evds || []),
+                ...(node.supporting_clms || []),
+                ...(node.supporting_gris || [])
+            ];
+        }
 
         for (const childUid of childrenUids) {
             if (isNodeRelevant(childUid, allNodes, targetProject, new Set(visited))) {
@@ -302,12 +324,18 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             const clmsWithEvds = Object.values(allNodes).filter(n => n.type === 'CLM' && (n.related_evds || []).length > 0);
             console.log(`📊 CLMs con supporting_clms: ${clmsWithSupporting.length}, CLMs con related_evds: ${clmsWithEvds.length}`);
 
-            // 5.5 Construir set de nodos que son hijos de algún GRI (para excluirlos como raíz)
+            // 5.5 Construir set de nodos que son hijos de algún nodo (para excluirlos como raíz)
             const childNodeUids = new Set();
             Object.values(allNodes).forEach(node => {
-                if (node.type === 'GRI' && node.contained_nodes) {
-                    node.contained_nodes.forEach(uid => childNodeUids.add(uid));
-                }
+                if (node.contained_nodes) node.contained_nodes.forEach(uid => childNodeUids.add(uid));
+                if (node.related_clms) node.related_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.direct_evds) node.direct_evds.forEach(uid => childNodeUids.add(uid));
+                if (node.related_gris) node.related_gris.forEach(uid => childNodeUids.add(uid));
+                if (node.supporting_clms) node.supporting_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.supporting_gris) node.supporting_gris.forEach(uid => childNodeUids.add(uid));
+                if (node.related_evds) node.related_evds.forEach(uid => childNodeUids.add(uid));
+                if (node.connected_clms) node.connected_clms.forEach(uid => childNodeUids.add(uid));
+                if (node.connected_gris) node.connected_gris.forEach(uid => childNodeUids.add(uid));
             });
 
             // 6. Obtener proyectos de *todos* los nodos cargados en allNodes

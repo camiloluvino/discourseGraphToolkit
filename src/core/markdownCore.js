@@ -197,58 +197,143 @@ var MarkdownCore = {
 
         var childCounter = 1;
 
-        // Hijos: CLMs de soporte (recursión)
-        var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
-        if (hasSupportingClms) {
-            for (var s = 0; s < node.supporting_clms.length; s++) {
-                var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+        // Hijos de GRI (Comodín Universal): contained_nodes, related_clms, direct_evds, related_gris, supporting_clms, related_evds, supporting_gris, connected_clms, connected_gris
+        if (type === 'GRI') {
+            var hasGRIChildren = false;
+            
+            if (node.contained_nodes && node.contained_nodes.length > 0) {
+                hasGRIChildren = true;
+                for (var cn = 0; cn < node.contained_nodes.length; cn++) {
+                    var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+                }
+            }
+            if (node.related_clms && node.related_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var rc = 0; rc < node.related_clms.length; rc++) {
+                    var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[rc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRC);
+                }
+            }
+            if (node.direct_evds && node.direct_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var de = 0; de < node.direct_evds.length; de++) {
+                    var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[de], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumDE);
+                }
+            }
+            if (node.related_gris && node.related_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+            if (node.supporting_clms && node.supporting_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var sc = 0; sc < node.supporting_clms.length; sc++) {
+                    var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[sc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSC);
+                }
+            }
+            if (node.related_evds && node.related_evds.length > 0) {
+                hasGRIChildren = true;
+                for (var re = 0; re < node.related_evds.length; re++) {
+                    var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[re], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRE);
+                }
+            }
+            if (node.supporting_gris && node.supporting_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
+            }
+            if (node.connected_clms && node.connected_clms.length > 0) {
+                hasGRIChildren = true;
+                for (var cc = 0; cc < node.connected_clms.length; cc++) {
+                    var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_clms[cc], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCC);
+                }
+            }
+            if (node.connected_gris && node.connected_gris.length > 0) {
+                hasGRIChildren = true;
+                for (var cg = 0; cg < node.connected_gris.length; cg++) {
+                    var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.connected_gris[cg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCG);
+                }
+            }
+
+            if (!hasGRIChildren && !skeletonMode) {
+                result += '*No se encontraron contenidos para este grupo.*\n\n';
             }
         }
 
-        // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
-        var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
-        if (hasRelatedEvds) {
-            for (var e = 0; e < node.related_evds.length; e++) {
-                var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+        if (type !== 'GRI') {
+            // Hijos: CLMs de soporte (recursión)
+            var hasSupportingClms = node.supporting_clms && node.supporting_clms.length > 0;
+            if (hasSupportingClms) {
+                for (var s = 0; s < node.supporting_clms.length; s++) {
+                    var childNum = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_clms[s], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNum);
+                }
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !skeletonMode) {
-            result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
-        }
-
-        // Hijos: Nodos contenidos (para GRI vía #Contains)
-        if (node.contained_nodes && node.contained_nodes.length > 0) {
-            for (var cn = 0; cn < node.contained_nodes.length; cn++) {
-                var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.contained_nodes[cn], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumCN);
+            // Hijos: EVDs relacionados (hojas, pero usan recursión por uniformidad)
+            var hasRelatedEvds = node.related_evds && node.related_evds.length > 0;
+            if (hasRelatedEvds) {
+                for (var e = 0; e < node.related_evds.length; e++) {
+                    var childNumE = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_evds[e], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumE);
+                }
             }
-        }
 
-        // Hijos: CLMs relacionados (para QUE)
-        var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
-        if (hasRelatedClms) {
-            for (var c = 0; c < node.related_clms.length; c++) {
-                var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+            // Hijos: GRIs de soporte (para CLM)
+            var hasSupportingGris = node.supporting_gris && node.supporting_gris.length > 0;
+            if (hasSupportingGris) {
+                for (var sg = 0; sg < node.supporting_gris.length; sg++) {
+                    var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.supporting_gris[sg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumSG);
+                }
             }
-        }
 
-        // Hijos: EVDs directos (para QUE)
-        var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
-        if (hasDirectEvds) {
-            for (var d = 0; d < node.direct_evds.length; d++) {
-                var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
-                result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'CLM' && !hasSupportingClms && !hasRelatedEvds && !hasSupportingGris && !skeletonMode) {
+                result += '*No se encontraron evidencias (EVD) o afirmaciones relacionadas (CLM) con esta afirmación.*\n\n';
             }
-        }
 
-        // Mensaje — SKIP en modo esqueleto
-        if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !skeletonMode) {
-            result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+            // Hijos: CLMs relacionados (para QUE)
+            var hasRelatedClms = node.related_clms && node.related_clms.length > 0;
+            if (hasRelatedClms) {
+                for (var c = 0; c < node.related_clms.length; c++) {
+                    var childNumC = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_clms[c], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumC);
+                }
+            }
+
+            // Hijos: EVDs directos (para QUE)
+            var hasDirectEvds = node.direct_evds && node.direct_evds.length > 0;
+            if (hasDirectEvds) {
+                for (var d = 0; d < node.direct_evds.length; d++) {
+                    var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.direct_evds[d], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumD);
+                }
+            }
+
+            // Hijos: GRIs relacionados (para QUE)
+            var hasRelatedGris = node.related_gris && node.related_gris.length > 0;
+            if (hasRelatedGris) {
+                for (var rg = 0; rg < node.related_gris.length; rg++) {
+                    var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? (numberingPath || []).concat([childCounter++]) : [];
+                    result += this.renderNodeTree(node.related_gris[rg], allNodes, headingLevel + 1, config, excludeBitacora, flatMode, visited, skeletonMode, formatOptions, childNumRG);
+                }
+            }
+
+            // Mensaje — SKIP en modo esqueleto
+            if (type === 'QUE' && !hasRelatedClms && !hasDirectEvds && !hasRelatedGris && !skeletonMode) {
+                result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
+            }
         }
 
         visited[nodeUid] = false; // Liberar para ramas paralelas
@@ -330,9 +415,10 @@ var MarkdownCore = {
 
                     var hasClms = rootNode.related_clms && rootNode.related_clms.length > 0;
                     var hasDirectEvds = rootNode.direct_evds && rootNode.direct_evds.length > 0;
+                    var hasRelatedGris = rootNode.related_gris && rootNode.related_gris.length > 0;
 
                     // Mensaje informativo — SKIP en modo esqueleto
-                    if (!hasClms && !hasDirectEvds) {
+                    if (!hasClms && !hasDirectEvds && !hasRelatedGris) {
                         if (!skeletonMode) {
                             result += '*No se encontraron respuestas relacionadas con esta pregunta.*\n\n';
                         }
@@ -354,6 +440,14 @@ var MarkdownCore = {
                         for (var d = 0; d < rootNode.direct_evds.length; d++) {
                             var childNumD = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
                             result += self.renderNodeTree(rootNode.direct_evds[d], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumD);
+                        }
+                    }
+
+                    // GRIs relacionados de la pregunta (nivel 3)
+                    if (rootNode.related_gris) {
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounter++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
                         }
                     }
 
@@ -379,15 +473,74 @@ var MarkdownCore = {
                     }
 
                     var childCounterG = 1;
-                    
-                    // Nodos contenidos (recursión desde nivel 3)
+                    var hasGRIChildren = false;
+
                     if (rootNode.contained_nodes && rootNode.contained_nodes.length > 0) {
+                        hasGRIChildren = true;
                         for (var cn = 0; cn < rootNode.contained_nodes.length; cn++) {
                             var childNumCN = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
                             result += self.renderNodeTree(rootNode.contained_nodes[cn], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCN);
                         }
-                    } else if (!skeletonMode) {
-                        result += '*No se encontraron nodos contenidos en este grupo.*\n\n';
+                    }
+                    if (rootNode.related_clms && rootNode.related_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rc = 0; rc < rootNode.related_clms.length; rc++) {
+                            var childNumRC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_clms[rc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRC);
+                        }
+                    }
+                    if (rootNode.direct_evds && rootNode.direct_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var de = 0; de < rootNode.direct_evds.length; de++) {
+                            var childNumDE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.direct_evds[de], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumDE);
+                        }
+                    }
+                    if (rootNode.related_gris && rootNode.related_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var rg = 0; rg < rootNode.related_gris.length; rg++) {
+                            var childNumRG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_gris[rg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRG);
+                        }
+                    }
+                    if (rootNode.supporting_clms && rootNode.supporting_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sc = 0; sc < rootNode.supporting_clms.length; sc++) {
+                            var childNumSC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_clms[sc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSC);
+                        }
+                    }
+                    if (rootNode.related_evds && rootNode.related_evds.length > 0) {
+                        hasGRIChildren = true;
+                        for (var re = 0; re < rootNode.related_evds.length; re++) {
+                            var childNumRE = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.related_evds[re], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumRE);
+                        }
+                    }
+                    if (rootNode.supporting_gris && rootNode.supporting_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var sg = 0; sg < rootNode.supporting_gris.length; sg++) {
+                            var childNumSG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.supporting_gris[sg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumSG);
+                        }
+                    }
+                    if (rootNode.connected_clms && rootNode.connected_clms.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cc = 0; cc < rootNode.connected_clms.length; cc++) {
+                            var childNumCC = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_clms[cc], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCC);
+                        }
+                    }
+                    if (rootNode.connected_gris && rootNode.connected_gris.length > 0) {
+                        hasGRIChildren = true;
+                        for (var cg = 0; cg < rootNode.connected_gris.length; cg++) {
+                            var childNumCG = (formatOptions && formatOptions.useAcademicNumbering) ? numberingPath.concat([childCounterG++]) : [];
+                            result += self.renderNodeTree(rootNode.connected_gris[cg], allNodes, 3, config, excludeBitacora, flatMode, {}, skeletonMode, formatOptions, childNumCG);
+                        }
+                    }
+
+                    if (!hasGRIChildren && !skeletonMode) {
+                        result += '*No se encontraron contenidos para este grupo.*\n\n';
                     }
 
                 } else {

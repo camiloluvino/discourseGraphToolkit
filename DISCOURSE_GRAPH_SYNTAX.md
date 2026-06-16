@@ -21,6 +21,8 @@ El sistema usa cuatro tipos de nodos con prefijos obligatorios:
 
 ### Grupo de Investigación (GRI) — Opcional
 
+Los nodos de tipo **GRI** actúan como **comodines o contenedores universales**. Tienen flexibilidad total para organizarse y estructurarse: pueden ser padres o hijos usando cualquiera de los tags estructurales (`#Contains`, `#RespondedBy`, `#SupportedBy`, `#RelatedTo`), y contener cualquier combinación de QUEs, CLMs, EVDs o sub-GRIs.
+
 ```
 [[GRI]] - Título del grupo organizador
     - Proyecto Asociado:: [[nombre-proyecto]]
@@ -28,7 +30,10 @@ El sistema usa cuatro tipos de nodos con prefijos obligatorios:
         - [[QUE]] - Pregunta contenida
         - [[CLM]] - Afirmación contenida
         - [[GRI]] - Sub-grupo (recursivo)
-        - [[EVD]] - Evidencia contenida
+    - #RespondedBy (comodín)
+        - [[CLM]] - Respuesta al grupo
+    - #SupportedBy (comodín)
+        - [[CLM]] - Soportes del grupo
 ```
 
 > ⚠️ GRI es **opcional**. Los grafos sin GRI funcionan exactamente igual.
@@ -71,10 +76,10 @@ Estos tags definen las relaciones que el plugin mapea automáticamente:
 
 | Tag | Usado en | Detecta |
 |-----|----------|---------|
-| `#Contains` | GRI | QUEs, CLMs y GRIs contenidos en el grupo |
-| `#RespondedBy` | QUE | CLMs y EVDs que responden la pregunta |
-| `#SupportedBy` | CLM | EVDs y CLMs que soportan la afirmación |
-| `#RelatedTo` | CLM | CLMs/EVDs relacionados lateralmente |
+| `#Contains` | GRI | QUEs, CLMs, GRIs y EVDs en el grupo |
+| `#RespondedBy` | QUE, GRI (comodín) | CLMs, EVDs y GRIs de respuesta |
+| `#SupportedBy` | CLM, GRI (comodín) | EVDs, CLMs y GRIs de soporte |
+| `#RelatedTo` | CLM, GRI (comodín) | CLMs, EVDs y GRIs relacionados lateralmente |
 
 ### Reglas de Detección
 
@@ -172,6 +177,7 @@ El `RelationshipMapper` genera estas propiedades en cada nodo:
 |-----------|----------|
 | `related_clms` | UIDs de CLMs bajo `#RespondedBy` |
 | `direct_evds` | UIDs de EVDs bajo `#RespondedBy` |
+| `related_gris` | UIDs de GRIs bajo `#RespondedBy` (Novedad) |
 
 ### Para CLM
 
@@ -179,13 +185,23 @@ El `RelationshipMapper` genera estas propiedades en cada nodo:
 |-----------|----------|
 | `related_evds` | UIDs de EVDs bajo `#SupportedBy` |
 | `supporting_clms` | UIDs de CLMs bajo `#SupportedBy` |
+| `supporting_gris` | UIDs de GRIs bajo `#SupportedBy` (Novedad) |
 | `connected_clms` | UIDs de CLMs bajo `#RelatedTo` |
+| `connected_gris` | UIDs de GRIs bajo `#RelatedTo` (Novedad) |
 
 ### Para GRI
 
 | Propiedad | Contiene |
 |-----------|----------|
 | `contained_nodes` | UIDs de QUEs, CLMs, GRIs o EVDs bajo `#Contains` |
+| `related_clms` | UIDs de CLMs bajo `#RespondedBy` (Como comodín) |
+| `direct_evds` | UIDs de EVDs bajo `#RespondedBy` (Como comodín) |
+| `related_gris` | UIDs de GRIs bajo `#RespondedBy` (Como comodín) |
+| `supporting_clms` | UIDs de CLMs bajo `#SupportedBy` (Como comodín) |
+| `related_evds` | UIDs de EVDs bajo `#SupportedBy` (Como comodín) |
+| `supporting_gris` | UIDs de GRIs bajo `#SupportedBy` (Como comodín) |
+| `connected_clms` | UIDs de CLMs bajo `#RelatedTo` (Como comodín) |
+| `connected_gris` | UIDs de GRIs bajo `#RelatedTo` (Como comodín) |
 
 ---
 
