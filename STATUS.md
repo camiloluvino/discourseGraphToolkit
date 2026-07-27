@@ -23,6 +23,12 @@
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
 
+### v1.5.57 (Julio 2026)
+- **UI/UX (Rediseño de Vista Panorámica - Layout de Panel Dividido):** Se replanteó por completo la interfaz de la Vista Panorámica adoptando un esquema de dos columnas (Sidebar):
+  - **Sidebar de Navegación (Izquierda):** Columna fija dedicada exclusivamente a la navegación de la jerarquía de proyectos (`Ruta Actual`) y un listado vertical limpio a 1 clic de los `Subproyectos` con scroll independiente.
+  - **Panel Principal (Derecha):** Espacio libre dedicado a la tabla de contenidos, status y barra de herramientas compacta (`➕ Expandir`, `➖ Colapsar`, Badges `QUE/GRI`).
+  - **Estabilidad Visual:** Elimina los problemas de colapso y superposición de Flexbox al independizar la navegación de los controles del header.
+
 ### v1.5.56 (Junio 2026)
 - **Fix (Atribución de Proyectos a Bloques de Primer Nivel)**: Se restringió la obtención y validación del atributo `Proyecto Asociado::` a los bloques de nivel superior (primer hijo directo de la página) mediante la relación `[?page :block/children ?block]`. Esto evita atribuciones erróneas provenientes de bitácoras o bloques antiguos copiados en niveles profundos.
 - **Mejora (Filtrado de Proyectos Fantasma)**: Se aplicó esta misma restricción de primer nivel a las funciones globales de descubrimiento y validación de proyectos (`roamProjects.js`), logrando que dejen de listarse proyectos fantasmas y residuales en los menús de selección del plugin.

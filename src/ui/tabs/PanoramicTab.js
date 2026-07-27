@@ -17,21 +17,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
 
     // Estado de carga (local, no necesita persistir)
     const [isLoading, setIsLoading] = React.useState(false);
-
-    // Estados para selector de proyectos colapsable
-    const [isProjectDropdownOpen, setIsProjectDropdownOpen] = React.useState(false);
-    const [expandedProjectFolders, setExpandedProjectFolders] = React.useState({});
-    const projectDropdownRef = React.useRef(null);
-
-    React.useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
-                setIsProjectDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    const loadAttemptedRef = React.useRef(false);
 
     // Orden de nodos (solo lectura — se edita en Exportación › Paso 3)
     const [orderedQuestionUIDs, setOrderedQuestionUIDs] = React.useState([]);
@@ -184,20 +170,6 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         const days = Math.floor(hours / 24);
         return `${days} día${days !== 1 ? 's' : ''}`;
     };
-
-    // Efecto para restaurar cache al montar (solo si no hay datos)
-    React.useEffect(() => {
-        if (!panoramicData) {
-            const cached = DiscourseGraphToolkit.loadPanoramicCache();
-            if (cached && cached.panoramicData) {
-                setPanoramicData(cached.panoramicData);
-                setCacheTimestamp(cached.timestamp);
-                setLoadStatus(`📦 Datos restaurados del cache.`);
-            }
-        }
-    }, []); // Solo al montar
-
-    // --- Helpers de Relevancia del Proyecto ---
     const relevanceCache = React.useMemo(() => new Map(), [panoramicData, selectedProject]);
 
     const isNodeRelevant = React.useCallback((uid, allNodes, targetProject, visited = new Set()) => {
@@ -256,10 +228,9 @@ DiscourseGraphToolkit.PanoramicTab = function () {
     }, [relevanceCache]);
 
     // --- Cargar datos panorámicos ---
-    const handleLoadPanoramic = async () => {
+    const handleLoadPanoramic = React.useCallback(async () => {
         setIsLoading(true);
         setLoadStatus('⏳ Buscando nodos raíz (GRI + QUE)...');
-        setPanoramicData(null);
 
         try {
             // 1. Obtener todos los nodos raíz (GRI y QUE) del grafo
@@ -292,7 +263,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             const maxDepth = 5; // Evitar loops infinitos en caso de referencias circulares muy complejas
 
             while (missingUids.length > 0 && depth < maxDepth) {
-                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados (nively ${depth + 1})...`);
+                setLoadStatus(`⏳ Cargando ${missingUids.length} nodos relacionados (nivel ${depth + 1})...`);
                 const extraData = await DiscourseGraphToolkit.exportPagesNative(missingUids, null, null, true, false);
 
                 const newNodesFetched = [];
@@ -402,7 +373,21 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [setPanoramicData, setLoadStatus]);
+
+    // Efecto para restaurar cache al montar y autocargar si no hay datos
+    React.useEffect(() => {
+        if (!panoramicData && !loadAttemptedRef.current) {
+            loadAttemptedRef.current = true;
+            const cached = DiscourseGraphToolkit.loadPanoramicCache();
+            if (cached && cached.panoramicData) {
+                setPanoramicData(cached.panoramicData);
+                setCacheTimestamp(cached.timestamp);
+                setLoadStatus(`📦 Datos restaurados del cache.`);
+            }
+            handleLoadPanoramic();
+        }
+    }, [panoramicData, handleLoadPanoramic, setPanoramicData, setLoadStatus]);
 
     // --- Renderizar un nodo raíz (QUE o GRI) como fila plana ---
     const renderQuestion = (question, allNodes, showDragHandle = false, qIndex = -1, groupKey = null) => {
@@ -564,134 +549,112 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         return panoramicData.questions.filter(q => isNodeRelevant(q.uid, panoramicData.allNodes, selectedProject));
     };
 
-    // --- Obtener lista jerárquica de proyectos (memoizada, un solo pase) ---
-    const hierarchicalProjects = React.useMemo(() => {
+    // --- Computar breadcrumbs del proyecto seleccionado ---
+    const breadcrumbSegments = React.useMemo(() => {
+        if (!selectedProject) return [];
+        const parts = selectedProject.split('/');
+        return parts.map((part, index) => ({
+            label: part,
+            path: parts.slice(0, index + 1).join('/')
+        }));
+    }, [selectedProject]);
+
+    // --- Computar hijos directos con sus conteos ---
+    const directChildProjects = React.useMemo(() => {
         if (!panoramicData) return [];
-        const allPrefixes = new Set();
-        const leafProjects = new Set();
-        // Pre-compute counts in a single pass: O(N) instead of O(prefixes × N)
-        const countMap = new Map();
+        const parentPrefix = selectedProject || '';
+        const parentDepth = parentPrefix ? parentPrefix.split('/').length : 0;
+        const childrenMap = new Map();
 
         Object.values(panoramicData.allNodes).forEach(node => {
-            if (node.project) {
-                // Agregar la rama completa (es una hoja)
-                leafProjects.add(node.project);
-                allPrefixes.add(node.project);
-                // Agregar todos los prefijos intermedios e incrementar contadores
-                const parts = node.project.split('/');
-                for (let i = 1; i <= parts.length; i++) {
-                    const prefix = parts.slice(0, i).join('/');
-                    allPrefixes.add(prefix);
-                    countMap.set(prefix, (countMap.get(prefix) || 0) + 1);
+            if (!node.project) return;
+            const parts = node.project.split('/');
+            if (parentPrefix) {
+                if (node.project.startsWith(parentPrefix + '/') && parts.length > parentDepth) {
+                    const childPath = parts.slice(0, parentDepth + 1).join('/');
+                    childrenMap.set(childPath, (childrenMap.get(childPath) || 0) + 1);
                 }
+            } else {
+                const rootPath = parts[0];
+                childrenMap.set(rootPath, (childrenMap.get(rootPath) || 0) + 1);
             }
         });
 
-        // Ordenar y agregar metadata (es grupo o hoja, contador)
-        const sorted = Array.from(allPrefixes).sort();
-        return sorted.map(prefix => {
-            const isLeaf = leafProjects.has(prefix);
-            const count = countMap.get(prefix) || 0;
-            const depth = prefix.split('/').length - 1;
-            return { prefix, isLeaf, count, depth };
-        });
-    }, [panoramicData]);
+        return Array.from(childrenMap.entries())
+            .map(([path, count]) => ({ path, label: path.split('/').pop(), count }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [panoramicData, selectedProject]);
 
     const filteredQuestions = isGroupedMode ? [] : getFilteredQuestions();
 
     // --- Render ---
-    return React.createElement('div', { className: 'dgt-container' },
-        // Header con layout de dos columnas: título a la izquierda, controles a la derecha
-        React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm dgt-gap-md', style: { alignItems: 'flex-start' } },
-            // Columna izquierda: título y descripción
-            React.createElement('div', { style: { flex: '1' } },
-                React.createElement('h3', { className: 'dgt-mb-xs', style: { marginTop: 0 } }, 'Vista Panorámica'),
-                React.createElement('p', { className: 'dgt-text-secondary dgt-text-sm dgt-mb-0' },
-                    'Vista sintética de todas las ramas del grafo de discurso.')
+    return React.createElement('div', { className: 'dgt-panoramic-split-layout' },
+        // PANEL IZQUIERDO: Sidebar de Navegación por Proyectos
+        panoramicData && React.createElement('div', { className: 'dgt-panoramic-sidebar' },
+            // Sección 1: Ruta Actual (Breadcrumbs)
+            React.createElement('div', { className: 'dgt-panoramic-sidebar-section' },
+                React.createElement('div', { className: 'dgt-panoramic-sidebar-title' }, '📍 Ruta Actual'),
+                React.createElement('div', { className: 'dgt-panoramic-breadcrumbs' },
+                    React.createElement('span', {
+                        className: selectedProject === '' ? 'dgt-panoramic-breadcrumb-current' : 'dgt-panoramic-breadcrumb-item',
+                        onClick: () => setSelectedProject('')
+                    }, `Todos (${panoramicData.questions.length})`),
+                    
+                    breadcrumbSegments.map((seg, idx) => {
+                        const isLast = idx === breadcrumbSegments.length - 1;
+                        return React.createElement(React.Fragment, { key: seg.path },
+                            React.createElement('span', { className: 'dgt-panoramic-breadcrumb-separator' }, '›'),
+                            React.createElement('span', {
+                                className: isLast ? 'dgt-panoramic-breadcrumb-current' : 'dgt-panoramic-breadcrumb-item',
+                                onClick: () => setSelectedProject(seg.path)
+                            }, seg.label)
+                        );
+                    })
+                )
             ),
-            // Columna derecha: controles compactos
-            React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs', style: { alignItems: 'flex-end', flexShrink: 0 } },
-                // Fila 1: Botón cargar + dropdown
-                React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm' },
-                    React.createElement('button', {
-                        onClick: handleLoadPanoramic,
-                        disabled: isLoading,
-                        className: 'dgt-btn dgt-btn-primary'
-                    }, isLoading ? '⏳...' : '🔄 Cargar'),
-                    // Filtro de proyecto (jerárquico custom)
-                    panoramicData && hierarchicalProjects.length > 0 && React.createElement('div', {
-                        ref: projectDropdownRef,
-                        style: { position: 'relative', minWidth: '220px', maxWidth: '300px' }
-                    },
-                        // Botón Principal
-                        React.createElement('div', {
-                            className: 'dgt-input dgt-text-xs',
-                            onClick: () => setIsProjectDropdownOpen(!isProjectDropdownOpen),
-                            style: { cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', userSelect: 'none', backgroundColor: 'var(--dgt-bg-primary, #ffffff)' }
-                        },
-                            React.createElement('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '500' } },
-                                selectedProject ? selectedProject.split('/').pop() : `Todos (${panoramicData.questions.length})`
-                            ),
-                            React.createElement('span', { style: { fontSize: '0.6rem', opacity: 0.6, marginLeft: '8px' } }, isProjectDropdownOpen ? '▲' : '▼')
-                        ),
-                        
-                        // Menú Desplegable
-                        isProjectDropdownOpen && React.createElement('div', {
-                            style: { position: 'absolute', top: '100%', right: 0, minWidth: '100%', width: 'max-content', maxHeight: '400px', overflowY: 'auto', backgroundColor: 'var(--dgt-bg-primary, white)', border: '1px solid var(--dgt-border-focus, #b5b3ad)', borderRadius: 'var(--dgt-radius-sm, 6px)', zIndex: 1000, boxShadow: 'var(--dgt-shadow-md, 0 4px 12px rgba(0,0,0,0.1))', marginTop: '4px', padding: '4px 0' }
-                        },
-                            // Opción "Todos"
-                            React.createElement('div', {
-                                className: 'dgt-text-xs',
-                                onClick: () => { setSelectedProject(''); setIsProjectDropdownOpen(false); },
-                                style: { display: 'flex', padding: '6px 12px', cursor: 'pointer', backgroundColor: selectedProject === '' ? 'var(--dgt-bg-secondary, #f0f0f0)' : 'transparent', fontWeight: selectedProject === '' ? 'bold' : 'normal', userSelect: 'none' }
-                            }, `Todos (${panoramicData.questions.length})`),
-                            
-                            // Lista Jerárquica de Opciones
-                            hierarchicalProjects.map((p, index) => {
-                                const parts = p.prefix.split('/');
-                                let isVisible = true;
-                                // Sólo mostrar si todos los padres están expandidos
-                                for(let i = 1; i < parts.length; i++) {
-                                    const parentPrefix = parts.slice(0, i).join('/');
-                                    if (!expandedProjectFolders[parentPrefix]) isVisible = false;
-                                }
-                                if (!isVisible) return null;
-                                
-                                const nextp = hierarchicalProjects[index + 1];
-                                const hasChildren = nextp && nextp.prefix.startsWith(p.prefix + '/');
-                                const isExpanded = !!expandedProjectFolders[p.prefix];
-                                const indent = p.depth * 14;
-                                
-                                return React.createElement('div', {
-                                    key: p.prefix,
-                                    className: 'dgt-text-xs',
-                                    style: { display: 'flex', alignItems: 'center', padding: `4px 12px 4px ${12 + indent}px`, cursor: 'pointer', backgroundColor: selectedProject === p.prefix ? 'var(--dgt-bg-secondary, #f0f0f0)' : 'transparent', fontWeight: selectedProject === p.prefix ? 'bold' : 'normal', userSelect: 'none' }
-                                },
-                                    // Flecha Toggle o Espaciador
-                                    React.createElement('div', {
-                                        style: { width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: hasChildren ? 'pointer' : 'default', opacity: hasChildren ? 0.6 : 0, transition: 'transform 0.2s' },
-                                        onClick: hasChildren ? (e) => {
-                                            e.stopPropagation();
-                                            setExpandedProjectFolders(prev => ({ ...prev, [p.prefix]: !prev[p.prefix] }));
-                                        } : undefined
-                                    }, hasChildren ? (isExpanded ? '▼' : '▶') : '•'),
-                                    
-                                    // Etiqueta del Proyecto
-                                    React.createElement('div', {
-                                        style: { marginLeft: '4px', whiteSpace: 'nowrap', flex: 1 },
-                                        onClick: () => { setSelectedProject(p.prefix); setIsProjectDropdownOpen(false); }
-                                    }, p.prefix.split('/').pop(), React.createElement('span', { style: { opacity: 0.6, marginLeft: '4px' } }, `(${p.count})`))
-                                );
-                            })
-                        )
-                    )
+
+            // Sección 2: Subproyectos (Lista vertical limpia a 1 clic)
+            directChildProjects.length > 0 && React.createElement('div', { className: 'dgt-panoramic-sidebar-section' },
+                React.createElement('div', { className: 'dgt-panoramic-sidebar-title' }, '📁 Subproyectos'),
+                directChildProjects.map(c => React.createElement('div', {
+                    key: c.path,
+                    className: `dgt-panoramic-sidebar-item ${selectedProject === c.path ? 'active' : ''}`,
+                    onClick: () => setSelectedProject(c.path),
+                    title: `Ir a ${c.path}`
+                },
+                    React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1 } }, c.label),
+                    React.createElement('span', { className: 'dgt-panoramic-sidebar-count' }, `(${c.count})`)
+                ))
+            )
+        ),
+
+        // PANEL DERECHO: Contenido Principal
+        React.createElement('div', { className: 'dgt-panoramic-main' },
+            // Header global (Título y Actualizar)
+            React.createElement('div', { className: 'dgt-flex-between dgt-mb-sm', style: { alignItems: 'center', flexShrink: 0 } },
+                React.createElement('h3', { className: 'dgt-mb-0', style: { marginTop: 0 } }, 'Vista Panorámica'),
+                React.createElement('button', {
+                    onClick: handleLoadPanoramic,
+                    disabled: isLoading,
+                    className: 'dgt-btn-ghost dgt-text-xs',
+                    title: 'Actualizar datos desde Roam',
+                    style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '3px 8px' }
+                }, isLoading ? '⏳ Actualizando...' : '🔄 Actualizar')
+            ),
+
+            // Barra de herramientas de la lista (Status + Acciones)
+            panoramicData && React.createElement('div', { className: 'dgt-panoramic-toolbar', style: { flexShrink: 0 } },
+                // Status de carga
+                React.createElement('div', { style: { flex: '1', minWidth: 0 } },
+                    loadStatus && !loadStatus.includes('📦') && React.createElement('span', {
+                        className: `dgt-text-xs dgt-text-bold ${loadStatus.includes('✅') ? 'dgt-text-success' : loadStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'}`
+                    }, loadStatus)
                 ),
-                // Fila 2: Botones expandir/colapsar (solo para grupos en modo agrupado)
-                panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
+                // Botones y estadísticas
+                React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs', style: { flexShrink: 0 } },
                     React.createElement('button', {
                         onClick: () => {
                             const allExpanded = {};
-                            // Expandir grupos si modo agrupado
                             if (isGroupedMode) {
                                 orderedGroupKeys.forEach(gk => allExpanded[`group:${gk}`] = true);
                             }
@@ -700,7 +663,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         },
                         className: 'dgt-btn-ghost dgt-text-xs',
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
-                    }, '➕ Expandir grupos'),
+                    }, '➕ Expandir'),
                     React.createElement('button', {
                         onClick: () => {
                             setExpandedQuestions({});
@@ -708,58 +671,48 @@ DiscourseGraphToolkit.PanoramicTab = function () {
                         },
                         className: 'dgt-btn-ghost dgt-text-xs',
                         style: { border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-sm)', padding: '2px 6px' }
-                    }, '➖ Colapsar todo')
-                ),
-                // Fila 3: Estadísticas compactas (solo QUE y GRI)
-                panoramicData && React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs' },
+                    }, '➖ Colapsar'),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
                         `QUE: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => (DiscourseGraphToolkit.getNodeType(n.title) || 'QUE') === 'QUE').length}`),
                     React.createElement('span', { className: 'dgt-badge dgt-badge-info' },
                         `GRI: ${(isGroupedMode ? orderedGroupKeys.flatMap(gk => getOrderedNodesForGroup(gk)) : filteredQuestions).filter(n => DiscourseGraphToolkit.getNodeType(n.title) === 'GRI').length}`)
                 )
+            ),
+
+            // Indicador de modo agrupado
+            isGroupedMode && React.createElement('div', {
+                className: 'dgt-p-sm dgt-mb-sm dgt-text-xs',
+                style: { backgroundColor: 'rgba(108, 92, 153, 0.06)', borderRadius: 'var(--dgt-radius-sm)', border: '1px solid rgba(108, 92, 153, 0.15)', color: 'var(--dgt-accent-purple)', flexShrink: 0 }
+            }, `📦 Vista agrupada: ${orderedGroupKeys.length} sub-proyecto${orderedGroupKeys.length !== 1 ? 's' : ''}. Arrastra los bloques para reordenar.`),
+
+            // Lista de contenido principal
+            panoramicData && React.createElement('div', { className: 'dgt-list-container dgt-p-sm', style: { flex: 1, overflowY: 'auto' } },
+                isGroupedMode
+                    // Modo agrupado: renderizar grupos de sub-proyectos
+                    ? (orderedGroupKeys.length > 0
+                        ? orderedGroupKeys.map((gk, index) => renderSubProjectGroup(gk, index))
+                        : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
+                            'No hay sub-proyectos para mostrar.')
+                    )
+                    // Modo individual: renderizar nodos planos (comportamiento original)
+                    : (filteredQuestions.length > 0
+                        ? filteredQuestions.map((q, index) => renderQuestion(q, panoramicData.allNodes, true, index, null))
+                        : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
+                            'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
+                    )
+            ),
+
+            // Mensaje inicial de carga
+            !panoramicData && isLoading && React.createElement('div', {
+                className: 'dgt-p-md dgt-text-muted dgt-text-center',
+                style: {
+                    backgroundColor: 'var(--dgt-bg-primary)',
+                    borderRadius: 'var(--dgt-radius-sm)',
+                    border: '1px dashed var(--dgt-border-focus)'
+                }
+            },
+                React.createElement('p', null, '⏳ Cargando vista panorámica...')
             )
-        ),
-
-        // Status (compacto, solo si hay mensajes de carga activa)
-        loadStatus && !loadStatus.includes('📦') && React.createElement('div', {
-            className: `dgt-p-sm dgt-mb-sm dgt-text-xs dgt-text-bold ${loadStatus.includes('✅') ? 'dgt-text-success' : loadStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'}`,
-            style: { backgroundColor: 'var(--dgt-bg-secondary)', borderRadius: 'var(--dgt-radius-sm)' }
-        }, loadStatus),
-
-        // Indicador de modo agrupado
-        isGroupedMode && React.createElement('div', {
-            className: 'dgt-p-sm dgt-mb-sm dgt-text-xs',
-            style: { backgroundColor: 'rgba(108, 92, 153, 0.06)', borderRadius: 'var(--dgt-radius-sm)', border: '1px solid rgba(108, 92, 153, 0.15)', color: 'var(--dgt-accent-purple)' }
-        }, `📦 Vista agrupada: ${orderedGroupKeys.length} sub-proyecto${orderedGroupKeys.length !== 1 ? 's' : ''}. Arrastra los bloques para reordenar.`),
-
-        // Lista de contenido principal
-        panoramicData && React.createElement('div', { className: 'dgt-list-container dgt-p-sm' },
-            isGroupedMode
-                // Modo agrupado: renderizar grupos de sub-proyectos
-                ? (orderedGroupKeys.length > 0
-                    ? orderedGroupKeys.map((gk, index) => renderSubProjectGroup(gk, index))
-                    : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
-                        'No hay sub-proyectos para mostrar.')
-                )
-                // Modo individual: renderizar nodos planos (comportamiento original)
-                : (filteredQuestions.length > 0
-                    ? filteredQuestions.map((q, index) => renderQuestion(q, panoramicData.allNodes, true, index, null))
-                    : React.createElement('p', { className: 'dgt-text-muted', style: { textAlign: 'center' } },
-                        'No hay preguntas para mostrar' + (selectedProject ? ' en este proyecto.' : '.'))
-                )
-        ),
-
-        // Mensaje inicial
-        !panoramicData && !isLoading && React.createElement('div', {
-            className: 'dgt-p-md dgt-text-muted dgt-text-center',
-            style: {
-                backgroundColor: 'var(--dgt-bg-primary)',
-                borderRadius: 'var(--dgt-radius-sm)',
-                border: '1px dashed var(--dgt-border-focus)'
-            }
-        },
-            React.createElement('p', { style: { fontSize: '1.25rem', marginBottom: '0.5rem' } }, ''),
-            React.createElement('p', null, 'Haz clic en "Cargar Panorámica" para visualizar todas las ramas del grafo.')
         )
     );
 };

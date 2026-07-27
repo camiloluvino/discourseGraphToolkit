@@ -448,6 +448,147 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             border-color: var(--dgt-border-focus);
         }
 
+        /* Panoramic Split Layout & Sidebar */
+        .dgt-panoramic-split-layout {
+            display: flex;
+            height: 100%;
+            gap: 16px;
+            overflow: hidden;
+        }
+        .dgt-panoramic-sidebar {
+            width: 210px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-right: 1px solid var(--dgt-border-color);
+            padding-right: 14px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .dgt-panoramic-sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .dgt-panoramic-sidebar::-webkit-scrollbar-thumb {
+            background: var(--dgt-border-color);
+            border-radius: 2px;
+        }
+        .dgt-panoramic-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .dgt-panoramic-sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .dgt-panoramic-sidebar-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--dgt-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .dgt-panoramic-sidebar-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            font-size: 0.78125rem;
+            border-radius: var(--dgt-radius-sm);
+            cursor: pointer;
+            color: var(--dgt-text-primary);
+            transition: var(--dgt-transition-fast);
+            border: 1px solid transparent;
+        }
+        .dgt-panoramic-sidebar-item:hover {
+            background: var(--dgt-bg-secondary);
+            color: var(--dgt-accent-purple);
+        }
+        .dgt-panoramic-sidebar-item.active {
+            background: rgba(108, 92, 153, 0.08);
+            border-color: rgba(108, 92, 153, 0.2);
+            color: var(--dgt-accent-purple);
+            font-weight: 600;
+        }
+        .dgt-panoramic-sidebar-count {
+            font-size: 0.7rem;
+            color: var(--dgt-text-muted);
+            font-weight: normal;
+        }
+        .dgt-panoramic-breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+        }
+        .dgt-panoramic-breadcrumb-item {
+            cursor: pointer;
+            color: var(--dgt-accent-blue);
+            padding: 1px 3px;
+            border-radius: var(--dgt-radius-sm);
+            transition: var(--dgt-transition-fast);
+        }
+        .dgt-panoramic-breadcrumb-item:hover {
+            background-color: var(--dgt-bg-secondary);
+            text-decoration: underline;
+        }
+        .dgt-panoramic-breadcrumb-current {
+            font-weight: bold;
+            color: var(--dgt-text-primary);
+            cursor: default;
+            padding: 1px 3px;
+        }
+        .dgt-panoramic-breadcrumb-separator {
+            color: var(--dgt-text-muted);
+            font-size: 0.625rem;
+            user-select: none;
+        }
+
+        .dgt-panoramic-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .dgt-panoramic-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            font-size: 0.6875rem;
+            border: 1px solid var(--dgt-border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            background: var(--dgt-bg-primary);
+            color: var(--dgt-text-secondary);
+            transition: var(--dgt-transition-fast);
+            user-select: none;
+        }
+        .dgt-panoramic-chip:hover {
+            border-color: var(--dgt-accent-purple);
+            color: var(--dgt-accent-purple);
+            background: rgba(108, 92, 153, 0.05);
+        }
+        .dgt-panoramic-chip-active {
+            border-color: var(--dgt-accent-purple);
+            background: rgba(108, 92, 153, 0.12);
+            color: var(--dgt-accent-purple);
+            font-weight: bold;
+        }
+        .dgt-panoramic-chip-count {
+            margin-left: 4px;
+            opacity: 0.65;
+            font-size: 0.625rem;
+        }
+
         /* Scrollbars */
         .dgt-scrollable::-webkit-scrollbar {
             width: 8px;
