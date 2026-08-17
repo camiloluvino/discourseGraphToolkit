@@ -1,13 +1,13 @@
-﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.56
- * Bundled build: 2026-07-27 15:49:49
+/**
+ * DISCOURSE GRAPH TOOLKIT v1.5.58
+ * Bundled build: 2026-08-17 16:42:18
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.56";
+    DiscourseGraphToolkit.VERSION = "1.5.58";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1314,10 +1314,14 @@ DiscourseGraphToolkit._calculateAggregatedStatus = function (tree) {
 
         // Estados de preguntas propias
         for (const q of node.questions) {
-            if (statusPriority[q.status] > statusPriority[worstStatus]) {
-                worstStatus = q.status;
+            const hasMissing = q.coherence?.missing?.length > 0 || q.status === 'missing';
+            const hasDifferent = q.coherence?.different?.length > 0 || q.status === 'different';
+            const currentStatus = hasMissing ? 'missing' : (hasDifferent ? 'different' : q.status);
+
+            if (statusPriority[currentStatus] > statusPriority[worstStatus]) {
+                worstStatus = currentStatus;
             }
-            if (q.status === 'different' || q.status === 'missing') {
+            if (hasDifferent || hasMissing) {
                 issueCount++;
             }
         }
@@ -7317,7 +7321,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         // Función auxiliar para verificar si un nodo o sus hijos tienen un error específico
         const nodeHasErrorStatus = (node, targetStatus) => {
-            if (node.questions && node.questions.some(q => q.status === targetStatus)) {
+            if (node.questions && node.questions.some(q => {
+                if (targetStatus === 'missing') return q.coherence?.missing?.length > 0 || q.status === 'missing';
+                if (targetStatus === 'different') return q.coherence?.different?.length > 0 || q.status === 'different';
+                return q.status === targetStatus;
+            })) {
                 return true;
             }
             if (node.children) {
@@ -7364,8 +7372,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const countErrors = (n) => {
             if (n.questions) {
                 n.questions.forEach(q => {
-                    if (q.status === 'different') diff++;
-                    if (q.status === 'missing') miss++;
+                    if (q.coherence?.different?.length > 0 || q.status === 'different') diff++;
+                    if (q.coherence?.missing?.length > 0 || q.status === 'missing') miss++;
                 });
             }
             if (n.children) {
@@ -7378,11 +7386,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
         return { diff, miss };
     }, []);
 
-    // --- Contadores ---
+    // --- Contadores (unificados por cantidad de RAMAS) ---
     const counts = React.useMemo(() => ({
         coherent: bulkVerificationResults.filter(r => r.status === 'coherent' || r.status === 'specialized').length,
-        different: bulkVerificationResults.flatMap(r => r.coherence.different).length,
-        missing: bulkVerificationResults.flatMap(r => r.coherence.missing).length,
+        different: bulkVerificationResults.filter(r => r.coherence?.different?.length > 0).length,
+        missing: bulkVerificationResults.filter(r => r.coherence?.missing?.length > 0).length,
         containerMismatch: bulkVerificationResults.filter(r =>
             r.containerPage?.containerStatus === 'mismatched' ||
             r.containerPage?.containerStatus === 'no_project'
@@ -7497,8 +7505,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             setBulkVerificationResults(results);
             const coherent = results.filter(r => r.status === 'coherent' || r.status === 'specialized').length;
-            const different = results.filter(r => r.status === 'different').length;
-            const missing = results.filter(r => r.status === 'missing').length;
+            const different = results.filter(r => r.coherence?.different?.length > 0).length;
+            const missing = results.filter(r => r.coherence?.missing?.length > 0).length;
             const statusMsg = `✅ ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
             setBulkVerifyStatus(statusMsg);
             DiscourseGraphToolkit.saveVerificationCache(results, statusMsg);
@@ -7706,7 +7714,13 @@ DiscourseGraphToolkit.BranchesTab = function () {
     // Render de una fila de QUE individual
     const renderQueRow = (result, depth) => {
         const isSelected = selectedBulkQuestion?.question.pageUid === result.question.pageUid;
-        const hasError = result.status === 'different' || result.status === 'missing';
+        const hasMissing = result.coherence?.missing?.length > 0;
+        const hasDifferent = result.coherence?.different?.length > 0;
+        const hasError = hasMissing || hasDifferent || result.status === 'different' || result.status === 'missing';
+
+        const errorTooltip = hasError
+            ? [hasMissing ? `${result.coherence.missing.length} sin proyecto` : null, hasDifferent ? `${result.coherence.different.length} con proy. diferente` : null].filter(Boolean).join(', ')
+            : 'Coherente';
 
         return React.createElement('div', {
             key: result.question.pageUid,
@@ -7737,7 +7751,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         backgroundColor: hasError ? '#ef4444' : 'transparent',
                         flexShrink: 0
                     },
-                    title: result.status
+                    title: errorTooltip
                 }),
                 React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, gap: '0.15rem' } },
                     React.createElement('div', { className: 'dgt-text-primary', style: { lineHeight: '1.4' } },
@@ -8266,18 +8280,18 @@ DiscourseGraphToolkit.BranchesTab = function () {
             bulkVerificationResults.length > 0 && React.createElement('div', {
                 className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
             },
-                React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Nodos Coherentes' }),
+                React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Ramas Coherentes' }),
                 // 🏛️ Desalineamiento de página contenedora — wrapper con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
                         emoji: '🏛️', count: counts.containerMismatch, type: 'warning',
-                        title: 'Clic para ver QUEs con proyecto desalineado respecto a su página contenedora',
+                        title: 'Clic para ver ramas con proyecto desalineado respecto a su página contenedora',
                         onClick: counts.containerMismatch > 0 ? () => setOpenPopover(openPopover === 'container' ? null : 'container') : undefined,
                         className: counts.containerMismatch > 0 ? 'clickable' : ''
                     }),
                     openPopover === 'container' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `🏛️ ${counts.containerMismatch} con página contenedora desalineada`),
+                            React.createElement('span', null, `🏛️ ${counts.containerMismatch} ramas con página contenedora desalineada`),
                             React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                         ),
                         bulkVerificationResults
@@ -8363,7 +8377,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                                          `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
                                                          true
                                                      );
-                                                }
+                                                 }
                                             }, 'QUE ← Contenedor'),
                                             React.createElement('button', {
                                                 className: 'dgt-btn dgt-text-xs',
@@ -8379,7 +8393,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                                          `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
                                                          false
                                                      );
-                                                }
+                                                 }
                                             }, 'Contenedor ← QUE')
                                          )
                                      )
@@ -8390,43 +8404,51 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 // ⚠️ Diferente — wrapper propio con popover
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Clic para filtrar árbol | Doble clic popover',
+                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Clic para filtrar árbol | Ramas con proyectos diferentes',
                         onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
                         isActive: activeFilter === 'different'
                     }),
                     openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `⚠️ ${counts.different} con proyecto diferente`),
+                            React.createElement('span', null, `⚠️ ${counts.different} ramas con proyecto diferente`),
                             React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                         ),
-                        bulkVerificationResults.flatMap(r => r.coherence.different.map(node =>
-                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, node.type),
-                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                            )
-                        ))
+                        bulkVerificationResults
+                            .filter(r => r.coherence?.different?.length > 0)
+                            .map(r => {
+                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                const diffCount = r.coherence.different.length;
+                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
+                                    React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                );
+                            })
                     )
                 ),
                 // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
                 React.createElement('div', { style: { position: 'relative' } },
                     React.createElement(Badge, {
-                        emoji: '❌', count: counts.missing, type: 'error', title: 'Clic para filtrar árbol | Doble clic popover',
+                        emoji: '❌', count: counts.missing, type: 'error', title: 'Clic para filtrar árbol | Ramas con nodos sin proyecto',
                         onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
                         isActive: activeFilter === 'missing'
                     }),
                     openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
                         React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `❌ ${counts.missing} sin proyecto`),
+                            React.createElement('span', null, `❌ ${counts.missing} ramas con nodos sin proyecto`),
                             React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                         ),
-                        bulkVerificationResults.flatMap(r => r.coherence.missing.map(node =>
-                            React.createElement('div', { key: node.uid, className: 'dgt-popover-item', title: node.title },
-                                React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, node.type),
-                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, display: 'block' } }, (node.title || '').replace(/\[\[(CLM|EVD|QUE)\]\] - /, '').replace(/\[\[(.*?)\]\]/g, '$1')),
-                                React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 } }, '→')
-                            )
-                        ))
+                        bulkVerificationResults
+                            .filter(r => r.coherence?.missing?.length > 0)
+                            .map(r => {
+                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                const missCount = r.coherence.missing.length;
+                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                    React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, `${missCount} nodo${missCount !== 1 ? 's' : ''}`),
+                                    React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                );
+                            })
                     )
                 )
             ),

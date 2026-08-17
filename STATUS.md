@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-06-08
+**Última actualización:** 2026-08-17
 
 ## Versión Actual
 
-**v1.5.56**
+**v1.5.58**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,19 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Mejorado | Selección en cualquier nivel de profundidad, propagación masiva, rediseño y alineación con contenedor |
+| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Unificación de conteos por ramas en badges, detección multi-problema y popovers con acceso directo |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.58 (Agosto 2026)
+- **Refactor (Coherencia de Ramas - Unificación de Conteos por Ramas)**: Se unificó la unidad de medida de todos los badges y resúmenes de la pestaña "Ramas" para contabilizar consistentemente a nivel de **ramas/preguntas (QUEs)** en lugar de mezclar ramas con nodos individuales (eliminando la confusión entre el total de ramas problemáticas y nodos afectados).
+- **Feature (Detección Multi-Problema en Ramas)**: Las ramas con nodos sin proyecto (`missing`) y con proyecto diferente (`different`) simultáneamente ahora se detectan y listan en ambos filtros y badges sin que un problema oculte al otro.
+- **UI/UX (Popovers y Tooltips Mejorados)**: Los popovers interactivos de ⚠️ y ❌ ahora listan las ramas afectadas con su conteo individual de nodos y acceso directo `🔍` para abrirlas y sincronizarlas de inmediato.
+- **UI/UX (Tooltips Informativos en Filas de Rama)**: Al pasar el cursor por el punto indicador de cada rama en el árbol, el tooltip ahora detalla con precisión cuántos nodos están sin proyecto y cuántos tienen proyecto diferente.
 
 ### v1.5.57 (Julio 2026)
 - **UI/UX (Rediseño de Vista Panorámica - Layout de Panel Dividido):** Se replanteó por completo la interfaz de la Vista Panorámica adoptando un esquema de dos columnas (Sidebar):

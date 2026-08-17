@@ -80,10 +80,14 @@ DiscourseGraphToolkit._calculateAggregatedStatus = function (tree) {
 
         // Estados de preguntas propias
         for (const q of node.questions) {
-            if (statusPriority[q.status] > statusPriority[worstStatus]) {
-                worstStatus = q.status;
+            const hasMissing = q.coherence?.missing?.length > 0 || q.status === 'missing';
+            const hasDifferent = q.coherence?.different?.length > 0 || q.status === 'different';
+            const currentStatus = hasMissing ? 'missing' : (hasDifferent ? 'different' : q.status);
+
+            if (statusPriority[currentStatus] > statusPriority[worstStatus]) {
+                worstStatus = currentStatus;
             }
-            if (q.status === 'different' || q.status === 'missing') {
+            if (hasDifferent || hasMissing) {
                 issueCount++;
             }
         }

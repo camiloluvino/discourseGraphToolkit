@@ -1,54 +1,55 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.56
+**Versión:** 1.5.58
 **Autor:** Camilo Luvino
 
-## Descripci├│n
+## Descripción
 
-Discourse Graph Toolkit es un plugin para **Roam Research** que facilita la creaci├│n, organizaci├│n y exportaci├│n de grafos de discurso acad├®mico. Posee una interfaz minimalista y moderna basada en un sistema de dise├▒o de utilidades CSS, optimizado para la claridad visual. Permite estructurar investigaciones usando cuatro tipos de nodos: **GRI (Grupos de Investigaci├│n)**, **Preguntas (QUE)**, **Afirmaciones (CLM)** y **Evidencias (EVD)**.
+Discourse Graph Toolkit es un plugin para **Roam Research** que facilita la creación, organización y exportación de grafos de discurso académico. Posee una interfaz minimalista y moderna basada en un sistema de diseño de utilidades CSS, optimizado para la claridad visual. Permite estructurar investigaciones usando cuatro tipos de nodos: **GRI (Grupos de Investigación)**, **Preguntas (QUE)**, **Afirmaciones (CLM)** y **Evidencias (EVD)**.
 
-El toolkit est├í dise├▒ado para investigadores y acad├®micos que utilizan Roam Research para desarrollar argumentos estructurados, gestionar literatura y producir documentos exportables. Lo que lo hace ├║nico es su flexibilidad jer├írquica: puedes organizar preguntas dentro de grupos (GRI), o tratar a ambos como puntos de entrada independientes al grafo.
+El toolkit está diseñado para investigadores y académicos que utilizan Roam Research para desarrollar argumentos estructurados, gestionar literatura y producir documentos exportables. Lo que lo hace único es su flexibilidad jerárquica: puedes organizar preguntas dentro de grupos (GRI), o tratar a ambos como puntos de entrada independientes al grafo.
 
-## Caracter├¡sticas Principales
+## Características Principales
 
-### 1. Creaci├│n R├ípida de Nodos
+### 1. Creación Rápida de Nodos
 Convierte cualquier bloque de texto en un nodo estructurado con atajos de teclado:
 
 | Atajo | Tipo de Nodo |
 |-------|--------------|
 | `Ctrl+Shift+Q` | Pregunta (QUE) |
-| `Ctrl+Shift+C` | Afirmaci├│n (CLM) |
+| `Ctrl+Shift+C` | Afirmación (CLM) |
 | `Ctrl+Shift+E` | Evidencia (EVD) |
 
-Cada nodo se crea como una p├ígina con la estructura definida en tus templates personalizables.
+Cada nodo se crea como una página con la estructura definida en tus templates personalizables.
 
-### 2. Gesti├│n de Proyectos
-Organiza tu investigaci├│n en proyectos separados:
-- Crea y gestiona proyectos desde la pesta├▒a **Proyectos**.
-- Asigna nodos autom├íticamente al proyecto activo.
-- Sincroniza proyectos con una p├ígina dedicada en Roam.
+### 2. Gestión de Proyectos
+Organiza tu investigación en proyectos separados:
+- Crea y gestiona proyectos desde la pestaña **Proyectos**.
+- Asigna nodos automáticamente al proyecto activo.
+- Sincroniza proyectos con una página dedicada en Roam.
 - Descubre proyectos existentes en el grafo con "Buscar Sugerencias".
 - **Auto-descubrimiento:** Al abrir el Toolkit, detecta proyectos no registrados y muestra una alerta para agregarlos con un clic.
-- **Ignorar alertas:** Permite descartar permanentemente proyectos de la alerta autom├ítica (Lista de Ignorados), con opci├│n de restaurarlos desde la pesta├▒a Proyectos.
-- **Match jer├írquico:** Al exportar, seleccionar un proyecto padre autom├íticamente incluye todos sus sub-proyectos (ej. `tesis/marco` incluye `tesis/marco/epistemolog├¡a`).
+- **Ignorar alertas:** Permite descartar permanentemente proyectos de la alerta automática (Lista de Ignorados), con opción de restaurarlos desde la pestaña Proyectos.
+- **Match jerárquico:** Al exportar, seleccionar un proyecto padre automáticamente incluye todos sus sub-proyectos (ej. `tesis/marco` incluye `tesis/marco/epistemología`).
 
-### 3. Verificaci├│n de Coherencia (Ramas)
-Verifica la consistencia de tus ramas de investigaci├│n:
-- Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta ra├¡z.
+### 3. Verificación de Coherencia (Ramas)
+Verifica la consistencia de tus ramas de investigación:
+- Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado.
-- **Verificaci├│n jer├írquica inteligente:** Cada nodo debe ser igual o m├ís espec├¡fico que su padre directo, **salvo en referencias inter-proyectos expl├¡citas**. El sistema detecta autom├íticamente cuando un nodo pertenece leg├¡timamente a otro proyecto y lo trata como una referencia cruzada v├ílida en lugar de marcarlo como un error de coherencia.
-- **Validaci├│n de P├íginas Contenedoras:** Agrupa las preguntas bajo sus respectivas p├íginas contenedoras (ej. `tesis/cap├¡tulo1/grafoDeDiscurso`) y verifica que el `Proyecto Asociado::` del contenedor sea el mismo (o la ra├¡z) de los nodos que contiene.
-- **Namespaces jer├írquicos:** Soporta sub-proyectos como `tesis/marco/metodolog├¡a`.
-- **Exclusi├│n de relaciones horizontales:** Las conexiones v├¡a `#RelatedTo` son ignoradas por el validador de ramas para evitar ruidos de coherencia en enlaces laterales.
-- **Vista de ├írbol jer├írquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
-- **Resumen Interactivo:**
-  - **­ƒÅø´©Å Badge de Contenedor:** Muestra el n├║mero de desalineamientos entre preguntas y sus p├íginas maestras. Al hacer clic, abre un popover interactivo que lista las discrepancias y permite navegar directamente a la p├ígina contenedora para su correcci├│n.
-  - **ÔÜá´©Å/ÔØî Badges de Rama:** Permiten filtrar el ├írbol o abrir popovers detallados para navegaci├│n r├ípida.
-- **Selector Maestro:** Incluye un checkbox "Seleccionar Todos" para habilitar o deshabilitar auditor├¡as masivas de proyectos con un solo clic.
-- **Selecci├│n Profunda:** Permite seleccionar ramas y sub-proyectos en cualquier nivel de profundidad (Nivel 2, 3, 4+) para auditor├¡as focalizadas, eliminando la restricci├│n previa de los primeros dos niveles.
-- **Propagaci├│n inteligente unificada:**
-  - `­ƒöä Propagar` ÔÇö Bot├│n ├║nico que corrige autom├íticamente todas las inconsistencias de la rama. Aplica el proyecto del QUE a nodos sin proyecto o diferentes, y hereda del padre en caso de generalizaciones.
-- **UI Limpia:** Secciones colapsables por tipo de error y detalles t├®cnicos accesibles v├¡a hover (tooltips).
+- **Verificación jerárquica inteligente:** Cada nodo debe ser igual o más específico que su padre directo.
+- **Validación de Páginas Contenedoras:** Agrupa las preguntas bajo sus respectivas páginas contenedoras (ej. `tesis/capítulo1/grafoDeDiscurso`) y verifica que el `Proyecto Asociado::` del contenedor sea coherente.
+- **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
+- **Exclusión de relaciones horizontales:** Las conexiones vía `#RelatedTo` son ignoradas por el validador de ramas para evitar falsos positivos en enlaces laterales.
+- **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
+- **Resumen Interactivo Unificado (Conteo por Ramas):**
+  - **🏛️ Badge de Contenedor:** Número de ramas con desalineamientos respecto a su página contenedora. Popover interactivo con botones de alineación directa.
+  - **⚠️/❌ Badges de Rama:** Contabilizan con precisión cuántas **ramas** presentan inconsistencias o nodos sin proyecto, evitando confusiones entre conteo de ramas y conteo de nodos.
+  - **Popovers y Tooltips Mejorados:** Los popovers listan las ramas afectadas indicando la cantidad de nodos con problemas y botón `🔍` de apertura inmediata.
+- **Selector Maestro:** Incluye un checkbox "Seleccionar Todos" para habilitar o deshabilitar auditorías masivas de proyectos con un solo clic.
+- **Selección Profunda:** Permite seleccionar ramas y sub-proyectos en cualquier nivel de profundidad (Nivel 2, 3, 4+).
+- **Propagación inteligente unificada:**
+  - `🔄 Propagar / Sincronizar Rama` — Corrige automáticamente todas las inconsistencias de la rama seleccionada.
+- **UI Limpia:** Secciones colapsables y detalles técnicos accesibles vía hover (tooltips).
 
 ### 3.5 Favoritos por Namespace (Ramas y Exportar)
 Guarda y recupera configuraciones de selecci├│n r├ípida con nombres generados autom├íticamente:
