@@ -68,6 +68,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
     const [openPopover, setOpenPopover] = React.useState(null); // 'different' | 'missing' | 'container' | null
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
     const [showProjectFilter, setShowProjectFilter] = React.useState(false);
+    const [showFixAllPreview, setShowFixAllPreview] = React.useState(false);
 
     const allProjects = React.useMemo(() => DiscourseGraphToolkit.getProjects(), []);
     
@@ -422,6 +423,130 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }
         } catch (e) {
             setBulkVerifyStatus('❌ Error: ' + e.message);
+        } finally {
+            setIsPropagating(false);
+        }
+    };
+
+    const handleFixAllMissing = () => {
+        // Filtrar ramas que tengan nodos missing y que tengan un proyecto raíz definido
+        const eligibleResults = bulkVerificationResults.filter(r =>
+            r.coherence?.missing?.length > 0 && r.coherence?.rootProject
+        );
+
+        if (eligibleResults.length === 0) {
+            const noRootResults = bulkVerificationResults.filter(r => r.coherence?.missing?.length > 0 && !r.coherence?.rootProject);
+            if (noRootResults.length > 0) {
+                DiscourseGraphToolkit.showToast('Las ramas con nodos sin proyecto deben tener un proyecto asignado en su QUE raíz para poder propagarlo.', 'warning');
+            } else {
+                DiscourseGraphToolkit.showToast('No hay nodos sin proyecto pendientes por corregir.', 'info');
+            }
+            return;
+        }
+
+        setShowFixAllPreview(true);
+    };
+
+    const executeFixAllMissing = async () => {
+        setShowFixAllPreview(false);
+
+        const eligibleResults = bulkVerificationResults.filter(r =>
+            r.coherence?.missing?.length > 0 && r.coherence?.rootProject
+        );
+
+        if (eligibleResults.length === 0) return;
+
+        const totalMissingNodes = eligibleResults.reduce((acc, r) => acc + (r.coherence?.missing?.length || 0), 0);
+
+        setIsPropagating(true);
+        setBulkVerifyStatus(`⏳ Iniciando corrección en bloque de ${totalMissingNodes} nodos en ${eligibleResults.length} ramas...`);
+
+        try {
+            let totalUpdated = 0;
+            let totalCreated = 0;
+            let failedBranches = 0;
+
+            for (let i = 0; i < eligibleResults.length; i++) {
+                const result = eligibleResults[i];
+                const cleanTitle = result.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                setBulkVerifyStatus(`⏳ Corrigiendo (${i + 1}/${eligibleResults.length}): ${cleanTitle}...`);
+
+                try {
+                    const propRes = await DiscourseGraphToolkit.propagateProjectToBranch(
+                        result.question.pageUid,
+                        result.coherence.rootProject,
+                        result.coherence.missing
+                    );
+                    if (!propRes.success) {
+                        failedBranches++;
+                    } else {
+                        totalUpdated += propRes.updated || 0;
+                        totalCreated += propRes.created || 0;
+                    }
+                } catch (err) {
+                    console.error(`Error propagando a rama ${result.question.pageUid}:`, err);
+                    failedBranches++;
+                }
+            }
+
+            setBulkVerifyStatus(`⏳ Sincronizando con Roam (esperando 600ms)...`);
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            setBulkVerifyStatus(`⏳ Re-verificando ${eligibleResults.length} ramas...`);
+            const updatedMap = new Map();
+
+            for (let i = 0; i < eligibleResults.length; i++) {
+                const r = eligibleResults[i];
+                const uid = r.question.pageUid;
+                setBulkVerifyStatus(`⏳ Re-verificando (${i + 1}/${eligibleResults.length})...`);
+
+                try {
+                    const branchNodes = await DiscourseGraphToolkit.getBranchNodes(uid);
+                    const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(uid, branchNodes);
+
+                    let status = 'coherent';
+                    if (cohResult.missing.length > 0) status = 'missing';
+                    else if (cohResult.different.length > 0) status = 'different';
+                    else if (cohResult.specialized.length > 0) status = 'specialized';
+
+                    const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([uid]);
+                    const rawContainerInfo = singleContainerMap.get(uid) || null;
+                    const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
+                    const containerPage = rawContainerInfo ? { ...rawContainerInfo, containerStatus } : null;
+
+                    updatedMap.set(uid, {
+                        ...r,
+                        branchNodes,
+                        coherence: cohResult,
+                        status,
+                        containerPage
+                    });
+                } catch (err) {
+                    console.error(`Error re-verificando rama ${uid}:`, err);
+                }
+            }
+
+            const finalResults = bulkVerificationResults.map(r => updatedMap.get(r.question.pageUid) || r);
+            setBulkVerificationResults(finalResults);
+
+            if (selectedBulkQuestion && updatedMap.has(selectedBulkQuestion.question.pageUid)) {
+                const updatedSelected = updatedMap.get(selectedBulkQuestion.question.pageUid);
+                setSelectedBulkQuestion(updatedSelected);
+                setEditableProject(updatedSelected.coherence.rootProject || '');
+            }
+
+            const coherent = finalResults.filter(r => r.status === 'coherent' || r.status === 'specialized').length;
+            const different = finalResults.filter(r => r.coherence?.different?.length > 0).length;
+            const missing = finalResults.filter(r => r.coherence?.missing?.length > 0).length;
+            const finalMsg = `✅ Corrección en bloque finalizada. ${coherent} coherentes, ${different} dif., ${missing} sin proy.`;
+
+            setBulkVerifyStatus(finalMsg);
+            DiscourseGraphToolkit.saveVerificationCache(finalResults, finalMsg);
+            DiscourseGraphToolkit.showToast(`Corrección completada: ${totalCreated + totalUpdated} nodo(s) asignados en ${eligibleResults.length - failedBranches} rama(s).`, 'success');
+        } catch (e) {
+            console.error('Error in executeFixAllMissing:', e);
+            setBulkVerifyStatus('❌ Error: ' + e.message);
+            DiscourseGraphToolkit.showToast('Error en corrección masiva: ' + e.message, 'error');
         } finally {
             setIsPropagating(false);
         }
@@ -987,6 +1112,270 @@ DiscourseGraphToolkit.BranchesTab = function () {
         );
     };
 
+    // Render del overlay de preview para corrección en bloque de nodos missing
+    const renderFixAllPreviewOverlay = () => {
+        if (!showFixAllPreview) return null;
+
+        const eligibleResults = bulkVerificationResults.filter(r =>
+            r.coherence?.missing?.length > 0 && r.coherence?.rootProject
+        );
+        const totalMissingNodes = eligibleResults.reduce((acc, r) => acc + (r.coherence?.missing?.length || 0), 0);
+
+        return React.createElement('div', {
+            style: {
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(2px)'
+            },
+            onClick: () => setShowFixAllPreview(false)
+        },
+            React.createElement('div', {
+                style: {
+                    width: '90%',
+                    maxWidth: '1100px',
+                    maxHeight: '85vh',
+                    backgroundColor: 'var(--dgt-bg-primary)',
+                    borderRadius: 'var(--dgt-radius-lg)',
+                    boxShadow: 'var(--dgt-shadow-lg)',
+                    border: '1px solid var(--dgt-border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden'
+                },
+                onClick: (e) => e.stopPropagation()
+            },
+                // Cabecera
+                React.createElement('div', {
+                    style: {
+                        padding: '1rem 1.25rem',
+                        borderBottom: '1px solid var(--dgt-border-color)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '1rem',
+                        backgroundColor: 'var(--dgt-bg-secondary)'
+                    }
+                },
+                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 } },
+                        React.createElement('span', {
+                            style: {
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                textTransform: 'uppercase',
+                                color: 'var(--dgt-text-muted)',
+                                letterSpacing: '0.05em'
+                            }
+                        }, 'Corrección en Bloque'),
+                        React.createElement('h4', {
+                            style: {
+                                margin: 0,
+                                fontSize: '1rem',
+                                fontWeight: '600',
+                                color: 'var(--dgt-text-primary)',
+                                lineHeight: '1.4'
+                            }
+                        }, `Nodos sin Proyecto Asociado (${totalMissingNodes} nodos en ${eligibleResults.length} ramas)`),
+                        React.createElement('span', {
+                            style: {
+                                fontSize: '0.75rem',
+                                color: 'var(--dgt-text-secondary)'
+                            }
+                        }, 'Revisa los cambios que se aplicarán a cada nodo antes de confirmar. Cada nodo recibirá el proyecto de su padre directo.')
+                    ),
+                    React.createElement('button', {
+                        onClick: () => setShowFixAllPreview(false),
+                        style: {
+                            border: 'none',
+                            background: 'transparent',
+                            fontSize: '1.25rem',
+                            cursor: 'pointer',
+                            padding: '2px 6px',
+                            color: 'var(--dgt-text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            lineHeight: 1
+                        },
+                        title: 'Cerrar'
+                    }, '✕')
+                ),
+                // Cuerpo con scroll
+                React.createElement('div', {
+                    className: 'dgt-scrollable',
+                    style: {
+                        padding: '1.25rem',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1.25rem',
+                        flex: 1
+                    }
+                },
+                    eligibleResults.map((result) => {
+                        const queTitle = (result.question.pageTitle || '').replace(/\[\[(QUE|GRI)\]\] - /, '');
+                        const rootProj = result.coherence.rootProject;
+                        const missingNodes = result.coherence.missing || [];
+
+                        return React.createElement('div', {
+                            key: result.question.pageUid,
+                            style: {
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.6rem',
+                                padding: '0.75rem 1rem',
+                                backgroundColor: 'var(--dgt-bg-secondary)',
+                                borderRadius: 'var(--dgt-radius-md)',
+                                border: '1px solid var(--dgt-border-color)',
+                                flexShrink: 0
+                            }
+                        },
+                            // Header de la rama
+                            React.createElement('div', {
+                                style: {
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    borderBottom: '1px solid var(--dgt-border-color)',
+                                    paddingBottom: '0.4rem'
+                                }
+                            },
+                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 } },
+                                    React.createElement('span', { style: { fontSize: '0.8rem' } }, '❓'),
+                                    React.createElement('span', {
+                                        style: { fontWeight: 600, fontSize: '0.8125rem', color: 'var(--dgt-text-primary)' },
+                                        title: result.question.pageTitle
+                                    }, parseMarkdownBold(queTitle)),
+                                    React.createElement('span', { className: 'dgt-badge dgt-badge-neutral', style: { fontSize: '0.65rem' } },
+                                        `${missingNodes.length} nodo${missingNodes.length !== 1 ? 's' : ''}`)
+                                ),
+                                React.createElement('span', {
+                                    style: {
+                                        fontSize: '0.7rem',
+                                        color: 'var(--dgt-text-muted)',
+                                        whiteSpace: 'nowrap'
+                                    }
+                                }, `Proyecto raíz: ${rootProj}`)
+                            ),
+                            // Filas de nodos missing
+                            React.createElement('div', {
+                                style: {
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.75rem',
+                                    marginTop: '0.5rem' // Ensure it pushes away from the header
+                                }
+                            },
+                                ...missingNodes.map((node) => {
+                                    const badgeColor = '#fee2e2';
+                                    const textColor = '#991b1b';
+                                    const borderColor = '#fca5a5';
+                                    const oldProject = '(sin proyecto)';
+                                    const newProject = node.parentProject || rootProj;
+
+                                    return React.createElement('div', {
+                                        key: node.uid,
+                                        style: {
+                                            display: 'flex',
+                                            flexDirection: 'row',
+                                            alignItems: 'flex-start', // Prevent center from squishing height
+                                            justifyContent: 'space-between',
+                                            fontSize: '0.8125rem',
+                                            color: 'var(--dgt-text-primary)',
+                                            borderBottom: '1px solid var(--dgt-border-color)',
+                                            paddingBottom: '0.6rem',
+                                            gap: '0.75rem',
+                                            flexShrink: 0
+                                        }
+                                    },
+                                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: '0.4rem' } },
+                                            React.createElement('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'flex-start' } },
+                                                React.createElement('span', {
+                                                    style: {
+                                                        fontSize: '0.65rem',
+                                                        padding: '1px 4px',
+                                                        background: badgeColor,
+                                                        color: textColor,
+                                                        borderRadius: '4px',
+                                                        fontWeight: 'bold',
+                                                        border: `1px solid ${borderColor}`,
+                                                        marginTop: '1px',
+                                                        flexShrink: 0
+                                                    }
+                                                }, node.type),
+                                                React.createElement('span', {
+                                                    style: { fontWeight: 500, lineHeight: '1.4', wordBreak: 'break-word', flex: 1 }
+                                                }, parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|GRI)\]\] - /, '')))
+                                            ),
+                                            React.createElement('div', {
+                                                style: {
+                                                    display: 'flex',
+                                                    flexWrap: 'wrap',
+                                                    gap: '0.5rem',
+                                                    color: 'var(--dgt-text-muted)',
+                                                    fontSize: '0.75rem',
+                                                    alignItems: 'center'
+                                                }
+                                            },
+                                                React.createElement('span', { style: { textDecoration: 'line-through', wordBreak: 'break-all' } }, oldProject),
+                                                React.createElement('span', null, '→'),
+                                                React.createElement('span', { style: { color: 'var(--dgt-text-success)', fontWeight: 'bold', wordBreak: 'break-all' } }, newProject)
+                                            )
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                            title: `Ir a: ${node.title || ''}`,
+                                            style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer', marginTop: '2px' }
+                                        }, '→')
+                                    );
+                                })
+                            )
+                        );
+                    })
+                ),
+                // Footer
+                React.createElement('div', {
+                    style: {
+                        padding: '1rem 1.25rem',
+                        borderTop: '1px solid var(--dgt-border-color)',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: '0.75rem',
+                        backgroundColor: 'var(--dgt-bg-secondary)'
+                    }
+                },
+                    React.createElement('button', {
+                        onClick: () => setShowFixAllPreview(false),
+                        className: 'dgt-btn dgt-btn-secondary',
+                        style: { padding: '6px 12px', fontSize: '0.8125rem', cursor: 'pointer' }
+                    }, 'Cancelar'),
+                    React.createElement('button', {
+                        onClick: () => executeFixAllMissing(),
+                        disabled: isPropagating,
+                        className: 'dgt-btn dgt-btn-primary',
+                        style: {
+                            backgroundColor: isPropagating ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                            borderColor: isPropagating ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                            padding: '6px 16px',
+                            fontSize: '0.8125rem',
+                            cursor: isPropagating ? 'not-allowed' : 'pointer',
+                            fontWeight: 600
+                        }
+                    }, isPropagating ? '⏳ Corrigiendo...' : `🔧 Corregir ${totalMissingNodes} nodos`)
+                )
+            )
+        );
+    };
+
     const renderBranchesNodeContent = (node, depth) => {
         if (!node.questions || node.questions.length === 0) return null;
 
@@ -1301,7 +1690,25 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 );
                             })
                     )
-                )
+                ),
+                // Botón: Corregir missing en bloque
+                counts.missing > 0 && React.createElement('button', {
+                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                    disabled: isPropagating || isBulkVerifying,
+                    onClick: handleFixAllMissing,
+                    title: 'Corregir en bloque todos los nodos sin proyecto asignándoles el proyecto de su padre directo',
+                    style: {
+                        padding: '2px 8px',
+                        fontSize: '0.75rem',
+                        cursor: (isPropagating || isBulkVerifying) ? 'not-allowed' : 'pointer',
+                        backgroundColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                        borderColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: 600
+                    }
+                }, isPropagating ? '⏳ Corrigiendo...' : '🔧 Corregir missing')
             ),
             // Status text
             bulkVerifyStatus && React.createElement('span', {
@@ -1340,6 +1747,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
         ),
         
         // Nuevo Overlay Flotante
-        selectedBulkQuestion && renderQueResolutionOverlay()
+        selectedBulkQuestion && renderQueResolutionOverlay(),
+
+        // Overlay de preview para corrección en bloque
+        showFixAllPreview && renderFixAllPreviewOverlay()
     );
 };

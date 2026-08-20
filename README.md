@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.58
+**Versión:** 1.5.62
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -35,7 +35,9 @@ Organiza tu investigación en proyectos separados:
 ### 3. Verificación de Coherencia (Ramas)
 Verifica la consistencia de tus ramas de investigación:
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
-- Identifica nodos sin proyecto asignado.
+- Identifica nodos sin proyecto asignado (`missing`).
+- **Corrección en Bloque de Nodos Sin Proyecto ("🔧 Corregir missing"):** Permite corregir automáticamente y de forma segura todos los nodos huérfanos de proyecto en todas las ramas seleccionadas asignándoles el proyecto de su padre directo.
+- **Previsualización de Cambios en Bloque:** Modal flotante interactivo previo a la confirmación que muestra rama por rama la lista completa de nodos que cambiarán, detallando visualmente el cambio proyectado (`~~(sin proyecto)~~ → proyecto`) y enlaces de navegación directa.
 - **Verificación jerárquica inteligente:** Cada nodo debe ser igual o más específico que su padre directo.
 - **Validación de Páginas Contenedoras:** Agrupa las preguntas bajo sus respectivas páginas contenedoras (ej. `tesis/capítulo1/grafoDeDiscurso`) y verifica que el `Proyecto Asociado::` del contenedor sea coherente.
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.

@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-08-17
+**Última actualización:** 2026-08-20
 
 ## Versión Actual
 
-**v1.5.58**
+**v1.5.62**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,18 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Unificación de conteos por ramas en badges, detección multi-problema y popovers con acceso directo |
+| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Corrección en bloque segura ("Corregir missing"), modal con previsualización detallada, unificación de conteos por ramas en badges y popovers interactivos |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.62 (Agosto 2026)
+- **Feature (Corrección en Bloque de Nodos sin Proyecto - "🔧 Corregir missing")**: Se implementó una nueva acción masiva en la barra de resumen de la pestaña Ramas para resolver de manera 100% segura todos los nodos huérfanos de proyecto (`missing`) a lo largo de todas las ramas seleccionadas, asignándoles automáticamente el proyecto directo de su nodo padre o el proyecto raíz de la rama.
+- **UI/UX (Modal Flotante de Previsualización y Control de Cambios)**: Antes de confirmar la corrección en bloque, el plugin despliega una ventana modal interactiva que desglosa rama por rama todos los nodos que se modificarán, mostrando el cambio proyectado con el estilo tachado (`~~(sin proyecto)~~ → nuevo_proyecto`) y accesos directos `→` para navegar a cada nodo antes de aplicar los cambios.
+- **Fix/Layout (Estabilidad Flexbox en Previsualización Masiva)**: Se corrigió el problema de solapamiento y aplastamiento de tarjetas mediante `flexShrink: 0`, alineación `flex-start` y propagación plana de elementos en el Virtual DOM, garantizando que el modal soporte sin distorsión decenas de ramas y nodos mediante scroll vertical independiente.
 
 ### v1.5.58 (Agosto 2026)
 - **Refactor (Coherencia de Ramas - Unificación de Conteos por Ramas)**: Se unificó la unidad de medida de todos los badges y resúmenes de la pestaña "Ramas" para contabilizar consistentemente a nivel de **ramas/preguntas (QUEs)** en lugar de mezclar ramas con nodos individuales (eliminando la confusión entre el total de ramas problemáticas y nodos afectados).
