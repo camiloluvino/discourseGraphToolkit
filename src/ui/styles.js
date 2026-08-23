@@ -201,6 +201,12 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             left: auto;
             right: 0;
         }
+        .dgt-popover.dgt-popover-portal {
+            position: fixed;
+            left: auto;
+            margin-top: 0;
+            z-index: 10001;
+        }
         .dgt-popover-header {
             padding: 8px 12px;
             border-bottom: 1px solid var(--dgt-border-color);
@@ -619,7 +625,6 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             border-left: 1px solid var(--dgt-border-color);
             padding-left: 14px;
             overflow-y: auto;
-            overflow-x: visible;
             scrollbar-width: thin;
         }
         .dgt-branches-sidebar::-webkit-scrollbar {

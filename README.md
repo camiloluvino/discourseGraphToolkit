@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.63
+**Versión:** 1.5.64
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -34,7 +34,8 @@ Organiza tu investigación en proyectos separados:
 
 ### 3. Verificación de Coherencia (Ramas)
 Verifica la consistencia de tus ramas de investigación:
-- **Rediseño Split Layout (NUEVO):** Distribución en dos columnas con sidebar lateral derecho (230px) dedicado a Favoritos y Resumen/Badges de alerta, liberando todo el espacio vertical del panel principal para el árbol de proyectos y análisis de coherencia.
+- **Rediseño Split Layout:** Distribución en dos columnas con sidebar lateral derecho (230px) dedicado a Favoritos y Resumen/Badges de alerta, liberando todo el espacio vertical del panel principal para el árbol de proyectos y análisis de coherencia.
+- **Popovers Desacoplados (PopoverPortal):** Los menús flotantes de advertencia (`🏛️ Desalineadas`, `⚠️ Diferentes`, `❌ Sin proyecto`) se renderizan como portales de React fuera del árbol DOM del sidebar, previniendo recortes por overflow y ajustando su posición automáticamente con soporte de cierre por click-outside y Escape.
 - Detecta nodos con `Proyecto Asociado::` diferente al de la pregunta raíz.
 - Identifica nodos sin proyecto asignado (`missing`).
 - **Corrección en Bloque de Nodos Sin Proyecto ("🔧 Corregir missing"):** Permite corregir automáticamente y de forma segura todos los nodos huérfanos de proyecto en todas las ramas seleccionadas asignándoles el proyecto de su padre directo.

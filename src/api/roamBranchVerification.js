@@ -605,11 +605,11 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
 /**
  * Dado un array de UIDs de QUEs/GRIs, encuentra qué página contenedora
  * (página cuyo título termina en CONTAINER_PAGE_SUFFIX, ej: /grafoDeDiscurso)
- * los referencia como bloque de PRIMER NIVEL (hijo directo de la página).
+ * los referencia en CUALQUIER nivel de anidamiento dentro de la página.
  *
- * Estrategia Datalog: usar :block/children desde la página contenedora asegura
- * que solo se devuelven bloques de primer nivel (hijos directos), sin necesidad
- * de filtrar padres en JS.
+ * Estrategia Datalog: usa :block/page para encontrar, dado un bloque que referencia
+ * al nodo, a qué página pertenece. Esto detecta nodos referenciados a cualquier
+ * profundidad (ej: GRIs anidados bajo #Contains).
  *
  * @param {Array<string>} queUids - UIDs de las páginas QUE/GRI a buscar
  * @returns {Promise<Map<string, {uid, title, project, containerStatus}>>}
@@ -622,17 +622,17 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
         const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
         const escapedContainerSuffix = this.escapeDatalogString(containerSuffix);
 
-        // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
-        // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
+        // Query: páginas que terminan en /grafoDeDiscurso que referencian alguno de los QUEs/GRIs
+        // a cualquier nivel de anidamiento (usando :block/page)
         const query = `[:find ?container-uid ?container-title ?que-uid
                         :in $ [?que-uid ...]
                         :where
                         [?que-page :block/uid ?que-uid]
+                        [?block :block/refs ?que-page]
+                        [?block :block/page ?container]
                         [?container :node/title ?container-title]
-                        [?container :block/uid ?container-uid]
                         [(clojure.string/ends-with? ?container-title "${escapedContainerSuffix}")]
-                        [?container :block/children ?block]
-                        [?block :block/refs ?que-page]]`;
+                        [?container :block/uid ?container-uid]]`;
 
         const results = await window.roamAlphaAPI.data.async.q(query, queUids);
         if (!results || results.length === 0) return new Map();

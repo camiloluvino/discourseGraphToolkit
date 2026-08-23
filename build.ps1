@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = "1.5.63"
+$version = "1.5.64"
 $outputFile = "discourse-graph-toolkit.js"
 
 $files = @(
@@ -28,6 +28,7 @@ $files = @(
     "src/core/markdownGenerator.js",
     "src/core/epubGenerator.js",
     "src/ui/components/ProjectTreeView.js",
+    "src/ui/components/PopoverPortal.js",
     "src/ui/tabs/ProjectsTab.js",
     "src/ui/tabs/BranchesTab.js",
     "src/ui/tabs/NodesTab.js",

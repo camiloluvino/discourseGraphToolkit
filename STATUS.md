@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.63**
+**v1.5.64**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,20 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges), corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
+| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges con PopoverPortal desacoplado), corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.64 (Agosto 2026)
+- **Fix/UI (PopoverPortal desacoplado en Badges de Resumen)**: Se solucionó el problema de recorte horizontal del popover de advertencias (🏛️ Desalineadas, ⚠️ Diferentes, ❌ Sin proyecto) en el sidebar de Ramas:
+  - **Componente Reutilizable (`PopoverPortal.js`)**: Renderiza los popovers en `document.body` mediante `ReactDOM.createPortal`, desacoplándolos de cualquier contenedor con `overflow: auto/hidden`.
+  - **Posicionamiento Inteligente**: Calcula la posición en el viewport mediante `getBoundingClientRect()`, alineando el borde derecho con el badge trigger y alternando verticalmente (abajo/arriba) según el espacio disponible.
+  - **Interacciones Robustas**: Se incorporó cierre por click-outside (`mousedown`), tecla `Escape` y recalibración automática de coordenadas en eventos de `scroll` y `resize`.
+  - **Limpieza CSS**: Eliminación de reglas inefectivas de `overflow-x` en el sidebar y definición de `.dgt-popover-portal` con `z-index: 10001`.
 
 ### v1.5.63 (Agosto 2026)
 - **UI/UX (Rediseño de Layout en Ramas - Split Layout con Sidebar Derecho)**: Se rediseñó por completo la interfaz de la pestaña **Ramas** implementando un layout de panel dividido de dos columnas:

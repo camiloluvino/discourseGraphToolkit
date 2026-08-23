@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.63
- * Bundled build: 2026-08-23 15:47:46
+ * DISCOURSE GRAPH TOOLKIT v1.5.64
+ * Bundled build: 2026-08-23 19:50:40
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.63";
+    DiscourseGraphToolkit.VERSION = "1.5.64";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2700,11 +2700,11 @@ DiscourseGraphToolkit.findOrphanNodes = async function () {
 /**
  * Dado un array de UIDs de QUEs/GRIs, encuentra qué página contenedora
  * (página cuyo título termina en CONTAINER_PAGE_SUFFIX, ej: /grafoDeDiscurso)
- * los referencia como bloque de PRIMER NIVEL (hijo directo de la página).
+ * los referencia en CUALQUIER nivel de anidamiento dentro de la página.
  *
- * Estrategia Datalog: usar :block/children desde la página contenedora asegura
- * que solo se devuelven bloques de primer nivel (hijos directos), sin necesidad
- * de filtrar padres en JS.
+ * Estrategia Datalog: usa :block/page para encontrar, dado un bloque que referencia
+ * al nodo, a qué página pertenece. Esto detecta nodos referenciados a cualquier
+ * profundidad (ej: GRIs anidados bajo #Contains).
  *
  * @param {Array<string>} queUids - UIDs de las páginas QUE/GRI a buscar
  * @returns {Promise<Map<string, {uid, title, project, containerStatus}>>}
@@ -2717,17 +2717,17 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
         const containerSuffix = this.CONTAINER_PAGE_SUFFIX; // '/grafoDeDiscurso'
         const escapedContainerSuffix = this.escapeDatalogString(containerSuffix);
 
-        // Query: páginas que terminan en /grafoDeDiscurso cuyo :block/children
-        // (hijos directos = bloques de primer nivel) referencian alguno de los QUEs
+        // Query: páginas que terminan en /grafoDeDiscurso que referencian alguno de los QUEs/GRIs
+        // a cualquier nivel de anidamiento (usando :block/page)
         const query = `[:find ?container-uid ?container-title ?que-uid
                         :in $ [?que-uid ...]
                         :where
                         [?que-page :block/uid ?que-uid]
+                        [?block :block/refs ?que-page]
+                        [?block :block/page ?container]
                         [?container :node/title ?container-title]
-                        [?container :block/uid ?container-uid]
                         [(clojure.string/ends-with? ?container-title "${escapedContainerSuffix}")]
-                        [?container :block/children ?block]
-                        [?block :block/refs ?que-page]]`;
+                        [?container :block/uid ?container-uid]]`;
 
         const results = await window.roamAlphaAPI.data.async.q(query, queUids);
         if (!results || results.length === 0) return new Map();
@@ -5097,6 +5097,12 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             left: auto;
             right: 0;
         }
+        .dgt-popover.dgt-popover-portal {
+            position: fixed;
+            left: auto;
+            margin-top: 0;
+            z-index: 10001;
+        }
         .dgt-popover-header {
             padding: 8px 12px;
             border-bottom: 1px solid var(--dgt-border-color);
@@ -5515,7 +5521,6 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             border-left: 1px solid var(--dgt-border-color);
             padding-left: 14px;
             overflow-y: auto;
-            overflow-x: visible;
             scrollbar-width: thin;
         }
         .dgt-branches-sidebar::-webkit-scrollbar {
@@ -6767,6 +6772,129 @@ DiscourseGraphToolkit.ProjectTreeView = function (props) {
 
 
 
+// --- MODULE: src/ui/components/PopoverPortal.js ---
+// ============================================================================
+// UI: PopoverPortal Component
+// Renderiza un popover anclado a un elemento mediante ReactDOM.createPortal
+// para evitar que se recorte por contenedores con overflow: hidden/auto.
+// ============================================================================
+
+DiscourseGraphToolkit.PopoverPortal = function ({
+    isOpen,
+    onClose,
+    anchorRef,
+    className = '',
+    children
+}) {
+    const React = window.React;
+    const ReactDOM = window.ReactDOM || ReactDOM;
+
+    const popoverRef = React.useRef(null);
+    const [coords, setCoords] = React.useState({ top: 0, right: 0, bottom: 'auto' });
+
+    // Actualizar coordenadas relativas al viewport
+    const updatePosition = React.useCallback(() => {
+        if (!anchorRef || !anchorRef.current) return;
+        const rect = anchorRef.current.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) return;
+
+        const margin = 6;
+        const padding = 12;
+        const estimatedHeight = 320;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+
+        // Calcular si cabe abajo o si conviene mostrarlo arriba
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const showAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+
+        let newCoords = {};
+        if (showAbove) {
+            newCoords.top = 'auto';
+            newCoords.bottom = `${Math.max(padding, viewportHeight - rect.top + margin)}px`;
+        } else {
+            newCoords.top = `${Math.max(padding, rect.bottom + margin)}px`;
+            newCoords.bottom = 'auto';
+        }
+
+        // Alinear al borde derecho del anchor, garantizando margen mínimo de la pantalla
+        const rightOffset = Math.max(padding, viewportWidth - rect.right);
+        newCoords.right = `${rightOffset}px`;
+
+        setCoords(newCoords);
+    }, [anchorRef]);
+
+    // Posicionamiento inicial y listeners de scroll/resize
+    React.useLayoutEffect(() => {
+        if (!isOpen) return;
+
+        updatePosition();
+
+        const handleScrollOrResize = () => {
+            updatePosition();
+        };
+
+        window.addEventListener('resize', handleScrollOrResize);
+        window.addEventListener('scroll', handleScrollOrResize, true);
+
+        return () => {
+            window.removeEventListener('resize', handleScrollOrResize);
+            window.removeEventListener('scroll', handleScrollOrResize, true);
+        };
+    }, [isOpen, updatePosition]);
+
+    // Click outside y tecla Escape para cerrar
+    React.useEffect(() => {
+        if (!isOpen) return;
+
+        const handleMouseDown = (e) => {
+            const isClickInsidePopover = popoverRef.current && popoverRef.current.contains(e.target);
+            const isClickInsideAnchor = anchorRef && anchorRef.current && anchorRef.current.contains(e.target);
+
+            if (!isClickInsidePopover && !isClickInsideAnchor) {
+                if (typeof onClose === 'function') {
+                    onClose();
+                }
+            }
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (typeof onClose === 'function') {
+                    onClose();
+                }
+            }
+        };
+
+        document.addEventListener('mousedown', handleMouseDown, true);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('mousedown', handleMouseDown, true);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onClose, anchorRef]);
+
+    if (!isOpen || !ReactDOM || !ReactDOM.createPortal) {
+        return null;
+    }
+
+    return ReactDOM.createPortal(
+        React.createElement('div', {
+            ref: popoverRef,
+            className: `dgt-popover dgt-popover-portal ${className}`.trim(),
+            style: {
+                top: coords.top,
+                bottom: coords.bottom,
+                right: coords.right
+            }
+        }, children),
+        document.body
+    );
+};
+
+
 // --- MODULE: src/ui/tabs/ProjectsTab.js ---
 // ============================================================================
 // UI: Projects Tab Component
@@ -7289,6 +7417,10 @@ DiscourseGraphToolkit.BranchesTab = function () {
     const [activeFilter, setActiveFilter] = React.useState(null); // 'different' | 'missing' | null
     const [showProjectFilter, setShowProjectFilter] = React.useState(false);
     const [showFixAllPreview, setShowFixAllPreview] = React.useState(false);
+
+    const containerBadgeRef = React.useRef(null);
+    const differentBadgeRef = React.useRef(null);
+    const missingBadgeRef = React.useRef(null);
 
     const allProjects = React.useMemo(() => DiscourseGraphToolkit.getProjects(), []);
     
@@ -8791,176 +8923,191 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         React.createElement(Badge, { emoji: '✅', count: counts.coherent, label: 'Coherentes', type: 'success', title: 'Ramas Coherentes' }),
 
                         // 🏛️ Desalineamiento de página contenedora
-                        React.createElement('div', { style: { position: 'relative' } },
+                        React.createElement('div', { ref: containerBadgeRef },
                             React.createElement(Badge, {
                                 emoji: '🏛️', count: counts.containerMismatch, label: 'Desalineadas', type: 'warning',
                                 title: 'Clic para ver ramas con proyecto desalineado respecto a su página contenedora',
                                 onClick: counts.containerMismatch > 0 ? () => setOpenPopover(openPopover === 'container' ? null : 'container') : undefined,
                                 className: counts.containerMismatch > 0 ? 'clickable' : ''
-                            }),
-                            openPopover === 'container' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `🏛️ ${counts.containerMismatch} ramas con página contenedora desalineada`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                bulkVerificationResults
-                                    .filter(r => r.containerPage?.containerStatus === 'mismatched' || r.containerPage?.containerStatus === 'no_project')
-                                    .map(r => {
-                                        const cp = r.containerPage;
-                                        const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
-                                        const base = cp.title && cp.title.endsWith(suffix) ? cp.title.slice(0, -suffix.length) : (cp.title || '');
-                                        const shortName = base.split('/').pop() || base;
-                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                        const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
-                                        
-                                        const queUid = r.question.pageUid;
-                                        const queProject = r.coherence.rootProject;
-                                        const containerProject = cp.project;
-                                        const containerUid = cp.uid;
-                                        const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === containerUid).length;
+                            })
+                        ),
+                        React.createElement(DiscourseGraphToolkit.PopoverPortal, {
+                            isOpen: openPopover === 'container',
+                            onClose: () => setOpenPopover(null),
+                            anchorRef: containerBadgeRef,
+                            className: 'dgt-scrollable'
+                        },
+                            React.createElement('div', { className: 'dgt-popover-header' },
+                                React.createElement('span', null, `🏛️ ${counts.containerMismatch} ramas con página contenedora desalineada`),
+                                React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                            ),
+                            bulkVerificationResults
+                                .filter(r => r.containerPage?.containerStatus === 'mismatched' || r.containerPage?.containerStatus === 'no_project')
+                                .map(r => {
+                                    const cp = r.containerPage;
+                                    const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
+                                    const base = cp.title && cp.title.endsWith(suffix) ? cp.title.slice(0, -suffix.length) : (cp.title || '');
+                                    const shortName = base.split('/').pop() || base;
+                                    const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                    const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
+                                    
+                                    const queUid = r.question.pageUid;
+                                    const queProject = r.coherence.rootProject;
+                                    const containerProject = cp.project;
+                                    const containerUid = cp.uid;
+                                    const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === containerUid).length;
 
-                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '6px' } },
-                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
-                                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
-                                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
+                                    return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '6px' } },
+                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
+                                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
+                                            React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
+                                            React.createElement('button', {
+                                                onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
+                                                className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                                style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' },
+                                                title: `Ir a: ${cp.title}`
+                                            }, '→')
+                                        ),
+                                        React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
+                                            `${shortName} ${statusLabel} · QUE: ${queProject || '(sin proyecto)'}`
+                                        ),
+                                        React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap', style: { width: '100%', marginTop: '6px', gap: '6px', display: 'flex' } },
+                                            // Botón: Propagar al contenedor
+                                            (cp.containerStatus === 'no_project' && queProject) && React.createElement('button', {
+                                                className: 'dgt-btn dgt-text-xs',
+                                                disabled: isPropagating,
+                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                title: `Asignar el proyecto de la QUE ("${queProject}") al contenedor.`,
+                                                onClick: (e) => {
+                                                    e.stopPropagation();
+                                                    handleFixContainerAlignment(
+                                                        queUid,
+                                                        containerUid,
+                                                        queProject,
+                                                        `¿Asignar el proyecto "${queProject}" de la QUE a la página contenedora?`,
+                                                        false
+                                                    );
+                                                }
+                                            }, 'Propagar al contenedor'),
+
+                                            // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
+                                            (cp.containerStatus === 'mismatched' && !queProject && containerProject) && React.createElement('button', {
+                                                className: 'dgt-btn dgt-text-xs',
+                                                disabled: isPropagating,
+                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                title: `Asignar el proyecto del contenedor ("${containerProject}") a la QUE.`,
+                                                onClick: (e) => {
+                                                    e.stopPropagation();
+                                                    handleFixContainerAlignment(
+                                                        queUid,
+                                                        queUid,
+                                                        containerProject,
+                                                        `¿Asignar el proyecto del contenedor ("${containerProject}") a esta QUE?`,
+                                                        true
+                                                    );
+                                                }
+                                            }, 'Heredar del contenedor'),
+
+                                            // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
+                                            (cp.containerStatus === 'mismatched' && queProject && containerProject) && React.createElement(React.Fragment, null,
                                                 React.createElement('button', {
-                                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
-                                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
-                                                    style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' },
-                                                    title: `Ir a: ${cp.title}`
-                                                }, '→')
-                                            ),
-                                            React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
-                                                `${shortName} ${statusLabel} · QUE: ${queProject || '(sin proyecto)'}`
-                                            ),
-                                            React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap', style: { width: '100%', marginTop: '6px', gap: '6px', display: 'flex' } },
-                                                // Botón: Propagar al contenedor
-                                                (cp.containerStatus === 'no_project' && queProject) && React.createElement('button', {
                                                     className: 'dgt-btn dgt-text-xs',
                                                     disabled: isPropagating,
                                                     style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                    title: `Asignar el proyecto de la QUE ("${queProject}") al contenedor.`,
-                                                    onClick: (e) => {
-                                                        e.stopPropagation();
-                                                        handleFixContainerAlignment(
-                                                            queUid,
-                                                            containerUid,
-                                                            queProject,
-                                                            `¿Asignar el proyecto "${queProject}" de la QUE a la página contenedora?`,
-                                                            false
-                                                        );
-                                                    }
-                                                }, 'Propagar al contenedor'),
-
-                                                // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
-                                                (cp.containerStatus === 'mismatched' && !queProject && containerProject) && React.createElement('button', {
-                                                    className: 'dgt-btn dgt-text-xs',
-                                                    disabled: isPropagating,
-                                                    style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                    title: `Asignar el proyecto del contenedor ("${containerProject}") a la QUE.`,
+                                                    title: `Cambiar el proyecto de la QUE a "${containerProject}" (contenedor). Esto cambia el proyecto raíz de toda la rama.`,
                                                     onClick: (e) => {
                                                         e.stopPropagation();
                                                         handleFixContainerAlignment(
                                                             queUid,
                                                             queUid,
                                                             containerProject,
-                                                            `¿Asignar el proyecto del contenedor ("${containerProject}") a esta QUE?`,
+                                                            `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
                                                             true
                                                         );
                                                     }
-                                                }, 'Heredar del contenedor'),
-
-                                                // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
-                                                (cp.containerStatus === 'mismatched' && queProject && containerProject) && React.createElement(React.Fragment, null,
-                                                    React.createElement('button', {
-                                                        className: 'dgt-btn dgt-text-xs',
-                                                        disabled: isPropagating,
-                                                        style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                        title: `Cambiar el proyecto de la QUE a "${containerProject}" (contenedor). Esto cambia el proyecto raíz de toda la rama.`,
-                                                        onClick: (e) => {
-                                                            e.stopPropagation();
-                                                            handleFixContainerAlignment(
-                                                                queUid,
-                                                                queUid,
-                                                                containerProject,
-                                                                `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
-                                                                true
-                                                            );
-                                                        }
-                                                    }, 'QUE ← Contenedor'),
-                                                    React.createElement('button', {
-                                                        className: 'dgt-btn dgt-text-xs',
-                                                        disabled: isPropagating,
-                                                        style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                        title: `Cambiar el proyecto del contenedor a "${queProject}" (QUE). Este contenedor es compartido por ${sharedCount} QUE(s).`,
-                                                        onClick: (e) => {
-                                                            e.stopPropagation();
-                                                            handleFixContainerAlignment(
-                                                                queUid,
-                                                                containerUid,
-                                                                queProject,
-                                                                `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
-                                                                false
-                                                            );
-                                                        }
-                                                    }, 'Contenedor ← QUE')
-                                                )
+                                                }, 'QUE ← Contenedor'),
+                                                React.createElement('button', {
+                                                    className: 'dgt-btn dgt-text-xs',
+                                                    disabled: isPropagating,
+                                                    style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                    title: `Cambiar el proyecto del contenedor a "${queProject}" (QUE). Este contenedor es compartido por ${sharedCount} QUE(s).`,
+                                                    onClick: (e) => {
+                                                        e.stopPropagation();
+                                                        handleFixContainerAlignment(
+                                                            queUid,
+                                                            containerUid,
+                                                            queProject,
+                                                            `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
+                                                            false
+                                                        );
+                                                    }
+                                                }, 'Contenedor ← QUE')
                                             )
-                                        );
-                                    })
-                            )
+                                        )
+                                    );
+                                })
                         ),
 
                         // ⚠️ Diferente — wrapper propio con popover
-                        React.createElement('div', { style: { position: 'relative' } },
+                        React.createElement('div', { ref: differentBadgeRef },
                             React.createElement(Badge, {
                                 emoji: '⚠️', count: counts.different, label: 'Diferentes', type: 'warning', title: 'Clic para filtrar árbol | Ramas con proyectos diferentes',
                                 onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
                                 isActive: activeFilter === 'different'
-                            }),
-                            openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `⚠️ ${counts.different} ramas con proyecto diferente`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                bulkVerificationResults
-                                    .filter(r => r.coherence?.different?.length > 0)
-                                    .map(r => {
-                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                        const diffCount = r.coherence.different.length;
-                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
-                                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
-                                            React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
-                                            React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
-                                        );
-                                    })
-                            )
+                            })
+                        ),
+                        React.createElement(DiscourseGraphToolkit.PopoverPortal, {
+                            isOpen: openPopover === 'different',
+                            onClose: () => setOpenPopover(null),
+                            anchorRef: differentBadgeRef,
+                            className: 'dgt-scrollable'
+                        },
+                            React.createElement('div', { className: 'dgt-popover-header' },
+                                React.createElement('span', null, `⚠️ ${counts.different} ramas con proyecto diferente`),
+                                React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                            ),
+                            bulkVerificationResults
+                                .filter(r => r.coherence?.different?.length > 0)
+                                .map(r => {
+                                    const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                    const diffCount = r.coherence.different.length;
+                                    return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                    );
+                                })
                         ),
 
                         // ❌ Sin proyecto — wrapper propio con popover
-                        React.createElement('div', { style: { position: 'relative' } },
+                        React.createElement('div', { ref: missingBadgeRef },
                             React.createElement(Badge, {
                                 emoji: '❌', count: counts.missing, label: 'Sin proyecto', type: 'error', title: 'Clic para filtrar árbol | Ramas con nodos sin proyecto',
                                 onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
                                 isActive: activeFilter === 'missing'
-                            }),
-                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
-                                React.createElement('div', { className: 'dgt-popover-header' },
-                                    React.createElement('span', null, `❌ ${counts.missing} ramas con nodos sin proyecto`),
-                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                                ),
-                                bulkVerificationResults
-                                    .filter(r => r.coherence?.missing?.length > 0)
-                                    .map(r => {
-                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                        const missCount = r.coherence.missing.length;
-                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
-                                            React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, `${missCount} nodo${missCount !== 1 ? 's' : ''}`),
-                                            React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
-                                            React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
-                                        );
-                                    })
-                            )
+                            })
+                        ),
+                        React.createElement(DiscourseGraphToolkit.PopoverPortal, {
+                            isOpen: openPopover === 'missing',
+                            onClose: () => setOpenPopover(null),
+                            anchorRef: missingBadgeRef,
+                            className: 'dgt-scrollable'
+                        },
+                            React.createElement('div', { className: 'dgt-popover-header' },
+                                React.createElement('span', null, `❌ ${counts.missing} ramas con nodos sin proyecto`),
+                                React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                            ),
+                            bulkVerificationResults
+                                .filter(r => r.coherence?.missing?.length > 0)
+                                .map(r => {
+                                    const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                    const missCount = r.coherence.missing.length;
+                                    return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, `${missCount} nodo${missCount !== 1 ? 's' : ''}`),
+                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                        React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                    );
+                                })
                         ),
 
                         // Botón: Corregir missing en bloque
