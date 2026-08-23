@@ -1434,11 +1434,27 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const baseClass = `dgt-badge dgt-badge-${type}`;
         const activeClass = isActive ? 'active' : '';
         const clickableClass = onClick ? 'clickable' : '';
-        return React.createElement('span', {
+        return React.createElement('div', {
             onClick: onClick,
             title: title || label,
-            className: `${baseClass} ${activeClass} ${clickableClass}`.trim()
-        }, `${emoji} ${count}`);
+            className: `${baseClass} ${activeClass} ${clickableClass}`.trim(),
+            style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '4px 8px',
+                borderRadius: 'var(--dgt-radius-sm)',
+                fontSize: '0.75rem'
+            }
+        },
+            React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                React.createElement('span', null, emoji),
+                label && React.createElement('span', { style: { fontSize: '0.75rem', fontWeight: 500 } }, label)
+            ),
+            React.createElement('span', { style: { fontWeight: 700 } }, count)
+        );
     };
 
     // --- Render ---
@@ -1458,298 +1474,316 @@ DiscourseGraphToolkit.BranchesTab = function () {
             }, isBulkVerifying ? (verificationProgress.total > 0 ? `⏳ (${verificationProgress.current}/${verificationProgress.total})` : '⏳ Iniciando...') : '🔄 Procesar')
         ),
 
-        // --- Favorites Bar ---
-        React.createElement('div', {
-            style: {
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.5rem 0.75rem',
-                marginBottom: '0.5rem',
-                backgroundColor: 'var(--dgt-bg-secondary)',
-                border: '1px solid var(--dgt-border-color)',
-                borderRadius: 'var(--dgt-radius-md)',
-                flexWrap: 'wrap',
-                fontSize: '0.8125rem'
-            }
-        },
-            React.createElement('span', { style: { fontWeight: 600, fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', whiteSpace: 'nowrap' } }, '⭐ Favoritos:'),
-            favorites.length === 0 && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)' } }, '(guarda tu selección actual)'),
-            favorites.map(function (fav) {
-                var isActive = isFavoriteActive(fav);
-                return React.createElement('span', {
-                    key: fav.id,
-                    onClick: function () { handleApplyFavorite(fav); },
-                    title: fav.name + (isActive ? ' (activo)' : ''),
-                    style: {
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        padding: '2px 8px',
-                        backgroundColor: isActive ? 'var(--dgt-accent-green)' : 'transparent',
-                        color: isActive ? '#fff' : 'var(--dgt-text-primary)',
-                        border: '1px solid ' + (isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-border-color)'),
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        transition: 'all 0.15s ease'
-                    }
-                },
-                    React.createElement('span', { style: { fontWeight: isActive ? 600 : 400 } }, '🔖'),
-                    React.createElement('span', {
-                        style: { maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-                        title: fav.name
-                    }, fav.name),
-                    React.createElement('span', {
-                        onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
-                        style: { cursor: 'pointer', opacity: 0.6, marginLeft: '2px', fontSize: '0.65rem', color: isActive ? '#fff' : 'var(--dgt-text-muted)' },
-                        title: 'Eliminar favorito'
-                    }, '✕')
-                );
-            }),
-            React.createElement('button', {
-                onClick: handleSaveFavorite,
-                title: 'Guardar selección actual como favorito (nombre generado por namespace)',
-                style: {
-                    background: 'transparent', border: '1px dashed var(--dgt-border-color)',
-                    borderRadius: '12px', padding: '2px 10px', cursor: 'pointer',
-                    fontSize: '0.75rem', color: 'var(--dgt-text-secondary)'
-                }
-            }, '+ Guardar')
-        ),
-
-        // Barra de resumen con badges y status
-        (bulkVerificationResults.length > 0 || bulkVerifyStatus) && React.createElement('div', { className: 'dgt-summary-bar' },
-            // Badges — cada uno en su propio wrapper
-            bulkVerificationResults.length > 0 && React.createElement('div', {
-                className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap'
-            },
-                React.createElement(Badge, { emoji: '✅', count: counts.coherent, type: 'success', title: 'Ramas Coherentes' }),
-                // 🏛️ Desalineamiento de página contenedora — wrapper con popover
-                React.createElement('div', { style: { position: 'relative' } },
-                    React.createElement(Badge, {
-                        emoji: '🏛️', count: counts.containerMismatch, type: 'warning',
-                        title: 'Clic para ver ramas con proyecto desalineado respecto a su página contenedora',
-                        onClick: counts.containerMismatch > 0 ? () => setOpenPopover(openPopover === 'container' ? null : 'container') : undefined,
-                        className: counts.containerMismatch > 0 ? 'clickable' : ''
-                    }),
-                    openPopover === 'container' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                        React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `🏛️ ${counts.containerMismatch} ramas con página contenedora desalineada`),
-                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                        ),
-                        bulkVerificationResults
-                            .filter(r => r.containerPage?.containerStatus === 'mismatched' || r.containerPage?.containerStatus === 'no_project')
-                            .map(r => {
-                                const cp = r.containerPage;
-                                const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
-                                const base = cp.title && cp.title.endsWith(suffix) ? cp.title.slice(0, -suffix.length) : (cp.title || '');
-                                const shortName = base.split('/').pop() || base;
-                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
-                                
-                                const queUid = r.question.pageUid;
-                                const queProject = r.coherence.rootProject;
-                                const containerProject = cp.project;
-                                const containerUid = cp.uid;
-                                const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === containerUid).length;
-
-                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '6px' } },
-                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
-                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
-                                        React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
-                                        React.createElement('button', {
-                                            onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
-                                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
-                                            style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' },
-                                            title: `Ir a: ${cp.title}`
-                                        }, '→')
-                                    ),
-                                    React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
-                                        `${shortName} ${statusLabel} · QUE: ${queProject || '(sin proyecto)'}`
-                                    ),
-                                    React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap', style: { width: '100%', marginTop: '6px', gap: '6px', display: 'flex' } },
-                                        // Botón: Propagar al contenedor
-                                        (cp.containerStatus === 'no_project' && queProject) && React.createElement('button', {
-                                            className: 'dgt-btn dgt-text-xs',
-                                            disabled: isPropagating,
-                                            style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                            title: `Asignar el proyecto de la QUE ("${queProject}") al contenedor.`,
-                                            onClick: (e) => {
-                                                e.stopPropagation();
-                                                handleFixContainerAlignment(
-                                                    queUid,
-                                                    containerUid,
-                                                    queProject,
-                                                    `¿Asignar el proyecto "${queProject}" de la QUE a la página contenedora?`,
-                                                    false
-                                                );
-                                            }
-                                        }, 'Propagar al contenedor'),
-
-                                        // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
-                                        (cp.containerStatus === 'mismatched' && !queProject && containerProject) && React.createElement('button', {
-                                            className: 'dgt-btn dgt-text-xs',
-                                            disabled: isPropagating,
-                                            style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                            title: `Asignar el proyecto del contenedor ("${containerProject}") a la QUE.`,
-                                            onClick: (e) => {
-                                                e.stopPropagation();
-                                                handleFixContainerAlignment(
-                                                    queUid,
-                                                    queUid,
-                                                    containerProject,
-                                                    `¿Asignar el proyecto del contenedor ("${containerProject}") a esta QUE?`,
-                                                    true
-                                                 );
-                                            }
-                                        }, 'Heredar del contenedor'),
-
-                                        // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
-                                        (cp.containerStatus === 'mismatched' && queProject && containerProject) && React.createElement(React.Fragment, null,
-                                            React.createElement('button', {
-                                                className: 'dgt-btn dgt-text-xs',
-                                                disabled: isPropagating,
-                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                title: `Cambiar el proyecto de la QUE a "${containerProject}" (contenedor). Esto cambia el proyecto raíz de toda la rama.`,
-                                                onClick: (e) => {
-                                                     e.stopPropagation();
-                                                     handleFixContainerAlignment(
-                                                         queUid,
-                                                         queUid,
-                                                         containerProject,
-                                                         `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
-                                                         true
-                                                     );
-                                                 }
-                                            }, 'QUE ← Contenedor'),
-                                            React.createElement('button', {
-                                                className: 'dgt-btn dgt-text-xs',
-                                                disabled: isPropagating,
-                                                style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
-                                                title: `Cambiar el proyecto del contenedor a "${queProject}" (QUE). Este contenedor es compartido por ${sharedCount} QUE(s).`,
-                                                onClick: (e) => {
-                                                     e.stopPropagation();
-                                                     handleFixContainerAlignment(
-                                                         queUid,
-                                                         containerUid,
-                                                         queProject,
-                                                         `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
-                                                         false
-                                                     );
-                                                 }
-                                            }, 'Contenedor ← QUE')
-                                         )
-                                     )
-                                 );
-                             })
+        // Split layout: Main Tree Panel + Right Sidebar
+        React.createElement('div', { className: 'dgt-branches-split-layout' },
+            // Panel Principal (Árbol)
+            React.createElement('div', { className: 'dgt-branches-main' },
+                React.createElement('div', { className: 'dgt-flex-column', style: { flex: 1, minHeight: 0, border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)', overflow: 'hidden' } },
+                    // Checkbox "Seleccionar todos"
+                    React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm', style: { alignItems: 'center', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--dgt-border-color)', backgroundColor: 'var(--dgt-bg-secondary)' } },
+                        React.createElement('input', {
+                            type: 'checkbox',
+                            id: 'selectAllProjectsBranches',
+                            checked: selectedProjects.size >= allProjectsPathsSet.size,
+                            onChange: handleToggleSelectAll,
+                            style: { margin: 0, cursor: 'pointer' }
+                        }),
+                        React.createElement('label', { htmlFor: 'selectAllProjectsBranches', style: { cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, margin: 0, userSelect: 'none', color: 'var(--dgt-text-primary)' } }, 'Seleccionar / Deseleccionar todos los proyectos')
+                    ),
+                    React.createElement('div', {
+                        className: 'dgt-tree-container',
+                        style: { border: 'none', borderRadius: 0, flex: 1, maxHeight: 'none' }
+                    },
+                        React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
+                            tree: projectTree,
+                            renderNodeHeader: renderBranchesNodeHeader,
+                            renderNodeContent: renderBranchesNodeContent,
+                            defaultExpanded: activeFilter !== null // Auto expandir si hay un filtro
+                        })
                     )
-                ),
-                // ⚠️ Diferente — wrapper propio con popover
-                React.createElement('div', { style: { position: 'relative' } },
-                    React.createElement(Badge, {
-                        emoji: '⚠️', count: counts.different, type: 'warning', title: 'Clic para filtrar árbol | Ramas con proyectos diferentes',
-                        onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
-                        isActive: activeFilter === 'different'
-                    }),
-                    openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                        React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `⚠️ ${counts.different} ramas con proyecto diferente`),
-                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                        ),
-                        bulkVerificationResults
-                            .filter(r => r.coherence?.different?.length > 0)
-                            .map(r => {
-                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                const diffCount = r.coherence.different.length;
-                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
-                                    React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
-                                    React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
-                                );
-                            })
-                    )
-                ),
-                // ❌ Sin proyecto — wrapper propio con popover (hermano, no anidado)
-                React.createElement('div', { style: { position: 'relative' } },
-                    React.createElement(Badge, {
-                        emoji: '❌', count: counts.missing, type: 'error', title: 'Clic para filtrar árbol | Ramas con nodos sin proyecto',
-                        onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
-                        isActive: activeFilter === 'missing'
-                    }),
-                    openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-scrollable' },
-                        React.createElement('div', { className: 'dgt-popover-header' },
-                            React.createElement('span', null, `❌ ${counts.missing} ramas con nodos sin proyecto`),
-                            React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
-                        ),
-                        bulkVerificationResults
-                            .filter(r => r.coherence?.missing?.length > 0)
-                            .map(r => {
-                                const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                const missCount = r.coherence.missing.length;
-                                return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
-                                    React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, `${missCount} nodo${missCount !== 1 ? 's' : ''}`),
-                                    React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
-                                    React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
-                                );
-                            })
-                    )
-                ),
-                // Botón: Corregir missing en bloque
-                counts.missing > 0 && React.createElement('button', {
-                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
-                    disabled: isPropagating || isBulkVerifying,
-                    onClick: handleFixAllMissing,
-                    title: 'Corregir en bloque todos los nodos sin proyecto asignándoles el proyecto de su padre directo',
-                    style: {
-                        padding: '2px 8px',
-                        fontSize: '0.75rem',
-                        cursor: (isPropagating || isBulkVerifying) ? 'not-allowed' : 'pointer',
-                        backgroundColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
-                        borderColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontWeight: 600
-                    }
-                }, isPropagating ? '⏳ Corrigiendo...' : '🔧 Corregir missing')
+                )
             ),
-            // Status text
-            bulkVerifyStatus && React.createElement('span', {
-                className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
-                    bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
-                        bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
-                    }`,
-                title: 'Estatus'
-            }, bulkVerifyStatus)
-        ),
 
-        // Vista de árbol jerárquico por proyectos (siempre visible para poder filtrar)
-        React.createElement('div', { className: 'dgt-mb-sm dgt-flex-column', style: { flex: 1, minHeight: 0, border: '1px solid var(--dgt-border-color)', borderRadius: 'var(--dgt-radius-md)', overflow: 'hidden' } },
-            // Checkbox "Seleccionar todos"
-            React.createElement('div', { className: 'dgt-flex-row dgt-gap-sm', style: { alignItems: 'center', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--dgt-border-color)', backgroundColor: 'var(--dgt-bg-secondary)' } },
-                React.createElement('input', {
-                    type: 'checkbox',
-                    id: 'selectAllProjectsBranches',
-                    checked: selectedProjects.size >= allProjectsPathsSet.size,
-                    onChange: handleToggleSelectAll,
-                    style: { margin: 0, cursor: 'pointer' }
-                }),
-                React.createElement('label', { htmlFor: 'selectAllProjectsBranches', style: { cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, margin: 0, userSelect: 'none', color: 'var(--dgt-text-primary)' } }, 'Seleccionar / Deseleccionar todos los proyectos')
-            ),
-            React.createElement('div', {
-                className: 'dgt-tree-container',
-                style: { border: 'none', borderRadius: 0, flex: 1 }
-            },
-                React.createElement(DiscourseGraphToolkit.ProjectTreeView, {
-                    tree: projectTree,
-                    renderNodeHeader: renderBranchesNodeHeader,
-                    renderNodeContent: renderBranchesNodeContent,
-                    defaultExpanded: activeFilter !== null // Auto expandir si hay un filtro
-                })
+            // Sidebar Derecho: Favoritos + Resumen/Badges
+            React.createElement('div', { className: 'dgt-branches-sidebar' },
+                // 1. Sección Favoritos
+                React.createElement('div', { className: 'dgt-branches-sidebar-section' },
+                    React.createElement('div', { className: 'dgt-branches-sidebar-title' },
+                        React.createElement('span', null, '⭐ Favoritos'),
+                        favorites.length > 0 && React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--dgt-text-muted)' } }, `(${favorites.length})`)
+                    ),
+                    favorites.length === 0 && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)', fontStyle: 'italic' } }, '(guarda tu selección actual)'),
+                    favorites.length > 0 && React.createElement('div', { className: 'dgt-branches-fav-list' },
+                        favorites.map(function (fav) {
+                            var isActive = isFavoriteActive(fav);
+                            return React.createElement('div', {
+                                key: fav.id,
+                                onClick: function () { handleApplyFavorite(fav); },
+                                title: fav.name + (isActive ? ' (activo)' : ''),
+                                style: {
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px',
+                                    padding: '3px 8px',
+                                    backgroundColor: isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-bg-primary)',
+                                    color: isActive ? '#fff' : 'var(--dgt-text-primary)',
+                                    border: '1px solid ' + (isActive ? 'var(--dgt-accent-green)' : 'var(--dgt-border-color)'),
+                                    borderRadius: 'var(--dgt-radius-sm)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    transition: 'all 0.15s ease'
+                                }
+                            },
+                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, overflow: 'hidden' } },
+                                    React.createElement('span', { style: { fontWeight: isActive ? 600 : 400, flexShrink: 0 } }, '🔖'),
+                                    React.createElement('span', {
+                                        style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+                                        title: fav.name
+                                    }, fav.name)
+                                ),
+                                React.createElement('span', {
+                                    onClick: function (e) { handleDeleteFavorite(fav.id, fav.name, e); },
+                                    style: { cursor: 'pointer', opacity: 0.7, marginLeft: '2px', fontSize: '0.7rem', color: isActive ? '#fff' : 'var(--dgt-text-muted)', flexShrink: 0, padding: '0 2px' },
+                                    title: 'Eliminar favorito'
+                                }, '✕')
+                            );
+                        })
+                    ),
+                    React.createElement('button', {
+                        onClick: handleSaveFavorite,
+                        title: 'Guardar selección actual como favorito (nombre generado por namespace)',
+                        style: {
+                            background: 'transparent', border: '1px dashed var(--dgt-border-color)',
+                            borderRadius: 'var(--dgt-radius-sm)', padding: '4px 8px', cursor: 'pointer',
+                            fontSize: '0.75rem', color: 'var(--dgt-text-secondary)', width: '100%', textAlign: 'center'
+                        }
+                    }, '+ Guardar selección')
+                ),
+
+                // 2. Sección Resumen / Badges
+                React.createElement('div', { className: 'dgt-branches-sidebar-section' },
+                    React.createElement('div', { className: 'dgt-branches-sidebar-title' },
+                        React.createElement('span', null, '📊 Resumen')
+                    ),
+                    bulkVerificationResults.length === 0 && !bulkVerifyStatus && React.createElement('span', {
+                        style: { fontSize: '0.75rem', color: 'var(--dgt-text-muted)', fontStyle: 'italic' }
+                    }, 'Presiona 🔄 Procesar para verificar'),
+                    bulkVerificationResults.length > 0 && React.createElement('div', { className: 'dgt-branches-badges-list' },
+                        // ✅ Badge Coherentes
+                        React.createElement(Badge, { emoji: '✅', count: counts.coherent, label: 'Coherentes', type: 'success', title: 'Ramas Coherentes' }),
+
+                        // 🏛️ Desalineamiento de página contenedora
+                        React.createElement('div', { style: { position: 'relative' } },
+                            React.createElement(Badge, {
+                                emoji: '🏛️', count: counts.containerMismatch, label: 'Desalineadas', type: 'warning',
+                                title: 'Clic para ver ramas con proyecto desalineado respecto a su página contenedora',
+                                onClick: counts.containerMismatch > 0 ? () => setOpenPopover(openPopover === 'container' ? null : 'container') : undefined,
+                                className: counts.containerMismatch > 0 ? 'clickable' : ''
+                            }),
+                            openPopover === 'container' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
+                                React.createElement('div', { className: 'dgt-popover-header' },
+                                    React.createElement('span', null, `🏛️ ${counts.containerMismatch} ramas con página contenedora desalineada`),
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                                ),
+                                bulkVerificationResults
+                                    .filter(r => r.containerPage?.containerStatus === 'mismatched' || r.containerPage?.containerStatus === 'no_project')
+                                    .map(r => {
+                                        const cp = r.containerPage;
+                                        const suffix = DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX;
+                                        const base = cp.title && cp.title.endsWith(suffix) ? cp.title.slice(0, -suffix.length) : (cp.title || '');
+                                        const shortName = base.split('/').pop() || base;
+                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                        const statusLabel = cp.containerStatus === 'no_project' ? '(sin proyecto en contenedor)' : `(contenedor: ${cp.project || '?'})`;
+                                        
+                                        const queUid = r.question.pageUid;
+                                        const queProject = r.coherence.rootProject;
+                                        const containerProject = cp.project;
+                                        const containerUid = cp.uid;
+                                        const sharedCount = bulkVerificationResults.filter(res => res.containerPage && res.containerPage.uid === containerUid).length;
+
+                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { flexDirection: 'column', alignItems: 'flex-start', gap: '6px' } },
+                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', width: '100%' } },
+                                                React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, '🏛️'),
+                                                React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 600 }, title: queTitle }, queTitle),
+                                                React.createElement('button', {
+                                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(cp.uid); },
+                                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                                    style: { padding: '2px 6px', flexShrink: 0, cursor: 'pointer' },
+                                                    title: `Ir a: ${cp.title}`
+                                                }, '→')
+                                            ),
+                                            React.createElement('span', { className: 'dgt-text-muted', style: { fontSize: '0.65rem', paddingLeft: '2px' } },
+                                                `${shortName} ${statusLabel} · QUE: ${queProject || '(sin proyecto)'}`
+                                            ),
+                                            React.createElement('div', { className: 'dgt-flex-row dgt-gap-xs dgt-flex-wrap', style: { width: '100%', marginTop: '6px', gap: '6px', display: 'flex' } },
+                                                // Botón: Propagar al contenedor
+                                                (cp.containerStatus === 'no_project' && queProject) && React.createElement('button', {
+                                                    className: 'dgt-btn dgt-text-xs',
+                                                    disabled: isPropagating,
+                                                    style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                    title: `Asignar el proyecto de la QUE ("${queProject}") al contenedor.`,
+                                                    onClick: (e) => {
+                                                        e.stopPropagation();
+                                                        handleFixContainerAlignment(
+                                                            queUid,
+                                                            containerUid,
+                                                            queProject,
+                                                            `¿Asignar el proyecto "${queProject}" de la QUE a la página contenedora?`,
+                                                            false
+                                                        );
+                                                    }
+                                                }, 'Propagar al contenedor'),
+
+                                                // Botón: Heredar del contenedor (cuando la QUE no tiene proyecto)
+                                                (cp.containerStatus === 'mismatched' && !queProject && containerProject) && React.createElement('button', {
+                                                    className: 'dgt-btn dgt-text-xs',
+                                                    disabled: isPropagating,
+                                                    style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                    title: `Asignar el proyecto del contenedor ("${containerProject}") a la QUE.`,
+                                                    onClick: (e) => {
+                                                        e.stopPropagation();
+                                                        handleFixContainerAlignment(
+                                                            queUid,
+                                                            queUid,
+                                                            containerProject,
+                                                            `¿Asignar el proyecto del contenedor ("${containerProject}") a esta QUE?`,
+                                                            true
+                                                        );
+                                                    }
+                                                }, 'Heredar del contenedor'),
+
+                                                // Botones bidireccionales cuando ambos tienen proyecto pero son diferentes
+                                                (cp.containerStatus === 'mismatched' && queProject && containerProject) && React.createElement(React.Fragment, null,
+                                                    React.createElement('button', {
+                                                        className: 'dgt-btn dgt-text-xs',
+                                                        disabled: isPropagating,
+                                                        style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                        title: `Cambiar el proyecto de la QUE a "${containerProject}" (contenedor). Esto cambia el proyecto raíz de toda la rama.`,
+                                                        onClick: (e) => {
+                                                            e.stopPropagation();
+                                                            handleFixContainerAlignment(
+                                                                queUid,
+                                                                queUid,
+                                                                containerProject,
+                                                                `¿Cambiar el proyecto de la QUE de "${queProject}" a "${containerProject}"?\nEsto afectará a toda la rama y sus nodos hijos podrían necesitar re-sincronización.`,
+                                                                true
+                                                            );
+                                                        }
+                                                    }, 'QUE ← Contenedor'),
+                                                    React.createElement('button', {
+                                                        className: 'dgt-btn dgt-text-xs',
+                                                        disabled: isPropagating,
+                                                        style: { padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', backgroundColor: 'var(--dgt-bg-secondary)', border: '1px solid var(--dgt-border-color)' },
+                                                        title: `Cambiar el proyecto del contenedor a "${queProject}" (QUE). Este contenedor es compartido por ${sharedCount} QUE(s).`,
+                                                        onClick: (e) => {
+                                                            e.stopPropagation();
+                                                            handleFixContainerAlignment(
+                                                                queUid,
+                                                                containerUid,
+                                                                queProject,
+                                                                `¿Cambiar el proyecto del contenedor de "${containerProject}" a "${queProject}"?\nAdvertencia: Este contenedor es compartido por ${sharedCount} QUE(s) en la vista de verificación.`,
+                                                                false
+                                                            );
+                                                        }
+                                                    }, 'Contenedor ← QUE')
+                                                )
+                                            )
+                                        );
+                                    })
+                            )
+                        ),
+
+                        // ⚠️ Diferente — wrapper propio con popover
+                        React.createElement('div', { style: { position: 'relative' } },
+                            React.createElement(Badge, {
+                                emoji: '⚠️', count: counts.different, label: 'Diferentes', type: 'warning', title: 'Clic para filtrar árbol | Ramas con proyectos diferentes',
+                                onClick: () => setActiveFilter(activeFilter === 'different' ? null : 'different'),
+                                isActive: activeFilter === 'different'
+                            }),
+                            openPopover === 'different' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
+                                React.createElement('div', { className: 'dgt-popover-header' },
+                                    React.createElement('span', null, `⚠️ ${counts.different} ramas con proyecto diferente`),
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                                ),
+                                bulkVerificationResults
+                                    .filter(r => r.coherence?.different?.length > 0)
+                                    .map(r => {
+                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                        const diffCount = r.coherence.different.length;
+                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                            React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
+                                            React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                            React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                        );
+                                    })
+                            )
+                        ),
+
+                        // ❌ Sin proyecto — wrapper propio con popover
+                        React.createElement('div', { style: { position: 'relative' } },
+                            React.createElement(Badge, {
+                                emoji: '❌', count: counts.missing, label: 'Sin proyecto', type: 'error', title: 'Clic para filtrar árbol | Ramas con nodos sin proyecto',
+                                onClick: () => setActiveFilter(activeFilter === 'missing' ? null : 'missing'),
+                                isActive: activeFilter === 'missing'
+                            }),
+                            openPopover === 'missing' && React.createElement('div', { className: 'dgt-popover dgt-popover-left dgt-scrollable' },
+                                React.createElement('div', { className: 'dgt-popover-header' },
+                                    React.createElement('span', null, `❌ ${counts.missing} ramas con nodos sin proyecto`),
+                                    React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
+                                ),
+                                bulkVerificationResults
+                                    .filter(r => r.coherence?.missing?.length > 0)
+                                    .map(r => {
+                                        const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
+                                        const missCount = r.coherence.missing.length;
+                                        return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
+                                            React.createElement('span', { className: 'dgt-badge dgt-badge-error', style: { flexShrink: 0 } }, `${missCount} nodo${missCount !== 1 ? 's' : ''}`),
+                                            React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
+                                            React.createElement('button', { onClick: (e) => { e.stopPropagation(); handleBulkSelectQuestion(r); setOpenPopover(null); }, className: 'dgt-btn dgt-btn-primary dgt-text-xs', style: { padding: '2px 6px', flexShrink: 0 }, title: 'Abrir rama' }, '🔍')
+                                        );
+                                    })
+                            )
+                        ),
+
+                        // Botón: Corregir missing en bloque
+                        counts.missing > 0 && React.createElement('button', {
+                            className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                            disabled: isPropagating || isBulkVerifying,
+                            onClick: handleFixAllMissing,
+                            title: 'Corregir en bloque todos los nodos sin proyecto asignándoles el proyecto de su padre directo',
+                            style: {
+                                width: '100%',
+                                justifyContent: 'center',
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                cursor: (isPropagating || isBulkVerifying) ? 'not-allowed' : 'pointer',
+                                backgroundColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                                borderColor: (isPropagating || isBulkVerifying) ? 'var(--dgt-text-muted)' : 'var(--dgt-accent-green)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 600
+                            }
+                        }, isPropagating ? '⏳ Corrigiendo...' : '🔧 Corregir missing')
+                    ),
+
+                    // Status text
+                    bulkVerifyStatus && React.createElement('div', {
+                        style: { padding: '4px 6px', borderRadius: 'var(--dgt-radius-sm)', backgroundColor: 'var(--dgt-bg-primary)', border: '1px solid var(--dgt-border-color)' }
+                    },
+                        React.createElement('span', {
+                            className: `dgt-text-xs dgt-text-bold ${bulkVerifyStatus.includes('✅') ? 'dgt-text-success' :
+                                bulkVerifyStatus.includes('⚠️') ? 'dgt-text-warning' :
+                                    bulkVerifyStatus.includes('❌') ? 'dgt-text-error' : 'dgt-text-muted'
+                                }`,
+                            title: 'Estatus',
+                            style: { display: 'block', wordBreak: 'break-word', fontSize: '0.72rem' }
+                        }, bulkVerifyStatus)
+                    )
+                )
             )
         ),
         
-        // Nuevo Overlay Flotante
+        // Overlays Flotantes
         selectedBulkQuestion && renderQueResolutionOverlay(),
-
-        // Overlay de preview para corrección en bloque
         showFixAllPreview && renderFixAllPreviewOverlay()
     );
 };

@@ -197,6 +197,10 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             max-height: 24rem;
             overflow-y: auto;
         }
+        .dgt-popover.dgt-popover-left {
+            left: auto;
+            right: 0;
+        }
         .dgt-popover-header {
             padding: 8px 12px;
             border-bottom: 1px solid var(--dgt-border-color);
@@ -587,6 +591,73 @@ DiscourseGraphToolkit.injectBaseStyles = function () {
             margin-left: 4px;
             opacity: 0.65;
             font-size: 0.625rem;
+        }
+
+        /* Branches Split Layout & Sidebar */
+        .dgt-branches-split-layout {
+            display: flex;
+            height: 100%;
+            gap: 14px;
+            overflow: hidden;
+            flex: 1;
+            min-height: 0;
+        }
+        .dgt-branches-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+        .dgt-branches-sidebar {
+            width: 230px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-left: 1px solid var(--dgt-border-color);
+            padding-left: 14px;
+            overflow-y: auto;
+            overflow-x: visible;
+            scrollbar-width: thin;
+        }
+        .dgt-branches-sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .dgt-branches-sidebar::-webkit-scrollbar-thumb {
+            background: var(--dgt-border-color);
+            border-radius: 2px;
+        }
+        .dgt-branches-sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--dgt-bg-secondary);
+            border: 1px solid var(--dgt-border-color);
+            border-radius: var(--dgt-radius-md);
+            padding: 10px;
+        }
+        .dgt-branches-sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--dgt-text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .dgt-branches-fav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 180px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .dgt-branches-badges-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         /* Scrollbars */

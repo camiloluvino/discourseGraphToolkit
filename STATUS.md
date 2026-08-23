@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-08-20
+**Última actualización:** 2026-08-23
 
 ## Versión Actual
 
-**v1.5.62**
+**v1.5.63**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,20 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Corrección en bloque segura ("Corregir missing"), modal con previsualización detallada, unificación de conteos por ramas en badges y popovers interactivos |
+| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges), corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.63 (Agosto 2026)
+- **UI/UX (Rediseño de Layout en Ramas - Split Layout con Sidebar Derecho)**: Se rediseñó por completo la interfaz de la pestaña **Ramas** implementando un layout de panel dividido de dos columnas:
+  - **Panel Principal (Izquierda/Centro)**: El árbol jerárquico de proyectos (`ProjectTreeView`) ocupa todo el espacio vertical disponible con scroll independiente, eliminando las barras horizontales superiores para maximizar la visualización de ramas y discrepancias.
+  - **Sidebar Lateral Derecho (230px)**:
+    - **⭐ Favoritos**: Sección vertical con contador, lista de chips interactivos de proyectos por namespace y botón de guardado rápido `+ Guardar selección`.
+    - **📊 Resumen y Filtros**: Badges interactivos (`✅ Coherentes`, `🏛️ Desalineadas`, `⚠️ Diferentes`, `❌ Sin proyecto`) organizados verticalmente con etiquetas claras, contadores a la derecha, botón masivo `🔧 Corregir missing`, mensaje de estado dinámico y popovers adaptados (`dgt-popover-left`) que abren limpiamente hacia la izquierda.
 
 ### v1.5.62 (Agosto 2026)
 - **Feature (Corrección en Bloque de Nodos sin Proyecto - "🔧 Corregir missing")**: Se implementó una nueva acción masiva en la barra de resumen de la pestaña Ramas para resolver de manera 100% segura todos los nodos huérfanos de proyecto (`missing`) a lo largo de todas las ramas seleccionadas, asignándoles automáticamente el proyecto directo de su nodo padre o el proyecto raíz de la rama.
