@@ -42,7 +42,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (dragIdx === null || dropIdx === null || dragIdx === dropIdx) { handleGroupDragEnd(); return; }
         const newGroups = [...orderedGroupKeys];
         const [item] = newGroups.splice(dragIdx, 1);
-        newGroups.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        newGroups.splice(dropIdx, 0, item);
         setOrderedGroupKeys(newGroups);
         DiscourseGraphToolkit.saveGroupOrder(selectedProject, newGroups);
         handleGroupDragEnd();
@@ -60,7 +60,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         let targetList = groupKey ? orderedQuestionUIDsForGroup(groupKey) : [...orderedQuestionUIDs];
         
         const [item] = targetList.splice(dragIdx, 1);
-        targetList.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        targetList.splice(dropIdx, 0, item);
         
         if (groupKey) {
             DiscourseGraphToolkit.saveQuestionOrder(groupKey, targetList);

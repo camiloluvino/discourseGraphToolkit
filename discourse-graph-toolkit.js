@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.64
- * Bundled build: 2026-08-23 19:50:40
+ * DISCOURSE GRAPH TOOLKIT v1.5.66
+ * Bundled build: 2026-09-09 19:50:36
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.64";
+    DiscourseGraphToolkit.VERSION = "1.5.66";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -3468,13 +3468,10 @@ DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
     // Ordenar por 'order' si existe, para mantener la estructura
     const sortedChildren = [...children].sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    // Optimización: Importar hijos en paralelo usando Promise.all
-    // Roam API maneja el ordenamiento mediante la propiedad 'order', por lo que es seguro lanzarlos juntos.
-    const promises = sortedChildren.map((child, i) =>
-        DiscourseGraphToolkit.importBlock(parentUid, child, i)
-    );
-
-    await Promise.all(promises);
+    // Inserción secuencial para evitar race conditions en la API de Roam
+    for (let i = 0; i < sortedChildren.length; i++) {
+        await DiscourseGraphToolkit.importBlock(parentUid, sortedChildren[i], i);
+    }
 };
 
 DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order) {
@@ -9294,7 +9291,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         if (dragIdx === null || dropIdx === null || dragIdx === dropIdx) { handleGroupDragEnd(); return; }
         const newGroups = [...orderedGroupKeys];
         const [item] = newGroups.splice(dragIdx, 1);
-        newGroups.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        newGroups.splice(dropIdx, 0, item);
         setOrderedGroupKeys(newGroups);
         DiscourseGraphToolkit.saveGroupOrder(selectedProject, newGroups);
         handleGroupDragEnd();
@@ -9312,7 +9309,7 @@ DiscourseGraphToolkit.PanoramicTab = function () {
         let targetList = groupKey ? orderedQuestionUIDsForGroup(groupKey) : [...orderedQuestionUIDs];
         
         const [item] = targetList.splice(dragIdx, 1);
-        targetList.splice(dragIdx < dropIdx ? dropIdx - 1 : dropIdx, 0, item);
+        targetList.splice(dropIdx, 0, item);
         
         if (groupKey) {
             DiscourseGraphToolkit.saveQuestionOrder(groupKey, targetList);
@@ -9993,6 +9990,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         useAcademicNumbering, setUseAcademicNumbering
     } = DiscourseGraphToolkit.useExport();
 
+    // --- Project mapping ref ---
+    const uidToProjectRef = React.useRef({});
+
     // --- Favorites ---
     const [favorites, setFavorites] = React.useState([]);
 
@@ -10079,6 +10079,7 @@ DiscourseGraphToolkit.ExportTab = function () {
     // --- Limpiar preview cuando cambian los proyectos seleccionados ---
     React.useEffect(() => {
         setPreviewPages([]);
+        uidToProjectRef.current = {};
     }, [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, includeProjectMetadata, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
 
     // --- Sincronizar skeletonMode dinámicamente con contentConfig ---
@@ -10163,6 +10164,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
             setPreviewPages(uniquePages);
+            uidToProjectRef.current = uidToProject;
             return { uniquePages, uidToProject };
         } catch (e) {
             console.error(e);
@@ -10434,12 +10436,10 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExport = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
 
         setIsExporting(true);
@@ -10467,13 +10467,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportHtml = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -10501,13 +10500,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportMarkdown = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -10537,13 +10535,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportFlatMarkdown = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -10573,13 +10570,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportEpub = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {

@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-08-23
+**Última actualización:** 2026-09-09
 
 ## Versión Actual
 
-**v1.5.64**
+**v1.5.66**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,11 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.66 (Septiembre 2026)
+- **Fix/Export (Persistencia de asociación de proyectos en ExportTab)**: Se corrigió la pérdida de sub-proyectos (`_project: null`) al exportar múltiples veces o tras consultar previamente páginas (`previewPages`). El mapeo `uidToProject` ahora se retiene mediante `useRef` y se sincroniza con el ciclo de vida de los filtros de exportación.
+- **Fix/UI (Drag & Drop en Vista Panorámica)**: Se corrigió el cálculo de índice destino (`splice(dropIdx, 0, item)`) al arrastrar grupos y preguntas, eliminando desfases de posición al soltar elementos.
+- **Fix/Core (Importación Secuencial Segura)**: En `importChildren`, se reemplazó `Promise.all` por iteración secuencial para prevenir colisiones y race conditions en la API de bloques de Roam.
 
 ### v1.5.64 (Agosto 2026)
 - **Fix/UI (PopoverPortal desacoplado en Badges de Resumen)**: Se solucionó el problema de recorte horizontal del popover de advertencias (🏛️ Desalineadas, ⚠️ Diferentes, ❌ Sin proyecto) en el sidebar de Ramas:

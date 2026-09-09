@@ -20,6 +20,9 @@ DiscourseGraphToolkit.ExportTab = function () {
         useAcademicNumbering, setUseAcademicNumbering
     } = DiscourseGraphToolkit.useExport();
 
+    // --- Project mapping ref ---
+    const uidToProjectRef = React.useRef({});
+
     // --- Favorites ---
     const [favorites, setFavorites] = React.useState([]);
 
@@ -106,6 +109,7 @@ DiscourseGraphToolkit.ExportTab = function () {
     // --- Limpiar preview cuando cambian los proyectos seleccionados ---
     React.useEffect(() => {
         setPreviewPages([]);
+        uidToProjectRef.current = {};
     }, [selectedProjects, selectedTypes, contentConfig, excludeBitacora, skeletonMode, includeProjectMetadata, groupNamespaces, hideNodeLabels, useAcademicNumbering]);
 
     // --- Sincronizar skeletonMode dinámicamente con contentConfig ---
@@ -190,6 +194,7 @@ DiscourseGraphToolkit.ExportTab = function () {
 
             let uniquePages = Array.from(new Map(allPages.map(item => [item.pageUid, item])).values());
             setPreviewPages(uniquePages);
+            uidToProjectRef.current = uidToProject;
             return { uniquePages, uidToProject };
         } catch (e) {
             console.error(e);
@@ -461,12 +466,10 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExport = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
 
         setIsExporting(true);
@@ -494,13 +497,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportHtml = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -528,13 +530,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportMarkdown = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -564,13 +565,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportFlatMarkdown = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
@@ -600,13 +600,12 @@ DiscourseGraphToolkit.ExportTab = function () {
 
     const handleExportEpub = async () => {
         let pagesToExport = previewPages;
-        let uidToProject = {};
         if (pagesToExport.length === 0) {
             const result = await fetchPagesToExport();
             if (!result || !result.uniquePages || result.uniquePages.length === 0) return;
             pagesToExport = result.uniquePages;
-            uidToProject = result.uidToProject;
         }
+        const uidToProject = uidToProjectRef.current;
 
         setIsExporting(true);
         try {
