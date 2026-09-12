@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-09
+**Última actualización:** 2026-09-11
 
 ## Versión Actual
 
-**v1.5.66**
+**v1.5.67**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,9 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+
+### v1.5.67 (Septiembre 2026)
+- **Fix/UI (Selección jerárquica en todos los niveles en Coherencia de Ramas)**: Se eliminó la restricción `(depth <= 1)` en el renderizado de cabeceras de nodos (`renderBranchesNodeHeader`), habilitando checkboxes de selección individual y en cascada para todos los niveles y subniveles de profundidad (Nivel 2, 3, 4+) en el árbol de proyectos de la pestaña Ramas.
 
 ### v1.5.66 (Septiembre 2026)
 - **Fix/Export (Persistencia de asociación de proyectos en ExportTab)**: Se corrigió la pérdida de sub-proyectos (`_project: null`) al exportar múltiples veces o tras consultar previamente páginas (`previewPages`). El mapeo `uidToProject` ahora se retiene mediante `useRef` y se sincroniza con el ciclo de vida de los filtros de exportación.
