@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.67
+**Versión:** 1.5.68
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -67,11 +67,11 @@ Exporta tus grafos de discurso en m├║ltiples formatos:
 - **HTML:** Documento interactivo con estilos, navegaci├│n y reordenamiento.
 - **Markdown:** Formato estructurado con bullets e indentaci├│n.
 - **MD Plano:** Markdown sin bullets, ideal para conversi├│n a otros formatos.
-- **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidaci├│n infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un l├¡mite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
-- **EPUB:** Libro electr├│nico con generador nativo. Cuenta con **├ìndice Jer├írquico Profundo (ToC Interactivo)** y **numeraci├│n jer├írquica din├ímica** para cualquier nivel (ej. `1.2.1.2.1. `), preservando el contexto del discurso en lecturas lineales.
-- **Opciones de Formato para Impresi├│n (NUEVO):**
-  - **Agrupaci├│n por Namespaces:** Genera autom├íticamente encabezados de secci├│n (`# T├¡tulo`) basados en la jerarqu├¡a de proyectos, omitiendo el proyecto ra├¡z para mayor claridad (ej. de `tesis/marco` extrae `# Marco`).
-  - **Ocultar etiquetas de nodo:** Permite eliminar los prefijos `[[QUE]]`, `[[CLM]]`, etc., para obtener un texto m├ís limpio y profesional en documentos finales.
+- **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidación infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un límite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
+- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)**, **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), soporte completo de sintaxis de cursivas de Roam (`__texto__`), y compatibilidad con **Namespaces como títulos de sección** (generando páginas divisoras `<h1>` y anidando la tabla de contenidos bajo cada namespace).
+- **Opciones de Formato para Impresión (NUEVO):**
+  - **Agrupación por Namespaces:** Genera automáticamente encabezados de sección (`# Título`) basados en la jerarquía de proyectos, omitiendo el proyecto raíz para mayor claridad (ej. de `tesis/marco` extrae `# Marco`). Aplica tanto a Markdown como a EPUB (donde genera páginas divisoras H1 con navegación jerárquica).
+  - **Ocultar etiquetas de nodo:** Permite eliminar los prefijos `[[QUE]]`, `[[CLM]]`, etc., para obtener un texto más limpio y profesional en documentos finales.
   - **Numeraci├│n Jer├írquica:** A├▒ade numeraci├│n de estilo acad├®mico (1., 1.1., 1.1.1.) a los nodos, facilitando la referencia estructural en el documento impreso.
 - **HTML:** Documento interactivo con profundidad din├ímica. Los niveles superiores a 6 mantienen la jerarqu├¡a visual mediante indentaci├│n CSS progresiva.
 - **Markdown:** Indentaci├│n bulleted infinita en exportaci├│n est├índar y headings jer├írquicos `#` din├ímicos.

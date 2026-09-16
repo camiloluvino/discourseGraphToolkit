@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-11
+**Última actualización:** 2026-09-16
 
 ## Versión Actual
 
-**v1.5.67**
+**v1.5.68**
 
 ## Estado de Funcionalidades
 
@@ -21,7 +21,15 @@
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
-| Exportación EPUB | ✅ Mejorado | ToC profundo dinámico (usa el orden de la Panorámica) |
+| Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, páginas divisoras H1 por namespace y cursivas nativas Roam |
+
+### v1.5.68 (Septiembre 2026)
+- **Feature/EPUB (Namespaces como páginas divisoras H1)**: La opción "Usar namespaces como títulos de sección" (`groupNamespaces`) ahora aplica completamente a la exportación EPUB:
+  - Genera páginas separadoras independientes (`sectionN.xhtml`) con un encabezado de nivel 1 (`<h1 id="section-N">`) estilizado visualmente como divisor de sección y centrado con fallbacks CSS.
+  - La tabla de contenidos organiza jerárquicamente los capítulos bajo su sección padre tanto en EPUB3 (`nav.xhtml` con listas `<ol>` anidadas) como en EPUB2 (`toc.ncx` con `<navPoint>` anidados hasta profundidad 3).
+  - El manifiesto y spine de `content.opf` preservan el orden secuencial estricto de lectura.
+  - Mantiene compatibilidad total sin regresiones cuando la opción está desactivada.
+- **Fix/EPUB (Renderizado de cursivas nativas de Roam `__texto__`)**: Corrección en `processInlineMarkdown` y `stripMarkdown` de `epubGenerator.js` para transformar la sintaxis nativa de cursivas con doble guion bajo de Roam Research (`__texto__`) a etiquetas XHTML `<em>texto</em>`, soportando anidación con negrita (`**` y `__`) y limpiando los títulos en la tabla de contenidos y metadatos.
 
 ### v1.5.67 (Septiembre 2026)
 - **Fix/UI (Selección jerárquica en todos los niveles en Coherencia de Ramas)**: Se eliminó la restricción `(depth <= 1)` en el renderizado de cabeceras de nodos (`renderBranchesNodeHeader`), habilitando checkboxes de selección individual y en cascada para todos los niveles y subniveles de profundidad (Nivel 2, 3, 4+) en el árbol de proyectos de la pestaña Ramas.

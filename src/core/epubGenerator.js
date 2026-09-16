@@ -53,8 +53,17 @@ DiscourseGraphToolkit.EpubGenerator = {
         const date = new Date().toISOString().split('T')[0];
         const uuid = 'urn:uuid:' + this.generateUUID();
 
-        // Parse markdown into chapters
-        const chapters = this.parseMarkdownToChapters(flatMarkdown);
+        // Parse markdown into sections and chapters
+        const items = this.parseMarkdownToChapters(flatMarkdown);
+
+        // Assign fileIndex to chapters
+        let chapterIndex = 0;
+        items.forEach((item) => {
+            if (item.type === 'chapter') {
+                chapterIndex++;
+                item.fileIndex = chapterIndex;
+            }
+        });
 
         // Create EPUB structure
         // 1. mimetype (must be first and uncompressed)
@@ -64,20 +73,24 @@ DiscourseGraphToolkit.EpubGenerator = {
         zip.file('META-INF/container.xml', this.createContainerXml());
 
         // 3. OEBPS/content.opf (package file)
-        zip.file('OEBPS/content.opf', this.createContentOpf(title, author, date, uuid, chapters));
+        zip.file('OEBPS/content.opf', this.createContentOpf(title, author, date, uuid, items));
 
         // 4. OEBPS/toc.ncx (navigation)
-        zip.file('OEBPS/toc.ncx', this.createTocNcx(title, uuid, chapters));
+        zip.file('OEBPS/toc.ncx', this.createTocNcx(title, uuid, items));
 
         // 5. OEBPS/nav.xhtml (EPUB3 navigation)
-        zip.file('OEBPS/nav.xhtml', this.createNavXhtml(title, chapters));
+        zip.file('OEBPS/nav.xhtml', this.createNavXhtml(title, items));
 
         // 6. OEBPS/styles.css
         zip.file('OEBPS/styles.css', this.createStylesCss());
 
-        // 7. OEBPS/chapter files
-        chapters.forEach((chapter, index) => {
-            zip.file(`OEBPS/chapter${index + 1}.xhtml`, this.createChapterXhtml(chapter, index + 1));
+        // 7. OEBPS/ content files (sections and chapters)
+        items.forEach((item) => {
+            if (item.type === 'section') {
+                zip.file(`OEBPS/${item.fileId}.xhtml`, this.createSectionXhtml(item));
+            } else {
+                zip.file(`OEBPS/chapter${item.fileIndex}.xhtml`, this.createChapterXhtml(item, item.fileIndex));
+            }
         });
 
         // Generate the zip file
@@ -91,11 +104,13 @@ DiscourseGraphToolkit.EpubGenerator = {
         return blob;
     },
 
-    // Parse flat markdown into chapters based on ## headings (QUE nodes)
+    // Parse flat markdown into chapters based on ## headings (QUE nodes) and sections (# headings)
     parseMarkdownToChapters: function (markdown) {
         const chapters = [];
         const lines = markdown.split('\n');
         let currentChapter = null;
+        let sectionCounter = 0;
+        let currentSectionId = null;
 
         // Use a counter tracker exactly like markdownToXhtml to build IDs for ToC
         let counters = new Array(12).fill(0);
@@ -104,8 +119,26 @@ DiscourseGraphToolkit.EpubGenerator = {
         const getHeadingLevel = this._getHeadingLevel;
 
         for (const line of lines) {
-            // H1 is the main title, skip it
+            // H1 detection: skip global title, capture namespace sections
             if (line.startsWith('# ') && !line.startsWith('## ')) {
+                const rawH1 = line.replace(/^#\s*/, '').trim();
+                const normalizedH1 = rawH1.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (normalizedH1 === 'estructura de investigacion') {
+                    continue;
+                }
+                sectionCounter++;
+                currentSectionId = `section-${sectionCounter}`;
+                if (currentChapter) {
+                    chapters.push(currentChapter);
+                    currentChapter = null;
+                }
+                chapters.push({
+                    type: 'section',
+                    title: this.cleanTitle(rawH1),
+                    id: currentSectionId,
+                    fileId: `section${sectionCounter}`,
+                    level: 1
+                });
                 continue;
             }
 
@@ -120,6 +153,8 @@ DiscourseGraphToolkit.EpubGenerator = {
                 for (let i = 2; i < counters.length; i++) counters[i] = 0; // reset lower
 
                 currentChapter = {
+                    type: 'chapter',
+                    sectionId: currentSectionId,
                     title: this.cleanTitle(rawTitle),
                     nodeType: this.extractNodeType(rawTitle),
                     level: 2,
@@ -243,6 +278,8 @@ DiscourseGraphToolkit.EpubGenerator = {
         result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         // Italic *text*
         result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        // Italic __text__ (Roam syntax)
+        result = result.replace(/__([^_]+)__/g, '<em>$1</em>');
         // Clean Roam references [[text]]
         result = result.replace(/\[\[([^\]]+)\]\]/g, '$1');
         // Clean Roam block references ((uid))
@@ -264,6 +301,7 @@ DiscourseGraphToolkit.EpubGenerator = {
         return text
             .replace(/\*\*([^*]+)\*\*/g, '$1')  // Remove bold **text** → text
             .replace(/\*([^*]+)\*/g, '$1')       // Remove italic *text* → text
+            .replace(/__([^_]+)__/g, '$1')       // Remove italic __text__ → text (Roam)
             .replace(/\[\[([^\]]+)\]\]/g, '$1'); // Remove [[links]] → links
     },
 
@@ -285,14 +323,20 @@ DiscourseGraphToolkit.EpubGenerator = {
 </container>`;
     },
 
-    createContentOpf: function (title, author, date, uuid, chapters) {
-        const manifestItems = chapters.map((_, i) =>
-            `    <item id="chapter${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`
-        ).join('\n');
+    createContentOpf: function (title, author, date, uuid, items) {
+        const manifestItems = items.map((item) => {
+            if (item.type === 'section') {
+                return `    <item id="${item.fileId}" href="${item.fileId}.xhtml" media-type="application/xhtml+xml"/>`;
+            }
+            return `    <item id="chapter${item.fileIndex}" href="chapter${item.fileIndex}.xhtml" media-type="application/xhtml+xml"/>`;
+        }).join('\n');
 
-        const spineItems = chapters.map((_, i) =>
-            `    <itemref idref="chapter${i + 1}"/>`
-        ).join('\n');
+        const spineItems = items.map((item) => {
+            if (item.type === 'section') {
+                return `    <itemref idref="${item.fileId}"/>`;
+            }
+            return `    <itemref idref="chapter${item.fileIndex}"/>`;
+        }).join('\n');
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
@@ -317,7 +361,28 @@ ${spineItems}
 </package>`;
     },
 
-    createTocNcx: function (title, uuid, chapters) {
+    // Group items into sections with nested chapters
+    _groupItemsBySection: function (items) {
+        const groups = [];
+        let currentGroup = { section: null, chapters: [] };
+
+        items.forEach((item) => {
+            if (item.type === 'section') {
+                if (currentGroup.section !== null || currentGroup.chapters.length > 0) {
+                    groups.push(currentGroup);
+                }
+                currentGroup = { section: item, chapters: [] };
+            } else {
+                currentGroup.chapters.push(item);
+            }
+        });
+        if (currentGroup.section !== null || currentGroup.chapters.length > 0) {
+            groups.push(currentGroup);
+        }
+        return groups;
+    },
+
+    createTocNcx: function (title, uuid, items) {
         let playOrder = 1;
 
         const tocNavPoint = `
@@ -327,40 +392,63 @@ ${spineItems}
     </navPoint>`;
         playOrder++;
 
+        const groups = this._groupItemsBySection(items);
         let navPointsMarkup = '';
-        chapters.forEach((chapter, i) => {
+
+        const renderChapterNavPoint = (chapter, indent = '    ') => {
             const chapId = `navpoint${playOrder}`;
             const chapOrder = playOrder++;
             const chapTitle = this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)));
-            const chapSrc = `chapter${i + 1}.xhtml`;
+            const chapSrc = `chapter${chapter.fileIndex}.xhtml`;
 
-            navPointsMarkup += `
-    <navPoint id="${chapId}" playOrder="${chapOrder}">
-      <navLabel><text>${chapTitle}</text></navLabel>
-      <content src="${chapSrc}"/>`;
+            let markup = `\n${indent}<navPoint id="${chapId}" playOrder="${chapOrder}">` +
+                `\n${indent}  <navLabel><text>${chapter.numberPrefix}${chapTitle}</text></navLabel>` +
+                `\n${indent}  <content src="${chapSrc}"/>`;
 
             if (chapter.subItems && chapter.subItems.length > 0) {
                 chapter.subItems.forEach((subItem) => {
                     const subId = `navpoint${playOrder}`;
                     const subOrder = playOrder++;
                     const subTitle = this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)));
-                    navPointsMarkup += `
-      <navPoint id="${subId}" playOrder="${subOrder}">
-        <navLabel><text>${subItem.numberPrefix}${subTitle}</text></navLabel>
-        <content src="${chapSrc}#${subItem.id}"/>
-      </navPoint>`;
+                    markup += `\n${indent}  <navPoint id="${subId}" playOrder="${subOrder}">` +
+                        `\n${indent}    <navLabel><text>${subItem.numberPrefix}${subTitle}</text></navLabel>` +
+                        `\n${indent}    <content src="${chapSrc}#${subItem.id}"/>` +
+                        `\n${indent}  </navPoint>`;
                 });
             }
 
-            navPointsMarkup += `
-    </navPoint>`;
+            markup += `\n${indent}</navPoint>`;
+            return markup;
+        };
+
+        groups.forEach((group) => {
+            if (group.section) {
+                const secId = `navpoint${playOrder}`;
+                const secOrder = playOrder++;
+                const secTitle = this.escapeHtml(this.stripMarkdown(group.section.title.substring(0, 80)));
+                const secSrc = `${group.section.fileId}.xhtml`;
+
+                navPointsMarkup += `\n    <navPoint id="${secId}" playOrder="${secOrder}">` +
+                    `\n      <navLabel><text>${secTitle}</text></navLabel>` +
+                    `\n      <content src="${secSrc}"/>`;
+
+                group.chapters.forEach((chapter) => {
+                    navPointsMarkup += renderChapterNavPoint(chapter, '      ');
+                });
+
+                navPointsMarkup += `\n    </navPoint>`;
+            } else {
+                group.chapters.forEach((chapter) => {
+                    navPointsMarkup += renderChapterNavPoint(chapter, '    ');
+                });
+            }
         });
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uuid}"/>
-    <meta name="dtb:depth" content="2"/>
+    <meta name="dtb:depth" content="3"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
@@ -371,18 +459,36 @@ ${tocNavPoint}${navPointsMarkup}
 </ncx>`;
     },
 
-    createNavXhtml: function (title, chapters) {
-        const navItems = chapters.map((chapter, i) => {
-            let itemHtml = `        <li><a href="chapter${i + 1}.xhtml">${chapter.numberPrefix}${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a>`;
+    createNavXhtml: function (title, items) {
+        const groups = this._groupItemsBySection(items);
+
+        const renderChapterLi = (chapter) => {
+            let itemHtml = `        <li><a href="chapter${chapter.fileIndex}.xhtml">${chapter.numberPrefix}${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a>`;
             if (chapter.subItems && chapter.subItems.length > 0) {
                 itemHtml += `\n          <ol>\n`;
                 chapter.subItems.forEach((subItem) => {
-                    itemHtml += `            <li><a href="chapter${i + 1}.xhtml#${subItem.id}">${subItem.numberPrefix}${this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)))}</a></li>\n`;
+                    itemHtml += `            <li><a href="chapter${chapter.fileIndex}.xhtml#${subItem.id}">${subItem.numberPrefix}${this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)))}</a></li>\n`;
                 });
                 itemHtml += `          </ol>\n        `;
             }
             itemHtml += `</li>`;
             return itemHtml;
+        };
+
+        const navItems = groups.map((group) => {
+            if (group.section) {
+                const secTitle = this.escapeHtml(this.stripMarkdown(group.section.title.substring(0, 80)));
+                let secHtml = `      <li><a href="${group.section.fileId}.xhtml">${secTitle}</a>`;
+                if (group.chapters.length > 0) {
+                    secHtml += `\n        <ol>\n`;
+                    secHtml += group.chapters.map(c => `  ${renderChapterLi(c)}`).join('\n');
+                    secHtml += `\n        </ol>\n      `;
+                }
+                secHtml += `</li>`;
+                return secHtml;
+            } else {
+                return group.chapters.map(renderChapterLi).join('\n');
+            }
         }).join('\n');
 
         return `<?xml version="1.0" encoding="UTF-8"?>
@@ -435,6 +541,24 @@ em { font-style: italic; }
   margin-bottom: 1.2em;
 }
 
+.section-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding-top: 25vh;
+  text-align: center;
+}
+
+.section-divider h1 {
+  text-align: center;
+  font-size: 2.2em;
+  color: #1565C0;
+  border-bottom: 2px solid #2196F3;
+  padding-bottom: 0.3em;
+  display: inline-block;
+}
+
 nav ol {
   list-style-type: decimal;
   padding-left: 1.5em;
@@ -443,6 +567,22 @@ nav ol {
 nav li {
   margin: 0.3em 0;
 }`;
+    },
+
+    createSectionXhtml: function (section) {
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>${this.escapeHtml(this.stripMarkdown(section.title))}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <div class="section-divider">
+    <h1 id="${section.id}">${this.processInlineMarkdown(section.title)}</h1>
+  </div>
+</body>
+</html>`;
     },
 
     createChapterXhtml: function (chapter, chapterNum) {

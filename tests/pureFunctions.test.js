@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,6 +13,7 @@ global.DiscourseGraphToolkit = {};
 // Cargar archivos de origen
 require('../src/config.js');
 require('../src/utils/helpers.js');
+require('../src/core/epubGenerator.js');
 
 // markdownCore.js declara var MarkdownCore en el scope local del m├│dulo en Node.js,
 // por lo que debemos evaluarlo en el contexto global de test para que sea accesible.
@@ -91,3 +92,145 @@ test('MarkdownCore.cleanText - Limpieza de espacios extra', () => {
     assert.strictEqual(global.MarkdownCore.cleanText('  hola   mundo  '), 'hola mundo');
     assert.strictEqual(global.MarkdownCore.cleanText(''), '');
 });
+
+test('EpubGenerator.processInlineMarkdown - Formateo de cursivas de Roam (__texto__)', () => {
+    const epub = DGT.EpubGenerator;
+    assert.strictEqual(epub.processInlineMarkdown('Texto en __cursiva__'), 'Texto en <em>cursiva</em>');
+    assert.strictEqual(epub.processInlineMarkdown('__una__ y __dos__ cursivas'), '<em>una</em> y <em>dos</em> cursivas');
+    assert.strictEqual(epub.processInlineMarkdown('**negrita con __cursiva__**'), '<strong>negrita con <em>cursiva</em></strong>');
+    assert.strictEqual(epub.processInlineMarkdown('__cursiva con **negrita**__'), '<em>cursiva con <strong>negrita</strong></em>');
+    assert.strictEqual(epub.processInlineMarkdown('*asteriscos* y __guiones bajos__'), '<em>asteriscos</em> y <em>guiones bajos</em>');
+});
+
+test('EpubGenerator.stripMarkdown - Limpieza de cursivas de Roam (__texto__)', () => {
+    const epub = DGT.EpubGenerator;
+    assert.strictEqual(epub.stripMarkdown('Título con __cursiva__ y **negrita**'), 'Título con cursiva y negrita');
+    assert.strictEqual(epub.stripMarkdown('__cursiva__'), 'cursiva');
+});
+
+test('EpubGenerator.parseMarkdownToChapters - Con namespaces como títulos H1', () => {
+    const epub = DGT.EpubGenerator;
+    const md = `# Estructura de Investigación
+
+# Marco Teórico
+
+## [[QUE]] - ¿Pregunta 1?
+### [[CLM]] - Afirmación 1
+
+## [[QUE]] - ¿Pregunta 2?
+
+# Metodología
+
+## [[QUE]] - ¿Pregunta 3?
+`;
+
+    const items = epub.parseMarkdownToChapters(md);
+    assert.strictEqual(items.length, 5);
+
+    // Item 0: Section Marco Teórico
+    assert.strictEqual(items[0].type, 'section');
+    assert.strictEqual(items[0].title, 'Marco Teórico');
+    assert.strictEqual(items[0].fileId, 'section1');
+    assert.strictEqual(items[0].id, 'section-1');
+
+    // Item 1: Chapter 1
+    assert.strictEqual(items[1].type, 'chapter');
+    assert.strictEqual(items[1].title, '¿Pregunta 1?');
+    assert.strictEqual(items[1].numberPrefix, '1. ');
+    assert.strictEqual(items[1].sectionId, 'section-1');
+    assert.strictEqual(items[1].subItems.length, 1);
+
+    // Item 2: Chapter 2
+    assert.strictEqual(items[2].type, 'chapter');
+    assert.strictEqual(items[2].title, '¿Pregunta 2?');
+    assert.strictEqual(items[2].numberPrefix, '2. ');
+    assert.strictEqual(items[2].sectionId, 'section-1');
+
+    // Item 3: Section Metodología
+    assert.strictEqual(items[3].type, 'section');
+    assert.strictEqual(items[3].title, 'Metodología');
+    assert.strictEqual(items[3].fileId, 'section2');
+    assert.strictEqual(items[3].id, 'section-2');
+
+    // Item 4: Chapter 3
+    assert.strictEqual(items[4].type, 'chapter');
+    assert.strictEqual(items[4].title, '¿Pregunta 3?');
+    assert.strictEqual(items[4].numberPrefix, '3. ');
+    assert.strictEqual(items[4].sectionId, 'section-2');
+});
+
+test('EpubGenerator.parseMarkdownToChapters - Sin namespaces (retrocompatibilidad)', () => {
+    const epub = DGT.EpubGenerator;
+    const md = `# Estructura de Investigación
+
+## [[QUE]] - ¿Pregunta A?
+## [[QUE]] - ¿Pregunta B?
+`;
+
+    const items = epub.parseMarkdownToChapters(md);
+    assert.strictEqual(items.length, 2);
+    assert.strictEqual(items[0].type, 'chapter');
+    assert.strictEqual(items[0].numberPrefix, '1. ');
+    assert.strictEqual(items[1].type, 'chapter');
+    assert.strictEqual(items[1].numberPrefix, '2. ');
+});
+
+test('EpubGenerator._groupItemsBySection - Agrupamiento de secciones y capítulos', () => {
+    const epub = DGT.EpubGenerator;
+    const items = [
+        { type: 'section', title: 'Sec1', fileId: 'section1' },
+        { type: 'chapter', title: 'Chap1', fileIndex: 1 },
+        { type: 'chapter', title: 'Chap2', fileIndex: 2 },
+        { type: 'section', title: 'Sec2', fileId: 'section2' },
+        { type: 'chapter', title: 'Chap3', fileIndex: 3 }
+    ];
+
+    const groups = epub._groupItemsBySection(items);
+    assert.strictEqual(groups.length, 2);
+    assert.strictEqual(groups[0].section.title, 'Sec1');
+    assert.strictEqual(groups[0].chapters.length, 2);
+    assert.strictEqual(groups[1].section.title, 'Sec2');
+    assert.strictEqual(groups[1].chapters.length, 1);
+});
+
+test('EpubGenerator.createSectionXhtml - Generación de página divisora', () => {
+    const epub = DGT.EpubGenerator;
+    const section = { type: 'section', title: 'Marco Teórico', fileId: 'section1', id: 'section-1' };
+    const html = epub.createSectionXhtml(section);
+
+    assert.ok(html.includes('<title>Marco Teórico</title>'));
+    assert.ok(html.includes('<div class="section-divider">'));
+    assert.ok(html.includes('<h1 id="section-1">Marco Teórico</h1>'));
+});
+
+test('EpubGenerator - Manifest y Spine en createContentOpf con secciones', () => {
+    const epub = DGT.EpubGenerator;
+    const items = [
+        { type: 'section', fileId: 'section1' },
+        { type: 'chapter', fileIndex: 1 }
+    ];
+    const opf = epub.createContentOpf('Test Title', 'Test Author', '2026-09-16', 'uuid-123', items);
+
+    assert.ok(opf.includes('<item id="section1" href="section1.xhtml" media-type="application/xhtml+xml"/>'));
+    assert.ok(opf.includes('<item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>'));
+    assert.ok(opf.includes('<itemref idref="section1"/>'));
+    assert.ok(opf.includes('<itemref idref="chapter1"/>'));
+});
+
+test('EpubGenerator - Estructura jerárquica en nav.xhtml y toc.ncx', () => {
+    const epub = DGT.EpubGenerator;
+    const items = [
+        { type: 'section', title: 'Marco', fileId: 'section1', id: 'section-1' },
+        { type: 'chapter', title: 'Pregunta 1', fileIndex: 1, numberPrefix: '1. ', subItems: [] }
+    ];
+
+    const nav = epub.createNavXhtml('Test Title', items);
+    assert.ok(nav.includes('<a href="section1.xhtml">Marco</a>'));
+    assert.ok(nav.includes('<a href="chapter1.xhtml">1. Pregunta 1</a>'));
+
+    const ncx = epub.createTocNcx('Test Title', 'uuid-123', items);
+    assert.ok(ncx.includes('<content src="section1.xhtml"/>'));
+    assert.ok(ncx.includes('<content src="chapter1.xhtml"/>'));
+});
+
+
