@@ -126,6 +126,10 @@ DiscourseGraphToolkit.EpubGenerator = {
                 if (normalizedH1 === 'estructura de investigacion') {
                     continue;
                 }
+                const depthMatch = rawH1.match(/<!--\s*depth:(\d+)\s*-->/);
+                const depth = depthMatch ? parseInt(depthMatch[1], 10) : 1;
+                const cleanH1Title = rawH1.replace(/<!--\s*depth:\d+\s*-->/, '').trim();
+
                 sectionCounter++;
                 currentSectionId = `section-${sectionCounter}`;
                 if (currentChapter) {
@@ -134,7 +138,8 @@ DiscourseGraphToolkit.EpubGenerator = {
                 }
                 chapters.push({
                     type: 'section',
-                    title: this.cleanTitle(rawH1),
+                    title: this.cleanTitle(cleanH1Title),
+                    depth: depth,
                     id: currentSectionId,
                     fileId: `section${sectionCounter}`,
                     level: 1
@@ -361,7 +366,36 @@ ${spineItems}
 </package>`;
     },
 
-    // Group items into sections with nested chapters
+    // Build hierarchical section tree using a stack of ancestors
+    _buildSectionTree: function (items) {
+        const root = { children: [], chapters: [] };
+        const stack = [root]; // stack[0] = virtual root
+
+        items.forEach((item) => {
+            if (item.type === 'section') {
+                const node = { section: item, children: [], chapters: [] };
+                // Pop until finding an ancestor with strictly smaller depth
+                while (stack.length > 1 && stack[stack.length - 1].section &&
+                       stack[stack.length - 1].section.depth >= item.depth) {
+                    stack.pop();
+                }
+                // Add as child of current top
+                stack[stack.length - 1].children.push(node);
+                stack.push(node);
+            } else {
+                // Chapter: add to current section or virtual root
+                if (stack.length > 1) {
+                    stack[stack.length - 1].chapters.push(item);
+                } else {
+                    root.chapters.push(item);
+                }
+            }
+        });
+
+        return root;
+    },
+
+    // Group items into sections with nested chapters (flat 1-level, backward-compatible)
     _groupItemsBySection: function (items) {
         const groups = [];
         let currentGroup = { section: null, chapters: [] };
@@ -392,7 +426,7 @@ ${spineItems}
     </navPoint>`;
         playOrder++;
 
-        const groups = this._groupItemsBySection(items);
+        const tree = this._buildSectionTree(items);
         let navPointsMarkup = '';
 
         const renderChapterNavPoint = (chapter, indent = '    ') => {
@@ -421,34 +455,63 @@ ${spineItems}
             return markup;
         };
 
-        groups.forEach((group) => {
-            if (group.section) {
-                const secId = `navpoint${playOrder}`;
-                const secOrder = playOrder++;
-                const secTitle = this.escapeHtml(this.stripMarkdown(group.section.title.substring(0, 80)));
-                const secSrc = `${group.section.fileId}.xhtml`;
+        const renderNodeNavPoint = (node, indent = '    ') => {
+            const secId = `navpoint${playOrder}`;
+            const secOrder = playOrder++;
+            const secTitle = this.escapeHtml(this.stripMarkdown(node.section.title.substring(0, 80)));
+            const secSrc = `${node.section.fileId}.xhtml`;
 
-                navPointsMarkup += `\n    <navPoint id="${secId}" playOrder="${secOrder}">` +
-                    `\n      <navLabel><text>${secTitle}</text></navLabel>` +
-                    `\n      <content src="${secSrc}"/>`;
+            let markup = `\n${indent}<navPoint id="${secId}" playOrder="${secOrder}">` +
+                `\n${indent}  <navLabel><text>${secTitle}</text></navLabel>` +
+                `\n${indent}  <content src="${secSrc}"/>`;
 
-                group.chapters.forEach((chapter) => {
-                    navPointsMarkup += renderChapterNavPoint(chapter, '      ');
-                });
-
-                navPointsMarkup += `\n    </navPoint>`;
-            } else {
-                group.chapters.forEach((chapter) => {
-                    navPointsMarkup += renderChapterNavPoint(chapter, '    ');
+            if (node.children && node.children.length > 0) {
+                node.children.forEach((child) => {
+                    markup += renderNodeNavPoint(child, indent + '  ');
                 });
             }
-        });
+
+            if (node.chapters && node.chapters.length > 0) {
+                node.chapters.forEach((chapter) => {
+                    markup += renderChapterNavPoint(chapter, indent + '  ');
+                });
+            }
+
+            markup += `\n${indent}</navPoint>`;
+            return markup;
+        };
+
+        if (tree.chapters && tree.chapters.length > 0) {
+            tree.chapters.forEach((chapter) => {
+                navPointsMarkup += renderChapterNavPoint(chapter, '    ');
+            });
+        }
+        if (tree.children && tree.children.length > 0) {
+            tree.children.forEach((child) => {
+                navPointsMarkup += renderNodeNavPoint(child, '    ');
+            });
+        }
+
+        const calcDepth = (node, currentDepth) => {
+            let maxD = currentDepth;
+            if (node.children) {
+                node.children.forEach(c => {
+                    maxD = Math.max(maxD, calcDepth(c, currentDepth + 1));
+                });
+            }
+            if (node.chapters && node.chapters.length > 0) {
+                let hasSub = node.chapters.some(ch => ch.subItems && ch.subItems.length > 0);
+                maxD = Math.max(maxD, currentDepth + (hasSub ? 2 : 1));
+            }
+            return maxD;
+        };
+        const maxDepth = Math.max(3, calcDepth(tree, 1));
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uuid}"/>
-    <meta name="dtb:depth" content="3"/>
+    <meta name="dtb:depth" content="${maxDepth}"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
@@ -460,36 +523,49 @@ ${tocNavPoint}${navPointsMarkup}
     },
 
     createNavXhtml: function (title, items) {
-        const groups = this._groupItemsBySection(items);
+        const tree = this._buildSectionTree(items);
 
-        const renderChapterLi = (chapter) => {
-            let itemHtml = `        <li><a href="chapter${chapter.fileIndex}.xhtml">${chapter.numberPrefix}${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a>`;
+        const renderChapterLi = (chapter, indent = '        ') => {
+            let itemHtml = `${indent}<li><a href="chapter${chapter.fileIndex}.xhtml">${chapter.numberPrefix}${this.escapeHtml(this.stripMarkdown(chapter.title.substring(0, 80)))}</a>`;
             if (chapter.subItems && chapter.subItems.length > 0) {
-                itemHtml += `\n          <ol>\n`;
+                itemHtml += `\n${indent}  <ol>\n`;
                 chapter.subItems.forEach((subItem) => {
-                    itemHtml += `            <li><a href="chapter${chapter.fileIndex}.xhtml#${subItem.id}">${subItem.numberPrefix}${this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)))}</a></li>\n`;
+                    itemHtml += `${indent}    <li><a href="chapter${chapter.fileIndex}.xhtml#${subItem.id}">${subItem.numberPrefix}${this.escapeHtml(this.stripMarkdown(subItem.title.substring(0, 80)))}</a></li>\n`;
                 });
-                itemHtml += `          </ol>\n        `;
+                itemHtml += `${indent}  </ol>\n${indent}`;
             }
             itemHtml += `</li>`;
             return itemHtml;
         };
 
-        const navItems = groups.map((group) => {
-            if (group.section) {
-                const secTitle = this.escapeHtml(this.stripMarkdown(group.section.title.substring(0, 80)));
-                let secHtml = `      <li><a href="${group.section.fileId}.xhtml">${secTitle}</a>`;
-                if (group.chapters.length > 0) {
-                    secHtml += `\n        <ol>\n`;
-                    secHtml += group.chapters.map(c => `  ${renderChapterLi(c)}`).join('\n');
-                    secHtml += `\n        </ol>\n      `;
+        const renderNodeLi = (node, indent = '      ') => {
+            const secTitle = this.escapeHtml(this.stripMarkdown(node.section.title.substring(0, 80)));
+            let html = `${indent}<li><a href="${node.section.fileId}.xhtml">${secTitle}</a>`;
+
+            const hasChildren = (node.children && node.children.length > 0);
+            const hasChapters = (node.chapters && node.chapters.length > 0);
+
+            if (hasChildren || hasChapters) {
+                html += `\n${indent}  <ol>\n`;
+                if (hasChildren) {
+                    html += node.children.map(child => renderNodeLi(child, indent + '    ')).join('\n') + '\n';
                 }
-                secHtml += `</li>`;
-                return secHtml;
-            } else {
-                return group.chapters.map(renderChapterLi).join('\n');
+                if (hasChapters) {
+                    html += node.chapters.map(ch => renderChapterLi(ch, indent + '    ')).join('\n') + '\n';
+                }
+                html += `${indent}  </ol>\n${indent}`;
             }
-        }).join('\n');
+            html += `</li>`;
+            return html;
+        };
+
+        let navItems = '';
+        if (tree.chapters && tree.chapters.length > 0) {
+            navItems += tree.chapters.map(ch => renderChapterLi(ch, '      ')).join('\n') + '\n';
+        }
+        if (tree.children && tree.children.length > 0) {
+            navItems += tree.children.map(child => renderNodeLi(child, '      ')).join('\n');
+        }
 
         return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -546,16 +622,45 @@ em { font-style: italic; }
   align-items: center;
   justify-content: center;
   min-height: 80vh;
-  padding-top: 25vh;
   text-align: center;
 }
 
-.section-divider h1 {
+.section-divider.depth-1 {
+  padding-top: 25vh;
+}
+
+.section-divider.depth-1 h1 {
   text-align: center;
-  font-size: 2.2em;
+  font-size: 2.5em;
   color: #1565C0;
-  border-bottom: 2px solid #2196F3;
+  border-bottom: 3px solid #2196F3;
+  padding-bottom: 0.4em;
+  display: inline-block;
+}
+
+.section-divider.depth-2 {
+  padding-top: 20vh;
+}
+
+.section-divider.depth-2 h1 {
+  text-align: center;
+  font-size: 2em;
+  color: #2E7D32;
+  border-bottom: 2px solid #4CAF50;
   padding-bottom: 0.3em;
+  display: inline-block;
+}
+
+.section-divider.depth-3 {
+  padding-top: 15vh;
+}
+
+.section-divider.depth-3 h1 {
+  text-align: center;
+  font-size: 1.6em;
+  color: #E65100;
+  border-bottom: 1px solid #FF9800;
+  padding-bottom: 0.2em;
   display: inline-block;
 }
 
@@ -570,6 +675,8 @@ nav li {
     },
 
     createSectionXhtml: function (section) {
+        const depth = Math.min(section.depth || 1, 3);
+        const depthClass = `depth-${depth}`;
         return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -578,7 +685,7 @@ nav li {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
-  <div class="section-divider">
+  <div class="section-divider ${depthClass}">
     <h1 id="${section.id}">${this.processInlineMarkdown(section.title)}</h1>
   </div>
 </body>

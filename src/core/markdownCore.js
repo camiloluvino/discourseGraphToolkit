@@ -380,7 +380,7 @@ var MarkdownCore = {
                     var currentPart = projectParts[i];
                     if (currentPart) {
                         var capitalizedPart = currentPart.charAt(0).toUpperCase() + currentPart.slice(1);
-                        result += '# ' + capitalizedPart + '\n\n';
+                        result += '# ' + capitalizedPart + ' <!-- depth:' + i + ' -->\n\n';
                     }
                 }
                 

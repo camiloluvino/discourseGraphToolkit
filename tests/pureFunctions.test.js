@@ -199,7 +199,7 @@ test('EpubGenerator.createSectionXhtml - Generación de página divisora', () =>
     const html = epub.createSectionXhtml(section);
 
     assert.ok(html.includes('<title>Marco Teórico</title>'));
-    assert.ok(html.includes('<div class="section-divider">'));
+    assert.ok(html.includes('section-divider'));
     assert.ok(html.includes('<h1 id="section-1">Marco Teórico</h1>'));
 });
 
@@ -220,7 +220,7 @@ test('EpubGenerator - Manifest y Spine en createContentOpf con secciones', () =>
 test('EpubGenerator - Estructura jerárquica en nav.xhtml y toc.ncx', () => {
     const epub = DGT.EpubGenerator;
     const items = [
-        { type: 'section', title: 'Marco', fileId: 'section1', id: 'section-1' },
+        { type: 'section', title: 'Marco', fileId: 'section1', id: 'section-1', depth: 1 },
         { type: 'chapter', title: 'Pregunta 1', fileIndex: 1, numberPrefix: '1. ', subItems: [] }
     ];
 
@@ -232,5 +232,128 @@ test('EpubGenerator - Estructura jerárquica en nav.xhtml y toc.ncx', () => {
     assert.ok(ncx.includes('<content src="section1.xhtml"/>'));
     assert.ok(ncx.includes('<content src="chapter1.xhtml"/>'));
 });
+
+test('EpubGenerator.parseMarkdownToChapters - Extracción de profundidad <!-- depth:N -->', () => {
+    const epub = DGT.EpubGenerator;
+    const md = `# Estructura de Investigación
+
+# EstructuraTesis <!-- depth:1 -->
+
+# DebateVínculos <!-- depth:2 -->
+
+# NorteGlobal <!-- depth:3 -->
+## [[QUE]] - ¿Pregunta 1?
+
+# SurGlobal <!-- depth:3 -->
+## [[QUE]] - ¿Pregunta 2?
+`;
+
+    const items = epub.parseMarkdownToChapters(md);
+    assert.strictEqual(items.length, 6);
+
+    assert.strictEqual(items[0].type, 'section');
+    assert.strictEqual(items[0].title, 'EstructuraTesis');
+    assert.strictEqual(items[0].depth, 1);
+
+    assert.strictEqual(items[1].type, 'section');
+    assert.strictEqual(items[1].title, 'DebateVínculos');
+    assert.strictEqual(items[1].depth, 2);
+
+    assert.strictEqual(items[2].type, 'section');
+    assert.strictEqual(items[2].title, 'NorteGlobal');
+    assert.strictEqual(items[2].depth, 3);
+
+    assert.strictEqual(items[3].type, 'chapter');
+    assert.strictEqual(items[3].title, '¿Pregunta 1?');
+
+    assert.strictEqual(items[4].type, 'section');
+    assert.strictEqual(items[4].title, 'SurGlobal');
+    assert.strictEqual(items[4].depth, 3);
+
+    assert.strictEqual(items[5].type, 'chapter');
+    assert.strictEqual(items[5].title, '¿Pregunta 2?');
+});
+
+test('EpubGenerator._buildSectionTree - Construcción de árbol jerárquico multinivel', () => {
+    const epub = DGT.EpubGenerator;
+    const items = [
+        { type: 'section', title: 'EstructuraTesis', fileId: 'sec1', depth: 1 },
+        { type: 'section', title: 'DebateVínculos', fileId: 'sec2', depth: 2 },
+        { type: 'section', title: 'NorteGlobal', fileId: 'sec3', depth: 3 },
+        { type: 'chapter', title: 'Chap1', fileIndex: 1 },
+        { type: 'section', title: 'SurGlobal', fileId: 'sec4', depth: 3 },
+        { type: 'chapter', title: 'Chap2', fileIndex: 2 },
+        { type: 'section', title: 'QuienesNoTematizan', fileId: 'sec5', depth: 3 },
+        { type: 'chapter', title: 'Chap3', fileIndex: 3 },
+        { type: 'section', title: 'Metodología', fileId: 'sec6', depth: 1 },
+        { type: 'chapter', title: 'Chap4', fileIndex: 4 }
+    ];
+
+    const tree = epub._buildSectionTree(items);
+    assert.strictEqual(tree.children.length, 2); // EstructuraTesis and Metodología
+
+    // Rama 1: EstructuraTesis (depth 1)
+    const node1 = tree.children[0];
+    assert.strictEqual(node1.section.title, 'EstructuraTesis');
+    assert.strictEqual(node1.children.length, 1); // DebateVínculos
+    assert.strictEqual(node1.chapters.length, 0);
+
+    // Sub-rama: DebateVínculos (depth 2)
+    const nodeDebate = node1.children[0];
+    assert.strictEqual(nodeDebate.section.title, 'DebateVínculos');
+    assert.strictEqual(nodeDebate.children.length, 3); // NorteGlobal, SurGlobal, QuienesNoTematizan
+
+    // Hojas de DebateVínculos (depth 3)
+    assert.strictEqual(nodeDebate.children[0].section.title, 'NorteGlobal');
+    assert.strictEqual(nodeDebate.children[0].chapters.length, 1);
+    assert.strictEqual(nodeDebate.children[0].chapters[0].title, 'Chap1');
+
+    assert.strictEqual(nodeDebate.children[1].section.title, 'SurGlobal');
+    assert.strictEqual(nodeDebate.children[1].chapters.length, 1);
+
+    assert.strictEqual(nodeDebate.children[2].section.title, 'QuienesNoTematizan');
+    assert.strictEqual(nodeDebate.children[2].chapters.length, 1);
+
+    // Rama 2: Metodología (depth 1)
+    const node2 = tree.children[1];
+    assert.strictEqual(node2.section.title, 'Metodología');
+    assert.strictEqual(node2.chapters.length, 1);
+    assert.strictEqual(node2.chapters[0].title, 'Chap4');
+});
+
+test('EpubGenerator - TOC anidado multinivel en nav.xhtml y toc.ncx', () => {
+    const epub = DGT.EpubGenerator;
+    const items = [
+        { type: 'section', title: 'EstructuraTesis', fileId: 'sec1', id: 's-1', depth: 1 },
+        { type: 'section', title: 'DebateVínculos', fileId: 'sec2', id: 's-2', depth: 2 },
+        { type: 'section', title: 'NorteGlobal', fileId: 'sec3', id: 's-3', depth: 3 },
+        { type: 'chapter', title: 'Pregunta Norte', fileIndex: 1, numberPrefix: '1. ', subItems: [] }
+    ];
+
+    const nav = epub.createNavXhtml('Libro Test', items);
+    // Verificamos que contenga la cadena de enlaces jerárquicos
+    assert.ok(nav.includes('sec1.xhtml'));
+    assert.ok(nav.includes('sec2.xhtml'));
+    assert.ok(nav.includes('sec3.xhtml'));
+    assert.ok(nav.includes('chapter1.xhtml'));
+
+    const ncx = epub.createTocNcx('Libro Test', 'uuid-test', items);
+    assert.ok(ncx.includes('src="sec1.xhtml"'));
+    assert.ok(ncx.includes('src="sec2.xhtml"'));
+    assert.ok(ncx.includes('src="sec3.xhtml"'));
+    assert.ok(ncx.includes('src="chapter1.xhtml"'));
+});
+
+test('EpubGenerator.createSectionXhtml - Clases CSS según profundidad', () => {
+    const epub = DGT.EpubGenerator;
+    const s1 = epub.createSectionXhtml({ type: 'section', title: 'Nivel 1', fileId: 's1', id: 's-1', depth: 1 });
+    const s2 = epub.createSectionXhtml({ type: 'section', title: 'Nivel 2', fileId: 's2', id: 's-2', depth: 2 });
+    const s3 = epub.createSectionXhtml({ type: 'section', title: 'Nivel 3', fileId: 's3', id: 's-3', depth: 3 });
+
+    assert.ok(s1.includes('section-divider depth-1'));
+    assert.ok(s2.includes('section-divider depth-2'));
+    assert.ok(s3.includes('section-divider depth-3'));
+});
+
 
 

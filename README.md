@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.69
+**Versión:** 1.5.70
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -69,15 +69,12 @@ Exporta tus grafos de discurso en m├║ltiples formatos:
 - **Markdown:** Formato estructurado con bullets e indentaci├│n.
 - **MD Plano:** Markdown sin bullets, ideal para conversi├│n a otros formatos.
 - **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidación infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un límite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
-- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)**, **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), soporte completo de sintaxis de cursivas de Roam (`__texto__`), y compatibilidad con **Namespaces como títulos de sección** (generando páginas divisoras `<h1>` y anidando la tabla de contenidos bajo cada namespace).
+- **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)**, **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), soporte completo de sintaxis de cursivas de Roam (`__texto__`), y compatibilidad con **Namespaces Jerárquicos como secciones** (páginas divisoras con estilos diferenciados por profundidad y árbol TOC multinivel anidado).
 - **Opciones de Formato para Impresión (NUEVO):**
-  - **Agrupación por Namespaces:** Genera automáticamente encabezados de sección (`# Título`) basados en la jerarquía de proyectos, omitiendo el proyecto raíz para mayor claridad (ej. de `tesis/marco` extrae `# Marco`). Aplica tanto a Markdown como a EPUB (donde genera páginas divisoras H1 con navegación jerárquica).
+  - **Agrupación por Namespaces:** Genera automáticamente encabezados de sección basados en la jerarquía de proyectos, omitiendo el proyecto raíz para mayor claridad (ej. de `tesis/marco` extrae `# Marco`). En EPUB, codifica la profundidad jerárquica real, produciendo páginas divisoras estilizadas según el nivel (H1 con jerarquía visual) y una tabla de contenidos multinivel anidada en árbol.
   - **Ocultar etiquetas de nodo:** Permite eliminar los prefijos `[[QUE]]`, `[[CLM]]`, etc., para obtener un texto más limpio y profesional en documentos finales.
   - **Numeraci├│n Jer├írquica:** A├▒ade numeraci├│n de estilo acad├®mico (1., 1.1., 1.1.1.) a los nodos, facilitando la referencia estructural en el documento impreso.
 - **HTML:** Documento interactivo con profundidad din├ímica. Los niveles superiores a 6 mantienen la jerarqu├¡a visual mediante indentaci├│n CSS progresiva.
-- **Markdown:** Indentaci├│n bulleted infinita en exportaci├│n est├índar y headings jer├írquicos `#` din├ímicos.
-
-- **Selector de Proyectos Jer├írquico:** Los proyectos se muestran en un ├írbol colapsable. Seleccionar un padre selecciona autom├íticamente todos los sub-proyectos (selecci├│n en cascada).
 - **Reordenamiento Centralizado:** Gestiona el orden de tus preguntas (QUE) y sub-proyectos (GRI) directamente desde la pesta├▒a **Panor├ímica** mediante Drag & Drop. El orden personalizado se persiste en `localStorage` y se aplica autom├íticamente a todos los formatos de exportaci├│n (JSON, HTML, Markdown, EPUB).
 
 ### 5. Vista Panor├ímica Simplificada (Solo Nodos Ra├¡z)

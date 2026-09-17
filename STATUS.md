@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.69**
+**v1.5.70**
 
 ## Estado de Funcionalidades
 
@@ -21,7 +21,14 @@
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
-| Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, páginas divisoras H1 por namespace y cursivas nativas Roam |
+| Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.70 (Septiembre 2026)
+- **Feature/EPUB (Secciones Jerárquicas de Namespace y TOC Multinivel)**: Soporte completo para jerarquías profundas de namespaces en la exportación EPUB:
+  - **Codificación de Profundidad en Markdown**: `markdownCore.js` emite la profundidad de cada namespace como metadato HTML (`<!-- depth:N -->`), invisible en lectores de texto pero preservando la jerarquía completa (`EstructuraTesis > DebateVínculos > NorteGlobal`).
+  - **Árbol Jerárquico de Secciones (`_buildSectionTree`)**: Algoritmo basado en pila de ancestros en `epubGenerator.js` que construye un árbol de navegación con secciones organizadoras (que no tienen contenido propio directo) conteniendo sub-secciones y capítulos hijo.
+  - **Tabla de Contenidos Anidada**: La navegación tanto en EPUB3 (`nav.xhtml` con listas `<ol>` multinivel) como en EPUB2 (`toc.ncx` con `<navPoint>` recursivos) refleja fielmente la jerarquía de carpetas/namespaces del proyecto.
+  - **Diferenciación Visual en Páginas Divisoras**: Clases CSS `.depth-1`, `.depth-2`, `.depth-3` con tamaños de fuente proporcionales (2.5em, 2.0em, 1.6em) y bordes de color que distinguen a primera vista qué niveles son categorías paraguas y cuáles contienen preguntas específicas.
 
 ### v1.5.69 (Septiembre 2026)
 - **Fix/UI (Filtrado focalizado de ramas afectadas en Coherencia de Ramas)**: Al hacer clic en los badges del Resumen lateral (`⚠️ Diferentes` o `❌ Sin proyecto`), el árbol de proyectos ahora filtra internamente el conjunto de preguntas/ramas (`node.questions`) dentro de cada carpeta, mostrando únicamente la ruta hacia las ramas (QUEs) con discrepancias sin desplegar las ramas coherentes no afectadas. Al desactivar el filtro (segundo clic), se restaura la visualización completa del árbol.
