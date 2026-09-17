@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.68
- * Bundled build: 2026-09-16 14:53:26
+ * DISCOURSE GRAPH TOOLKIT v1.5.69
+ * Bundled build: 2026-09-17 03:12:37
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.68";
+    DiscourseGraphToolkit.VERSION = "1.5.69";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -7687,7 +7687,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 const hasError = nodeHasErrorStatus(node, activeFilter);
 
                 if (hasError) {
-                    filtered[key] = { ...node };
+                    const filteredQuestions = node.questions
+                        ? node.questions.filter(q => {
+                            if (activeFilter === 'missing') return q.coherence?.missing?.length > 0 || q.status === 'missing';
+                            if (activeFilter === 'different') return q.coherence?.different?.length > 0 || q.status === 'different';
+                            return q.status === activeFilter;
+                        })
+                        : [];
+                    filtered[key] = { ...node, questions: filteredQuestions };
                     if (node.children) {
                         const filteredChildren = filterTreeRecursive(node.children);
                         filtered[key].children = Object.keys(filteredChildren).length > 0 ? filteredChildren : {};

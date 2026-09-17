@@ -202,7 +202,14 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 const hasError = nodeHasErrorStatus(node, activeFilter);
 
                 if (hasError) {
-                    filtered[key] = { ...node };
+                    const filteredQuestions = node.questions
+                        ? node.questions.filter(q => {
+                            if (activeFilter === 'missing') return q.coherence?.missing?.length > 0 || q.status === 'missing';
+                            if (activeFilter === 'different') return q.coherence?.different?.length > 0 || q.status === 'different';
+                            return q.status === activeFilter;
+                        })
+                        : [];
+                    filtered[key] = { ...node, questions: filteredQuestions };
                     if (node.children) {
                         const filteredChildren = filterTreeRecursive(node.children);
                         filtered[key].children = Object.keys(filteredChildren).length > 0 ? filteredChildren : {};

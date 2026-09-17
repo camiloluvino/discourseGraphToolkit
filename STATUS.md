@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-16
+**Última actualización:** 2026-09-17
 
 ## Versión Actual
 
-**v1.5.68**
+**v1.5.69**
 
 ## Estado de Funcionalidades
 
@@ -15,13 +15,16 @@
 | Gestión de proyectos | ✅ Estable | Crear, asignar, sincronizar con Roam |
 | Auto-descubrimiento de proyectos | ✅ Estable | Alerta al abrir Toolkit si hay proyectos no registrados |
 | Match jerárquico de proyectos | ✅ Estable | Al exportar, proyecto padre incluye sub-proyectos |
-| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges con PopoverPortal desacoplado), corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
+| Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges con PopoverPortal desacoplado), filtrado visual focalizado a solo ramas afectadas, corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
 | Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, páginas divisoras H1 por namespace y cursivas nativas Roam |
+
+### v1.5.69 (Septiembre 2026)
+- **Fix/UI (Filtrado focalizado de ramas afectadas en Coherencia de Ramas)**: Al hacer clic en los badges del Resumen lateral (`⚠️ Diferentes` o `❌ Sin proyecto`), el árbol de proyectos ahora filtra internamente el conjunto de preguntas/ramas (`node.questions`) dentro de cada carpeta, mostrando únicamente la ruta hacia las ramas (QUEs) con discrepancias sin desplegar las ramas coherentes no afectadas. Al desactivar el filtro (segundo clic), se restaura la visualización completa del árbol.
 
 ### v1.5.68 (Septiembre 2026)
 - **Feature/EPUB (Namespaces como páginas divisoras H1)**: La opción "Usar namespaces como títulos de sección" (`groupNamespaces`) ahora aplica completamente a la exportación EPUB:
