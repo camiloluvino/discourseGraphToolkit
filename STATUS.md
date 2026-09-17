@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.70**
+**v1.5.71**
 
 ## Estado de Funcionalidades
 
@@ -22,6 +22,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.71 (Septiembre 2026)
+- **Optimization/Coherence (Optimización de consultas y robustez en Coherencia de Ramas)**:
+  - **Consulta Datalog Unificada por Rama**: En `verifyProjectCoherence`, el nodo raíz (`rootUid`) se evalúa dentro de la misma consulta batch Datalog junto a los demás nodos y padres de la rama, eliminando una consulta Datalog separada y redundante por cada rama evaluada y reduciendo la latencia durante auditorías completas del grafo.
+  - **Eliminación de Código Muerto**: Se retiró el bucle de expresiones regulares inoperativo en `_extractRefsFromBlock`, ahorrando trabajo de CPU en el recorrido BFS de ramas profundas.
+  - **Consistencia en Fallback de Error**: En el bloque `catch` de `verifyProjectCoherence`, los nodos clasificados como `missing` ahora retornan la propiedad `parentProject: null` de forma consistente con el flujo estándar, previniendo posibles estados inconsistentes en la UI.
 
 ### v1.5.70 (Septiembre 2026)
 - **Feature/EPUB (Secciones Jerárquicas de Namespace y TOC Multinivel)**: Soporte completo para jerarquías profundas de namespaces en la exportación EPUB:

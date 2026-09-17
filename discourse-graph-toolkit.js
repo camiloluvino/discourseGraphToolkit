@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.70
- * Bundled build: 2026-09-17 13:08:20
+ * DISCOURSE GRAPH TOOLKIT v1.5.71
+ * Bundled build: 2026-09-17 15:28:13
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.70";
+    DiscourseGraphToolkit.VERSION = "1.5.71";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2246,18 +2246,6 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
             if (r[':block/uid']) collectedUids.add(r[':block/uid']);
         });
     }
-
-    // Buscar referencias en el texto [[...]]
-    const str = block.string || "";
-    const pattern = /\[\[([^\]]+)\]\]/g;
-    let match;
-    while ((match = pattern.exec(str)) !== null) {
-        const refContent = match[1];
-        // Si parece ser un nodo discourse (CLM, EVD, QUE)
-        if (refContent.includes('[[CLM]]') || refContent.includes('[[EVD]]') || refContent.includes('[[QUE]]') || refContent.includes('[[GRI]]')) {
-            // No podemos obtener el UID desde el texto, pero las refs directas ya lo tienen
-        }
-    }
 };
 
 /**
@@ -2329,11 +2317,8 @@ DiscourseGraphToolkit.isHierarchicallyCoherent = function (rootProject, nodeProj
 DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNodes) {
     const PM = this.ProjectManager;
 
-    // 1. Obtener proyecto del QUE raíz
-    const rootProject = await this.getProjectFromNode(rootUid);
-
-    // 2. Obtener proyecto de cada nodo (incluyendo padres)
-    const allUids = [...new Set([...branchNodes.map(n => n.uid), ...branchNodes.map(n => n.parentUid)])];
+    // Obtener proyecto de cada nodo (incluyendo raíz y padres) en una sola consulta batch
+    const allUids = [...new Set([rootUid, ...branchNodes.map(n => n.uid), ...branchNodes.map(n => n.parentUid)])];
     const escapedPattern = PM.getEscapedFieldPattern();
 
     // Query para obtener todos los bloques de Proyecto Asociado de las páginas
@@ -2349,15 +2334,13 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
     const specialized = [];  // Sub-namespace del padre (especialización válida)
     const different = [];    // Menos específico o diferente al padre
     const missing = [];
+    let rootProject = null;
 
     try {
         const results = await window.roamAlphaAPI.data.async.q(query, allUids);
 
         // Crear mapa de UID -> proyecto
         const projectMap = new Map();
-        // El QUE raíz tiene su proyecto
-        projectMap.set(rootUid, rootProject);
-
         const regex = PM.getFieldRegex();
         const fieldPattern = PM.getFieldPattern();
 
@@ -2375,6 +2358,9 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                 projectMap.set(pageUid, match[1].trim());
             }
         });
+
+        // Proyecto del QUE raíz obtenido de la misma consulta batch
+        rootProject = projectMap.get(rootUid) || null;
 
         // 3. Clasificar nodos según coherencia con su PADRE directo
         for (const node of branchNodes) {
@@ -2408,7 +2394,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             coherent: [],
             specialized: [],
             different: [],
-            missing: branchNodes.map(n => ({ ...n, project: null }))
+            missing: branchNodes.map(n => ({ ...n, project: null, parentProject: null }))
         };
     }
 };
