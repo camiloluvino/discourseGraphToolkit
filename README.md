@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.71
+**Versión:** 1.5.72
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -97,8 +97,13 @@ Se ha realizado una auditor├¡a de calidad integral y refactorizaci├│n del
 - **Memoizaci├│n de Estad├¡sticas:** Los contadores de la UI se calculan ahora en un solo pase (O(N)) y se memoizan para evitar iteraciones redundantes en cada renderizado.
 - **Persistencia de Cache:** Sistema de cache de relevancia basado en `useRef` para evitar invalidaciones innecesarias y mejorar la fluidez de navegaci├│n en la Vista Panor├ímica.
 
-### 7. Importaci├│n
-Restaura copias de seguridad o importa grafos de otros usuarios sin sobrescribir elementos existentes.
+### 7. Importación
+Permite restaurar copias de seguridad o importar grafos exportados por el propio toolkit manteniendo absoluta coherencia con el formato nativo de Roam:
+- **No destructivo (Safe Merge):** Los elementos existentes no se sobrescriben a nivel de texto, preservando modificaciones locales y UIDs originales.
+- **Diffing Estricto de Atributos Visuales:** Compara el estado actual de cada bloque en Roam contra los atributos exportados (`heading`, `open`, `text-align`, `children-view-type`) y solo ejecuta mutaciones si hay cambios reales, ahorrando hasta el 99% de operaciones de escritura en importaciones incrementales.
+- **Control de Cuota Adaptativo (`MutationThrottle`):** Monitorea la ventana móvil de 60 segundos de Roam Research (límite de 1500 ops/60s), pausando automáticamente con aviso visual cuando la cuota está llena para evitar bloqueos y reintentando ante errores de red.
+- **Registro en Daily Note:** Genera una entrada automática en las notas diarias con los títulos de las páginas importadas agrupadas bajo `#import`.
+- **Protección de Archivo:** Validación previa para archivos de hasta 20MB.
 
 ## Instalaci├│n
 

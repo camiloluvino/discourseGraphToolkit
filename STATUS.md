@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-17
+**Última actualización:** 2026-09-27
 
 ## Versión Actual
 
-**v1.5.71**
+**v1.5.72**
 
 ## Estado de Funcionalidades
 
@@ -18,10 +18,24 @@
 | Verificación de coherencia (Ramas) | ✅ Muy Mejorado | Rediseño Split Layout con sidebar lateral derecho (Favoritos + Badges con PopoverPortal desacoplado), filtrado visual focalizado a solo ramas afectadas, corrección en bloque segura ("Corregir missing"), modal con previsualización detallada |
 | Gestión de nodos huérfanos | ✅ Mejorado | Pestaña independiente "Nodos" dedicada a la limpieza del grafo |
 | **Vista Panorámica** | ✅ Muy Mejorado | Agrupación jerárquica por sub-proyecto con Drag & Drop nativo y persistente |
-| Exportación JSON | ✅ Estable | Formato nativo de Roam (usa el orden de la Panorámica) |
+| Exportación JSON | ✅ Muy Mejorado | Formato nativo de Roam con atributos visuales (`heading`, `open`, `text-align`, `children-view-type`) y timestamps completos |
+| **Importación JSON** | ✅ Muy Mejorado | Diffing estricto (0 mutaciones redundantes), limitador de tasa adaptativo (`MutationThrottle`), reintentos automáticos y validación de archivos |
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.72 (Septiembre 2026)
+- **Optimization/Import (Diffing estricto y optimización de tasa de mutación en importación)**:
+  - **Diffing Estricto de Atributos Visuales**: En `importBlock`, ahora se consulta mediante `pull` el estado real de los atributos visuales del bloque en Roam (`:block/open`, `:block/heading`, `:block/text-align`, `:children/view-type`). Solo se invoca `block.update` si existe una discrepancia real contra el JSON importado, eliminando hasta el 99% de mutaciones redundantes generadas por atributos por defecto (`open: true`) y previniendo la saturación innecesaria de la cuota de la API.
+  - **Optimización de Tasa (`MutationThrottle`)**:
+    - Se elevó la cuota de la ventana móvil a `1400` ops/60s (dentro del límite de 1500 de Roam) para maximizar el throughput.
+    - Reducción de `MIN_DELAY_MS` a `0`, aprovechando el rendimiento natural del Event Loop de JavaScript (~4ms de yield por `setTimeout(0)`) para mantener la UI responsiva sin introducir latencias artificiales.
+    - Reducción del margen de espera en ventana móvil de `+ 250ms` a `+ 25ms`, eliminando el estrangulamiento artificial a 4 ops/segundo al llegar al límite de cuota.
+    - Verificación preventiva en bucle `while` para proteger contra jitter de temporizadores y garantizar que jamás se sobrepase el límite de mutación de Roam.
+  - **Fidelidad y Seguridad de Importación/Exportación**:
+    - Soporte completo y simétrico para propiedades visuales (`heading`, `open`, `text-align`, `children-view-type`) a lo largo de todos los niveles de profundidad en exportación e importación.
+    - Detección y omisión segura de nodos truncados (`_truncated`) o con referencias circulares (`_circular_ref`) generados por el exportador.
+    - Validación preventiva de tamaño de archivo (máx. 20MB) en la pestaña Importar.
 
 ### v1.5.71 (Septiembre 2026)
 - **Optimization/Coherence (Optimización de consultas y robustez en Coherencia de Ramas)**:

@@ -22,6 +22,15 @@ DiscourseGraphToolkit.ImportTab = function () {
                 onChange: (e) => {
                     const file = e.target.files[0];
                     if (file) {
+                        // Validación de tamaño máximo de archivo
+                        const maxBytes = DiscourseGraphToolkit.FILES.MAX_SIZE_MB * DiscourseGraphToolkit.FILES.BYTES_PER_MB;
+                        if (file.size > maxBytes) {
+                            setImportStatus(`❌ Error: El archivo excede el tamaño máximo permitido de ${DiscourseGraphToolkit.FILES.MAX_SIZE_MB} MB.`);
+                            DiscourseGraphToolkit.showToast(`Archivo muy grande (${(file.size / 1024 / 1024).toFixed(1)} MB)`, 'error');
+                            e.target.value = '';
+                            return;
+                        }
+
                         const reader = new FileReader();
                         reader.onload = async (event) => {
                             setImportStatus("Importando...");

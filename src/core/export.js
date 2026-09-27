@@ -25,6 +25,10 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     if (pullData[':edit/time']) transformed['edit-time'] = this.convertTimestamp(pullData[':edit/time']);
     if (pullData[':create/time']) transformed['create-time'] = this.convertTimestamp(pullData[':create/time']);
     if (pullData[':block/order'] !== undefined) transformed['order'] = pullData[':block/order'];
+    if (pullData[':block/heading'] !== undefined) transformed['heading'] = pullData[':block/heading'];
+    if (pullData[':block/open'] !== undefined) transformed['open'] = pullData[':block/open'];
+    if (pullData[':block/text-align']) transformed['text-align'] = pullData[':block/text-align'];
+    if (pullData[':children/view-type']) transformed['children-view-type'] = pullData[':children/view-type'];
 
     if (pullData[':block/refs'] && Array.isArray(pullData[':block/refs'])) {
         transformed[':block/refs'] = pullData[':block/refs'].map(ref =>

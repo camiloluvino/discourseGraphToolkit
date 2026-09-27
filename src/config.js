@@ -96,36 +96,36 @@ DiscourseGraphToolkit.DEFAULT_CONFIG = {
 
 // Pull pattern para exportación robusta (Recursión manual limitada a MAX_DEPTH)
 DiscourseGraphToolkit.ROAM_PULL_PATTERN = `[
-    :block/uid :node/title :edit/time :create/time :block/string :block/order
+    :block/uid :node/title :edit/time :create/time :block/string :block/order :children/view-type
     {:block/refs [:block/uid :node/title]}
     {:create/user [:user/display-name :user/uid]}
     {:edit/user [:user/display-name :user/uid]}
     {:block/children [
-      :block/uid :block/string :block/order :edit/time :create/time
+      :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
       {:block/refs [:block/uid :node/title]}
       {:block/children [
-        :block/uid :block/string :block/order
+        :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
         {:block/refs [:block/uid :node/title]}
         {:block/children [
-          :block/uid :block/string :block/order
+          :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
           {:block/refs [:block/uid :node/title]}
           {:block/children [
-            :block/uid :block/string :block/order
+            :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
             {:block/refs [:block/uid :node/title]}
             {:block/children [
-               :block/uid :block/string :block/order
+               :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                {:block/refs [:block/uid :node/title]}
                {:block/children [
-                   :block/uid :block/string :block/order
+                   :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                    {:block/refs [:block/uid :node/title]}
                    {:block/children [
-                       :block/uid :block/string :block/order
+                       :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                        {:block/refs [:block/uid :node/title]}
                        {:block/children [
-                           :block/uid :block/string :block/order
+                           :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                            {:block/refs [:block/uid :node/title]}
                            {:block/children [
-                               :block/uid :block/string :block/order
+                               :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                                {:block/refs [:block/uid :node/title]}
                            ]}
                        ]}

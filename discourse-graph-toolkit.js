@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.71
- * Bundled build: 2026-09-17 15:28:13
+ * DISCOURSE GRAPH TOOLKIT v1.5.72
+ * Bundled build: 2026-09-27 17:33:17
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.71";
+    DiscourseGraphToolkit.VERSION = "1.5.72";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -873,36 +873,36 @@ DiscourseGraphToolkit.DEFAULT_CONFIG = {
 
 // Pull pattern para exportación robusta (Recursión manual limitada a MAX_DEPTH)
 DiscourseGraphToolkit.ROAM_PULL_PATTERN = `[
-    :block/uid :node/title :edit/time :create/time :block/string :block/order
+    :block/uid :node/title :edit/time :create/time :block/string :block/order :children/view-type
     {:block/refs [:block/uid :node/title]}
     {:create/user [:user/display-name :user/uid]}
     {:edit/user [:user/display-name :user/uid]}
     {:block/children [
-      :block/uid :block/string :block/order :edit/time :create/time
+      :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
       {:block/refs [:block/uid :node/title]}
       {:block/children [
-        :block/uid :block/string :block/order
+        :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
         {:block/refs [:block/uid :node/title]}
         {:block/children [
-          :block/uid :block/string :block/order
+          :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
           {:block/refs [:block/uid :node/title]}
           {:block/children [
-            :block/uid :block/string :block/order
+            :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
             {:block/refs [:block/uid :node/title]}
             {:block/children [
-               :block/uid :block/string :block/order
+               :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                {:block/refs [:block/uid :node/title]}
                {:block/children [
-                   :block/uid :block/string :block/order
+                   :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                    {:block/refs [:block/uid :node/title]}
                    {:block/children [
-                       :block/uid :block/string :block/order
+                       :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                        {:block/refs [:block/uid :node/title]}
                        {:block/children [
-                           :block/uid :block/string :block/order
+                           :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                            {:block/refs [:block/uid :node/title]}
                            {:block/children [
-                               :block/uid :block/string :block/order
+                               :block/uid :block/string :block/order :edit/time :create/time :block/heading :block/open :block/text-align :children/view-type
                                {:block/refs [:block/uid :node/title]}
                            ]}
                        ]}
@@ -3216,6 +3216,10 @@ DiscourseGraphToolkit.transformToNativeFormat = function (pullData, depth = 0, v
     if (pullData[':edit/time']) transformed['edit-time'] = this.convertTimestamp(pullData[':edit/time']);
     if (pullData[':create/time']) transformed['create-time'] = this.convertTimestamp(pullData[':create/time']);
     if (pullData[':block/order'] !== undefined) transformed['order'] = pullData[':block/order'];
+    if (pullData[':block/heading'] !== undefined) transformed['heading'] = pullData[':block/heading'];
+    if (pullData[':block/open'] !== undefined) transformed['open'] = pullData[':block/open'];
+    if (pullData[':block/text-align']) transformed['text-align'] = pullData[':block/text-align'];
+    if (pullData[':children/view-type']) transformed['children-view-type'] = pullData[':children/view-type'];
 
     if (pullData[':block/refs'] && Array.isArray(pullData[':block/refs'])) {
         transformed[':block/refs'] = pullData[':block/refs'].map(ref =>
@@ -3321,8 +3325,83 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 // CORE: Importación
 // ============================================================================
 
+// --- Controlador de Tasa de Mutación (Roam API Rate Limiter) ---
+DiscourseGraphToolkit.MutationThrottle = {
+    MAX_OPS_PER_WINDOW: 1400,   // Margen de seguridad sobre el límite de 1500/60s de Roam
+    WINDOW_MS: 60000,           // Ventana móvil de 60 segundos
+    MIN_DELAY_MS: 0,            // Yield mínimo (~4ms por setTimeout) para no congelar la UI
+    callTimestamps: [],
+    onProgress: null,
+
+    reset: function (progressCallback) {
+        this.callTimestamps = [];
+        this.onProgress = progressCallback || null;
+    },
+
+    sleep: function (ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
+    execute: async function (mutationFn) {
+        const now = Date.now();
+        // 1. Limpiar timestamps que salieron de la ventana móvil de 60s
+        this.callTimestamps = this.callTimestamps.filter(t => (now - t) < this.WINDOW_MS);
+
+        // 2. Si alcanzamos el umbral de seguridad, esperar a que venza el más antiguo
+        while (this.callTimestamps.length >= this.MAX_OPS_PER_WINDOW) {
+            const oldest = this.callTimestamps[0];
+            const waitMs = (oldest + this.WINDOW_MS) - Date.now() + 25;
+            if (waitMs > 0) {
+                const waitSec = Math.ceil(waitMs / 1000);
+                const msg = `⏳ Pausa preventiva por cuota de Roam (${this.callTimestamps.length}/1500 ops). Esperando ${waitSec}s para continuar con seguridad...`;
+                console.warn(msg);
+                if (this.onProgress) this.onProgress(msg);
+                await this.sleep(waitMs);
+                if (this.onProgress) this.onProgress(`✅ Cuota renovada. Reanudando importación...`);
+            }
+            const postWait = Date.now();
+            this.callTimestamps = this.callTimestamps.filter(t => (postWait - t) < this.WINDOW_MS);
+        }
+
+        // 3. Ejecución segura con reintento ante error 429 / Rate Limit
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (attempts < maxAttempts) {
+            try {
+                if (this.MIN_DELAY_MS !== null && this.MIN_DELAY_MS !== undefined && this.MIN_DELAY_MS >= 0) {
+                    await this.sleep(this.MIN_DELAY_MS);
+                }
+                const result = await mutationFn();
+                this.callTimestamps.push(Date.now());
+                return result;
+            } catch (err) {
+                const isRateLimit = err && err.message && (
+                    err.message.includes("maximum mutation rate limit exceeded") ||
+                    err.message.includes("rate limit")
+                );
+
+                if (isRateLimit && attempts < maxAttempts - 1) {
+                    attempts++;
+                    const backoffMs = 20000 * attempts;
+                    const msg = `⚠️ Cuota de Roam excedida. Esperando ${backoffMs / 1000}s para reintentar (intento ${attempts}/${maxAttempts})...`;
+                    console.warn(msg, err);
+                    if (this.onProgress) this.onProgress(msg);
+                    await this.sleep(backoffMs);
+                    const retryNow = Date.now();
+                    this.callTimestamps = this.callTimestamps.filter(t => (retryNow - t) < this.WINDOW_MS);
+                } else {
+                    throw err;
+                }
+            }
+        }
+    }
+};
+
 DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
+
+    // Inicializar el controlador de cuota con el callback de progreso
+    DiscourseGraphToolkit.MutationThrottle.reset(report);
 
     report(`Leyendo archivo (${jsonContent.length} bytes)...`);
 
@@ -3392,23 +3471,29 @@ DiscourseGraphToolkit.logImportToDailyNote = async function (importedTitles) {
     // 1. Asegurar que la Daily Note existe
     let page = window.roamAlphaAPI.data.pull("[:block/uid]", [":node/title", dailyNoteTitle]);
     if (!page) {
-        await window.roamAlphaAPI.data.page.create({ "page": { "title": dailyNoteTitle, "uid": dailyNoteUid } });
+        await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+            await window.roamAlphaAPI.data.page.create({ "page": { "title": dailyNoteTitle, "uid": dailyNoteUid } });
+        });
     }
 
     // 2. Crear bloque padre #import
     const importBlockUid = window.roamAlphaAPI.util.generateUID();
     const timestamp = today.toLocaleTimeString();
-    await window.roamAlphaAPI.data.block.create({
-        "location": { "parent-uid": dailyNoteUid, "order": "last" },
-        "block": { "uid": importBlockUid, "string": `#import (${timestamp})` }
+    await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+        await window.roamAlphaAPI.data.block.create({
+            "location": { "parent-uid": dailyNoteUid, "order": "last" },
+            "block": { "uid": importBlockUid, "string": `#import (${timestamp})` }
+        });
     });
 
     // 3. Crear hijos con los títulos
     for (let i = 0; i < importedTitles.length; i++) {
         const title = importedTitles[i];
-        await window.roamAlphaAPI.data.block.create({
-            "location": { "parent-uid": importBlockUid, "order": i },
-            "block": { "string": `[[${title}]]` }
+        await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+            await window.roamAlphaAPI.data.block.create({
+                "location": { "parent-uid": importBlockUid, "order": i },
+                "block": { "string": `[[${title}]]` }
+            });
         });
     }
 };
@@ -3428,9 +3513,15 @@ DiscourseGraphToolkit.importPage = async function (pageData) {
         // La página no existe, la creamos
         if (!pageUid) pageUid = window.roamAlphaAPI.util.generateUID();
 
+        const pageObj = { "title": pageData.title, "uid": pageUid };
+        const childrenViewType = pageData['children-view-type'] ?? pageData[':children/view-type'];
+        if (childrenViewType) pageObj['children-view-type'] = childrenViewType;
+
         try {
-            await window.roamAlphaAPI.data.page.create({
-                "page": { "title": pageData.title, "uid": pageUid }
+            await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+                await window.roamAlphaAPI.data.page.create({
+                    "page": pageObj
+                });
             });
         } catch (e) {
             console.warn(`Falló creación de página "${pageData.title}", intentando recuperar UID...`, e);
@@ -3461,27 +3552,91 @@ DiscourseGraphToolkit.importChildren = async function (parentUid, children) {
 };
 
 DiscourseGraphToolkit.importBlock = async function (parentUid, blockData, order) {
+    // 1. Evitar importar nodos truncados o referencias circulares del exportador
+    if (blockData._truncated || blockData._circular_ref) {
+        return;
+    }
+
     // Normalizar claves de bloque
     const blockUid = blockData.uid || blockData[':block/uid'] || blockData[':uid'] || window.roamAlphaAPI.util.generateUID();
     const content = blockData.string || blockData[':block/string'] || blockData[':string'] || "";
     const children = blockData.children || blockData[':block/children'] || blockData['children'];
 
-    // Verificar si el bloque ya existe (por UID) usando PULL
+    // Verificar si el bloque ya existe (por UID) y obtener sus atributos actuales para diffing
     let exists = false;
+    let existingBlock = null;
     if (blockData.uid || blockData[':block/uid']) {
-        const check = window.roamAlphaAPI.data.pull("[:block/uid]", [":block/uid", blockUid]);
-        exists = (check && check[':block/uid']);
+        existingBlock = window.roamAlphaAPI.data.pull(
+            "[:block/uid :block/open :block/heading :block/text-align :children/view-type]",
+            [":block/uid", blockUid]
+        );
+        exists = !!(existingBlock && existingBlock[':block/uid']);
     }
 
     if (!exists) {
-        // Crear bloque
-        await window.roamAlphaAPI.data.block.create({
-            "location": { "parent-uid": parentUid, "order": order },
-            "block": { "uid": blockUid, "string": content }
+        // Crear bloque con atributos visuales y de formato si están presentes
+        const blockObj = { "uid": blockUid, "string": content };
+
+        const heading = blockData.heading ?? blockData[':block/heading'];
+        const open = blockData.open ?? blockData[':block/open'];
+        const textAlign = blockData['text-align'] ?? blockData[':block/text-align'];
+        const childrenViewType = blockData['children-view-type'] ?? blockData[':children/view-type'];
+
+        if (heading !== undefined && heading !== 0) blockObj.heading = heading;
+        if (open !== undefined) blockObj.open = open;
+        if (textAlign) blockObj['text-align'] = textAlign;
+        if (childrenViewType) blockObj['children-view-type'] = childrenViewType;
+
+        await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+            await window.roamAlphaAPI.data.block.create({
+                "location": { "parent-uid": parentUid, "order": order },
+                "block": blockObj
+            });
         });
     } else {
         // El bloque existe.
-        // ESTRATEGIA: NO SOBRESCRIBIR contenido.
+        // ESTRATEGIA: NO SOBRESCRIBIR contenido textual.
+        // PERO SÍ actualizar atributos visuales si hay diferencias reales (Diffing estricto).
+        const targetHeading = blockData.heading ?? blockData[':block/heading'];
+        const targetOpen = blockData.open ?? blockData[':block/open'];
+        const targetTextAlign = blockData['text-align'] ?? blockData[':block/text-align'];
+        const targetChildrenViewType = blockData['children-view-type'] ?? blockData[':children/view-type'];
+
+        const currentHeading = existingBlock[':block/heading'] ?? 0;
+        const currentOpen = existingBlock[':block/open'] ?? true;
+        const currentTextAlign = existingBlock[':block/text-align'] ?? "left";
+        const currentChildrenViewType = existingBlock[':children/view-type'] ?? "bullet";
+
+        const updateObj = { "uid": blockUid };
+        let hasChanges = false;
+
+        if (targetHeading !== undefined && targetHeading !== currentHeading) {
+            updateObj.heading = targetHeading;
+            hasChanges = true;
+        }
+
+        if (targetOpen !== undefined && targetOpen !== currentOpen) {
+            updateObj.open = targetOpen;
+            hasChanges = true;
+        }
+
+        if (targetTextAlign !== undefined && targetTextAlign !== currentTextAlign) {
+            updateObj['text-align'] = targetTextAlign;
+            hasChanges = true;
+        }
+
+        if (targetChildrenViewType !== undefined && targetChildrenViewType !== currentChildrenViewType) {
+            updateObj['children-view-type'] = targetChildrenViewType;
+            hasChanges = true;
+        }
+
+        if (hasChanges) {
+            await DiscourseGraphToolkit.MutationThrottle.execute(async () => {
+                await window.roamAlphaAPI.data.block.update({
+                    "block": updateObj
+                });
+            });
+        }
     }
 
     // Recursión para hijos del bloque
@@ -11228,6 +11383,15 @@ DiscourseGraphToolkit.ImportTab = function () {
                 onChange: (e) => {
                     const file = e.target.files[0];
                     if (file) {
+                        // Validación de tamaño máximo de archivo
+                        const maxBytes = DiscourseGraphToolkit.FILES.MAX_SIZE_MB * DiscourseGraphToolkit.FILES.BYTES_PER_MB;
+                        if (file.size > maxBytes) {
+                            setImportStatus(`❌ Error: El archivo excede el tamaño máximo permitido de ${DiscourseGraphToolkit.FILES.MAX_SIZE_MB} MB.`);
+                            DiscourseGraphToolkit.showToast(`Archivo muy grande (${(file.size / 1024 / 1024).toFixed(1)} MB)`, 'error');
+                            e.target.value = '';
+                            return;
+                        }
+
                         const reader = new FileReader();
                         reader.onload = async (event) => {
                             setImportStatus("Importando...");
