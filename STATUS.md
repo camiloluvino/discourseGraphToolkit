@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.73**
+**v1.5.74**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,12 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.74 (Octubre 2026)
+- **Fix/Coherence (Propagación sin pérdida de texto)**:
+  - **`_replaceProjectInString`**: al cambiar el proyecto de un nodo se reemplaza solo el enlace `[[proyecto]]` del bloque `Proyecto Asociado::`; se conservan las notas, etiquetas o texto que lo acompañen. Si el campo está vacío o sin enlace, se completa con el valor nuevo.
+  - Aplica a "Sincronizar Rama", a la corrección en bloque de nodos sin proyecto y a la alineación de páginas contenedoras (`fixContainerAlignment`, que ahora reutiliza `_findProjectBlock`).
+  - **Tests**: 4 casos nuevos en `tests/branchPropagation.test.js`.
 
 ### v1.5.73 (Octubre 2026)
 - **Fix/Coherence (Propagación de proyectos en cascada)**:

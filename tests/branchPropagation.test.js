@@ -180,3 +180,55 @@ test('applyProjectChanges - Un error en un nodo no detiene los demás', async ()
     assert.deepStrictEqual(res.errors.map(e => e.uid), ['a']);
     assert.deepStrictEqual(writes, [['update', 'b-pb', 'Proyecto Asociado:: [[z]]']]);
 });
+
+// --- Reemplazo del proyecto conservando el resto del bloque (caso 3) ---
+
+test('_replaceProjectInString - Conserva el texto que acompaña al proyecto', () => {
+    assert.strictEqual(
+        DGT._replaceProjectInString('Proyecto Asociado:: [[tesis]] (revisar si va al capítulo 2)', 'artículo/simmel'),
+        'Proyecto Asociado:: [[artículo/simmel]] (revisar si va al capítulo 2)'
+    );
+    assert.strictEqual(
+        DGT._replaceProjectInString('nota previa Proyecto Asociado::[[tesis]]', 'artículo'),
+        'nota previa Proyecto Asociado::[[artículo]]'
+    );
+});
+
+test('_replaceProjectInString - Completa un campo vacío o sin enlace', () => {
+    assert.strictEqual(DGT._replaceProjectInString('Proyecto Asociado::', 'tesis'), 'Proyecto Asociado:: [[tesis]]');
+    assert.strictEqual(
+        DGT._replaceProjectInString('Proyecto Asociado:: tesis (pendiente)', 'artículo'),
+        'Proyecto Asociado:: [[artículo]] (pendiente)'
+    );
+});
+
+test('applyProjectChanges - Caso 3: no borra la nota escrita junto al proyecto', async () => {
+    const writes = [];
+    window.roamAlphaAPI = {
+        data: {
+            async: { q: async () => [['clm-pb', 'Proyecto Asociado:: [[otro]] (esta nota debería conservarse)']] },
+            block: {
+                update: async (a) => { writes.push([a.block.uid, a.block.string]); },
+                create: async () => { throw new Error('no debería crear'); }
+            }
+        }
+    };
+    await DGT.applyProjectChanges([{ uid: 'clm', from: 'otro', to: 'pruebaDGT/caso3' }]);
+    assert.deepStrictEqual(writes, [['clm-pb', 'Proyecto Asociado:: [[pruebaDGT/caso3]] (esta nota debería conservarse)']]);
+});
+
+test('fixContainerAlignment - Tampoco borra la nota junto al proyecto', async () => {
+    const writes = [];
+    window.roamAlphaAPI = {
+        data: {
+            async: { q: async () => [['cont-pb', 'Proyecto Asociado:: [[tesis]] #pendiente']] },
+            block: {
+                update: async (a) => { writes.push([a.block.uid, a.block.string]); },
+                create: async () => { throw new Error('no debería crear'); }
+            }
+        }
+    };
+    const res = await DGT.fixContainerAlignment('cont', 'tesis/marco');
+    assert.deepStrictEqual(res, { success: true, action: 'updated' });
+    assert.deepStrictEqual(writes, [['cont-pb', 'Proyecto Asociado:: [[tesis/marco]] #pendiente']]);
+});

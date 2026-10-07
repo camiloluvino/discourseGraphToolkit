@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.73
- * Bundled build: 2026-10-07 21:37:46
+ * DISCOURSE GRAPH TOOLKIT v1.5.74
+ * Bundled build: 2026-10-07 21:52:51
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.73";
+    DiscourseGraphToolkit.VERSION = "1.5.74";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2503,6 +2503,32 @@ DiscourseGraphToolkit._findProjectBlock = async function (pageUid) {
 };
 
 /**
+ * Reemplaza el proyecto dentro del texto de un bloque "Proyecto Asociado::" sin tocar
+ * el resto del bloque (notas, etiquetas, texto previo).
+ * Si el campo no tiene un enlace [[...]], completa o sustituye el valor inmediato.
+ * @param {string} blockString - Texto actual del bloque
+ * @param {string} newProject - Proyecto nuevo
+ * @returns {string} Texto del bloque con el proyecto reemplazado
+ */
+DiscourseGraphToolkit._replaceProjectInString = function (blockString, newProject) {
+    const PM = this.ProjectManager;
+    const fieldName = PM.getFieldName().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const link = '[[' + newProject + ']]';
+
+    const withLink = new RegExp('(' + fieldName + '::\\s*)\\[\\[[^\\]]+\\]\\]');
+    if (withLink.test(blockString)) {
+        return blockString.replace(withLink, (match, prefix) => prefix + link);
+    }
+
+    const bareValue = new RegExp(fieldName + '::[ \\t]*[^\\s]*');
+    if (bareValue.test(blockString)) {
+        return blockString.replace(bareValue, () => PM.buildFieldValue(newProject));
+    }
+
+    return PM.buildFieldValue(newProject);
+};
+
+/**
  * Escribe en Roam los cambios calculados por planBranchPropagation.
  * Actualiza el bloque de proyecto existente o lo crea como primer hijo de la página.
  * Un error en un nodo no detiene el resto.
@@ -2522,7 +2548,7 @@ DiscourseGraphToolkit.applyProjectChanges = async function (changes) {
 
             if (projectBlock) {
                 await window.roamAlphaAPI.data.block.update({
-                    block: { uid: projectBlock.uid, string: newValue }
+                    block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, change.to) }
                 });
                 updated++;
             } else {
@@ -2776,33 +2802,20 @@ DiscourseGraphToolkit.fixContainerAlignment = async function (targetUid, newProj
     if (!targetUid) {
         return { success: false, action: 'none', error: 'No target UID provided' };
     }
-    const PM = this.ProjectManager;
-    const newValue = PM.buildFieldValue(newProject);
-    const escapedPattern = PM.getEscapedFieldPattern();
 
     try {
-        const escapedTargetUid = this.escapeDatalogString(targetUid);
-        const query = `[:find ?block-uid ?string
-                       :where 
-                       [?page :block/uid "${escapedTargetUid}"]
-                       [?page :block/children ?block]
-                       [?block :block/uid ?block-uid]
-                       [?block :block/string ?string]
-                       [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+        const projectBlock = await this._findProjectBlock(targetUid);
 
-        const results = await window.roamAlphaAPI.data.async.q(query);
-
-        if (results && results.length > 0) {
-            const blockUid = results[0][0];
+        if (projectBlock) {
             await window.roamAlphaAPI.data.block.update({
-                block: { uid: blockUid, string: newValue }
+                block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, newProject) }
             });
             return { success: true, action: 'updated' };
         } else {
             // Crear bloque como primer hijo de la página
             await window.roamAlphaAPI.data.block.create({
                 location: { 'parent-uid': targetUid, order: 0 },
-                block: { string: newValue }
+                block: { string: this.ProjectManager.buildFieldValue(newProject) }
             });
             return { success: true, action: 'created' };
         }
