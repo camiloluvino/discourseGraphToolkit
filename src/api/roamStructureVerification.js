@@ -126,7 +126,7 @@ DiscourseGraphToolkit.fixQueStructure = async function (questionUid) {
             // Reemplazar #SupportedBy con #RespondedBy
             const newString = blockString.replace(/#SupportedBy/g, "#RespondedBy");
 
-            await window.roamAlphaAPI.data.block.update({
+            await DiscourseGraphToolkit.roamWrite.updateBlock({
                 block: { uid: blockUid, string: newString }
             });
             fixed++;

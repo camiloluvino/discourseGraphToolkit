@@ -37,7 +37,7 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
         if (!pageUid || pageUid.length === 0) {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
+            await DiscourseGraphToolkit.roamWrite.createPage({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
         } else {
             pageUid = pageUid[0][0];
         }
@@ -49,10 +49,10 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         const escapedPageUid = this.escapeDatalogString(pageUid);
         const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
         for (let child of children) {
-            await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
+            await DiscourseGraphToolkit.roamWrite.deleteBlock({ block: { uid: child[0] } });
         }
 
-        await window.roamAlphaAPI.data.block.create({
+        await DiscourseGraphToolkit.roamWrite.createBlock({
             location: { "parent-uid": pageUid, order: 0 },
             block: { string: data }
         });

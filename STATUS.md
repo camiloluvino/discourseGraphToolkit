@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-27
+**Última actualización:** 2026-10-07
 
 ## Versión Actual
 
-**v1.5.72**
+**v1.5.76**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,35 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.76 (Octubre 2026)
+- **Fix/Coherence (Criterio único para leer el proyecto y detección de duplicados)**:
+  - **`getProjectsForPages` / `_pickProjectBlocks`**: un solo criterio para decidir qué bloque `Proyecto Asociado::` vale en cada página (se ignoran los escapados y se elige el primero según su orden, prefiriendo los que tienen `[[proyecto]]`). Reemplaza cinco lecturas distintas (verificación de ramas, búsqueda del bloque a escribir, páginas contenedoras, carga de la pestaña Ramas y de la Panorámica) que podían elegir bloques distintos según el orden en que Roam devolviera los resultados.
+  - **Proyecto duplicado**: las páginas con más de un bloque de proyecto se listan en `coherence.duplicates`; la rama figura como "diferente" y la ventana de la rama muestra una sección "Proyecto duplicado" para resolverlo a mano. El plugin no elige ni borra bloques por su cuenta.
+  - **`getBranchStatus`**: el estado de la rama se calcula en un solo lugar (antes había tres copias).
+- **Docs**: se reparó la codificación de `AI_INSTRUCTIONS.md` y `README.md` (texto UTF-8 dañado como CP850); `AI_INSTRUCTIONS.md` documenta el comando de tests correcto (`node --test`), los cuatro archivos de pruebas y las reglas de escritura en Roam.
+- **Tests**: 5 casos nuevos en `tests/branchPropagation.test.js`.
+
+### v1.5.75 (Octubre 2026)
+- **Fix/Robustez (Límite de escrituras compartido)**:
+  - Roam comparte entre todas las escrituras un presupuesto de 1500 llamadas por 60 s y lanza un error al superarlo. Hasta ahora solo la importación lo respetaba; la propagación, "Corregir missing", la alineación de contenedores, la sincronización de proyectos, el guardado de configuración y la creación de nodos escribían sin control y podían cortarse a mitad de una operación masiva.
+  - **Nuevo módulo `src/utils/mutationThrottle.js`**: `MutationThrottle` (movido desde `import.js`) y `roamWrite` (`createBlock`, `updateBlock`, `deleteBlock`, `createPage`, `deletePage`), por donde pasan ahora todas las escrituras del plugin.
+  - El conteo de escrituras persiste entre operaciones (antes cada importación lo reiniciaba). `reset()` se reemplaza por `setProgressCallback()`; la importación lo activa solo mientras dura.
+  - **Tests**: nuevo `tests/mutationThrottle.test.js` (reloj simulado).
+
+### v1.5.74 (Octubre 2026)
+- **Fix/Coherence (Propagación sin pérdida de texto)**:
+  - **`_replaceProjectInString`**: al cambiar el proyecto de un nodo se reemplaza solo el enlace `[[proyecto]]` del bloque `Proyecto Asociado::`; se conservan las notas, etiquetas o texto que lo acompañen. Si el campo está vacío o sin enlace, se completa con el valor nuevo.
+  - Aplica a "Sincronizar Rama", a la corrección en bloque de nodos sin proyecto y a la alineación de páginas contenedoras (`fixContainerAlignment`, que ahora reutiliza `_findProjectBlock`).
+  - **Tests**: 4 casos nuevos en `tests/branchPropagation.test.js`.
+
+### v1.5.73 (Octubre 2026)
+- **Fix/Coherence (Propagación de proyectos en cascada)**:
+  - **Planificador puro (`planBranchPropagation`)**: calcula qué proyecto recibe cada nodo recorriendo la rama desde la raíz (padre antes que hijo) con el proyecto ya resuelto del padre. Corrige dos errores: (1) al editar el proyecto de la raíz y propagar, los hijos recibían el valor anterior de la raíz; (2) una cadena de nodos mal asignados requería una pasada por nivel, porque cada hijo heredaba el valor erróneo que se estaba corrigiendo en su padre.
+  - **Especializaciones**: un nodo con un sub-namespace propio que deja de calzar con la raíz nueva no se modifica; se lista como "pendiente de revisión manual" en la vista previa. Los nodos que solo heredaban el proyecto de su padre lo siguen.
+  - **Ejecutor (`applyProjectChanges`)**: escribe solo los cambios del plan; la raíz ya no se reescribe cuando su proyecto no cambia. Reemplaza a `propagateProjectToBranch` y `propagateFromParents`.
+  - **Vista previa fiel**: "Sincronizar Rama" y la corrección en bloque de nodos sin proyecto muestran exactamente el plan que se ejecutará. El botón también aparece cuando solo se cambia el proyecto de la raíz.
+  - **Tests**: nuevo `tests/branchPropagation.test.js` (planificador y ejecutor con API de Roam simulada).
 
 ### v1.5.72 (Septiembre 2026)
 - **Optimization/Import (Diffing estricto y optimización de tasa de mutación en importación)**:

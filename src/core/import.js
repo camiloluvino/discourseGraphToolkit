@@ -2,84 +2,19 @@
 // CORE: Importación
 // ============================================================================
 
-// --- Controlador de Tasa de Mutación (Roam API Rate Limiter) ---
-DiscourseGraphToolkit.MutationThrottle = {
-    MAX_OPS_PER_WINDOW: 1400,   // Margen de seguridad sobre el límite de 1500/60s de Roam
-    WINDOW_MS: 60000,           // Ventana móvil de 60 segundos
-    MIN_DELAY_MS: 0,            // Yield mínimo (~4ms por setTimeout) para no congelar la UI
-    callTimestamps: [],
-    onProgress: null,
-
-    reset: function (progressCallback) {
-        this.callTimestamps = [];
-        this.onProgress = progressCallback || null;
-    },
-
-    sleep: function (ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    },
-
-    execute: async function (mutationFn) {
-        const now = Date.now();
-        // 1. Limpiar timestamps que salieron de la ventana móvil de 60s
-        this.callTimestamps = this.callTimestamps.filter(t => (now - t) < this.WINDOW_MS);
-
-        // 2. Si alcanzamos el umbral de seguridad, esperar a que venza el más antiguo
-        while (this.callTimestamps.length >= this.MAX_OPS_PER_WINDOW) {
-            const oldest = this.callTimestamps[0];
-            const waitMs = (oldest + this.WINDOW_MS) - Date.now() + 25;
-            if (waitMs > 0) {
-                const waitSec = Math.ceil(waitMs / 1000);
-                const msg = `⏳ Pausa preventiva por cuota de Roam (${this.callTimestamps.length}/1500 ops). Esperando ${waitSec}s para continuar con seguridad...`;
-                console.warn(msg);
-                if (this.onProgress) this.onProgress(msg);
-                await this.sleep(waitMs);
-                if (this.onProgress) this.onProgress(`✅ Cuota renovada. Reanudando importación...`);
-            }
-            const postWait = Date.now();
-            this.callTimestamps = this.callTimestamps.filter(t => (postWait - t) < this.WINDOW_MS);
-        }
-
-        // 3. Ejecución segura con reintento ante error 429 / Rate Limit
-        let attempts = 0;
-        const maxAttempts = 3;
-        while (attempts < maxAttempts) {
-            try {
-                if (this.MIN_DELAY_MS !== null && this.MIN_DELAY_MS !== undefined && this.MIN_DELAY_MS >= 0) {
-                    await this.sleep(this.MIN_DELAY_MS);
-                }
-                const result = await mutationFn();
-                this.callTimestamps.push(Date.now());
-                return result;
-            } catch (err) {
-                const isRateLimit = err && err.message && (
-                    err.message.includes("maximum mutation rate limit exceeded") ||
-                    err.message.includes("rate limit")
-                );
-
-                if (isRateLimit && attempts < maxAttempts - 1) {
-                    attempts++;
-                    const backoffMs = 20000 * attempts;
-                    const msg = `⚠️ Cuota de Roam excedida. Esperando ${backoffMs / 1000}s para reintentar (intento ${attempts}/${maxAttempts})...`;
-                    console.warn(msg, err);
-                    if (this.onProgress) this.onProgress(msg);
-                    await this.sleep(backoffMs);
-                    const retryNow = Date.now();
-                    this.callTimestamps = this.callTimestamps.filter(t => (retryNow - t) < this.WINDOW_MS);
-                } else {
-                    throw err;
-                }
-            }
-        }
-    }
-};
-
 DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
 
-    // Inicializar el controlador de cuota con el callback de progreso
-    DiscourseGraphToolkit.MutationThrottle.reset(report);
+    // Las pausas del limitador se informan en la pestaña Importar mientras dure la importación
+    DiscourseGraphToolkit.MutationThrottle.setProgressCallback(report);
+    try {
+        return await this._importGraph(jsonContent, report);
+    } finally {
+        DiscourseGraphToolkit.MutationThrottle.setProgressCallback(null);
+    }
+};
 
+DiscourseGraphToolkit._importGraph = async function (jsonContent, report) {
     report(`Leyendo archivo (${jsonContent.length} bytes)...`);
 
     let data;

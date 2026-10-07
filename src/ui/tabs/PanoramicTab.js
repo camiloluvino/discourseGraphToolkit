@@ -313,32 +313,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             setLoadStatus('⏳ Obteniendo proyectos...');
             const allNodeUids = Object.keys(allNodes);
 
-            // Usar query en bloque para mayor eficiencia
-            const PM = DiscourseGraphToolkit.ProjectManager;
-            const escapedPattern = PM.getEscapedFieldPattern();
-            const projectQuery = `[:find ?page-uid ?string
-                                   :in $ [?page-uid ...]
-                                   :where 
-                                   [?page :block/uid ?page-uid]
-                                   [?page :block/children ?block]
-                                   [?block :block/string ?string]
-                                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
+            // Usar query en bloque para mayor eficiencia (mismo criterio que la verificación de ramas)
             try {
-                const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, allNodeUids);
-                const fieldPattern = PM.getFieldPattern();
-                const regex = PM.getFieldRegex();
-
-                projectResults.forEach(r => {
-                    const docUid = r[0];
-                    const blockString = r[1];
-                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                        const match = blockString.match(regex);
-                        if (match && allNodes[docUid]) {
-                            allNodes[docUid].project = match[1].trim();
-                        }
+                const pickedProjects = await DiscourseGraphToolkit.getProjectsForPages(allNodeUids);
+                for (const [docUid, picked] of pickedProjects) {
+                    if (picked.project && allNodes[docUid]) {
+                        allNodes[docUid].project = picked.project;
                     }
-                });
+                }
             } catch (e) {
                 console.warn("No se pudieron obtener los proyectos en bulk:", e);
                 // Fallback: procesar uno a uno los rootNodes

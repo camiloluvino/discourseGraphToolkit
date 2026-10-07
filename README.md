@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.72
+**Versión:** 1.5.76
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -57,45 +57,45 @@ Verifica la consistencia de tus ramas de investigación:
 - **UI Limpia:** Secciones colapsables y detalles técnicos accesibles vía hover (tooltips).
 
 ### 3.5 Favoritos por Namespace (Ramas y Exportar)
-Guarda y recupera configuraciones de selecci├│n r├ípida con nombres generados autom├íticamente:
-- **Nombre autom├ítico por namespace:** Al guardar un favorito, el nombre se genera desde el ancestro com├║n de los proyectos seleccionados (ej. `Filosof├¡a/├ëtica`).
-- **Sobrescritura autom├ítica:** Si ya existe un favorito con el mismo namespace, se actualiza silenciosamente (sin duplicados).
-- **Disponible en pesta├▒as Ramas y Exportar:** Cada pesta├▒a guarda su propio conjunto de favoritos.
+Guarda y recupera configuraciones de selección rápida con nombres generados automáticamente:
+- **Nombre automático por namespace:** Al guardar un favorito, el nombre se genera desde el ancestro común de los proyectos seleccionados (ej. `Filosofía/Ética`).
+- **Sobrescritura automática:** Si ya existe un favorito con el mismo namespace, se actualiza silenciosamente (sin duplicados).
+- **Disponible en pestañas Ramas y Exportar:** Cada pestaña guarda su propio conjunto de favoritos.
 
-### 4. Exportaci├│n Multi-Formato
-Exporta tus grafos de discurso en m├║ltiples formatos:
+### 4. Exportación Multi-Formato
+Exporta tus grafos de discurso en múltiples formatos:
 - **JSON Nativo:** Compatible con el formato de Roam Research.
-- **HTML:** Documento interactivo con estilos, navegaci├│n y reordenamiento.
-- **Markdown:** Formato estructurado con bullets e indentaci├│n.
-- **MD Plano:** Markdown sin bullets, ideal para conversi├│n a otros formatos.
+- **HTML:** Documento interactivo con estilos, navegación y reordenamiento.
+- **Markdown:** Formato estructurado con bullets e indentación.
+- **MD Plano:** Markdown sin bullets, ideal para conversión a otros formatos.
 - **Profundidad Recursiva Ilimitada:** Los exportadores de Markdown, HTML y EPUB ahora soportan anidación infinita de afirmaciones (CLM) y evidencias (EVD). Ya no existe un límite fijo de niveles; el sistema recorre toda la rama de discurso respetando las relaciones `#SupportedBy`.
 - **EPUB:** Libro electrónico con generador nativo. Cuenta con **Índice Jerárquico Profundo (ToC Interactivo)**, **numeración jerárquica dinámica** para cualquier nivel (ej. `1.2.1.2.1. `), soporte completo de sintaxis de cursivas de Roam (`__texto__`), y compatibilidad con **Namespaces Jerárquicos como secciones** (páginas divisoras con estilos diferenciados por profundidad y árbol TOC multinivel anidado).
 - **Opciones de Formato para Impresión (NUEVO):**
   - **Agrupación por Namespaces:** Genera automáticamente encabezados de sección basados en la jerarquía de proyectos, omitiendo el proyecto raíz para mayor claridad (ej. de `tesis/marco` extrae `# Marco`). En EPUB, codifica la profundidad jerárquica real, produciendo páginas divisoras estilizadas según el nivel (H1 con jerarquía visual) y una tabla de contenidos multinivel anidada en árbol.
   - **Ocultar etiquetas de nodo:** Permite eliminar los prefijos `[[QUE]]`, `[[CLM]]`, etc., para obtener un texto más limpio y profesional en documentos finales.
-  - **Numeraci├│n Jer├írquica:** A├▒ade numeraci├│n de estilo acad├®mico (1., 1.1., 1.1.1.) a los nodos, facilitando la referencia estructural en el documento impreso.
-- **HTML:** Documento interactivo con profundidad din├ímica. Los niveles superiores a 6 mantienen la jerarqu├¡a visual mediante indentaci├│n CSS progresiva.
-- **Reordenamiento Centralizado:** Gestiona el orden de tus preguntas (QUE) y sub-proyectos (GRI) directamente desde la pesta├▒a **Panor├ímica** mediante Drag & Drop. El orden personalizado se persiste en `localStorage` y se aplica autom├íticamente a todos los formatos de exportaci├│n (JSON, HTML, Markdown, EPUB).
+  - **Numeración Jerárquica:** Añade numeración de estilo académico (1., 1.1., 1.1.1.) a los nodos, facilitando la referencia estructural en el documento impreso.
+- **HTML:** Documento interactivo con profundidad dinámica. Los niveles superiores a 6 mantienen la jerarquía visual mediante indentación CSS progresiva.
+- **Reordenamiento Centralizado:** Gestiona el orden de tus preguntas (QUE) y sub-proyectos (GRI) directamente desde la pestaña **Panorámica** mediante Drag & Drop. El orden personalizado se persiste en `localStorage` y se aplica automáticamente a todos los formatos de exportación (JSON, HTML, Markdown, EPUB).
 
-### 5. Vista Panor├ímica Simplificada (Solo Nodos Ra├¡z)
-Vista sint├®tica de todas las ramas del grafo mostrando ├║nicamente los nodos ra├¡z (QUE y GRI) como filas planas:
+### 5. Vista Panorámica Simplificada (Solo Nodos Raíz)
+Vista sintética de todas las ramas del grafo mostrando únicamente los nodos raíz (QUE y GRI) como filas planas:
 - **Vista Limpia:** Muestra solo preguntas (QUE) y grupos (GRI) como filas individuales con su badge de tipo y proyecto asociado.
-- **Drag & Drop Nativo:** Reordena nodos ra├¡z arrastr├índolos libremente. El orden se persiste instant├íneamente por proyecto/sub-proyecto.
-- **Agrupaci├│n Autom├ítica:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
-- **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre y rige la estructura de exportaci├│n.
-- **Navegaci├│n Fluida:** Cada bloque incluye un bot├│n de navegaci├│n r├ípida (`ÔåÆ`) para profundizar en ese sub-proyecto.
-- **Foco Estructural:** Los nodos inferiores (CLM, EVD) ya no se renderizan en esta vista para mantener la claridad en la organizaci├│n de alto nivel.
+- **Drag & Drop Nativo:** Reordena nodos raíz arrastrándolos libremente. El orden se persiste instantáneamente por proyecto/sub-proyecto.
+- **Agrupación Automática:** Al seleccionar un proyecto padre (ej. `tesis`), los nodos se agrupan en bloques por sub-proyecto inmediato (ej. `tesis/marco`, `tesis/metodo`).
+- **Reordenamiento por Bloques:** Los sub-proyectos se pueden arrastrar como unidades completas. El orden entre bloques se guarda en el proyecto padre y rige la estructura de exportación.
+- **Navegación Fluida:** Cada bloque incluye un botón de navegación rápida (`→`) para profundizar en ese sub-proyecto.
+- **Foco Estructural:** Los nodos inferiores (CLM, EVD) ya no se renderizan en esta vista para mantener la claridad en la organización de alto nivel.
 
 ### 6. Optimizaciones de Rendimiento y Estabilidad (v1.5.42 - v1.5.45)
-Se ha realizado una auditor├¡a de calidad integral y refactorizaci├│n del motor interno:
-- **Optimizaci├│n Cr├¡tica de Exportaci├│n (v1.5.45):** Se redise├▒├│ la consulta Datalog fundamental (`findPagesWithProject`) para utilizar los ├¡ndices de referencias nativos de Roam (`:block/refs`) en lugar de escaneos de texto completo (`clojure.string/includes?`). Esto reduce dr├ísticamente el tiempo de carga del proceso de exportaci├│n, pasando de segundos/minutos a milisegundos en grafos grandes.
-- **Seguridad (SRI):** Se agreg├│ verificaci├│n de integridad hash (SRI) en la carga din├ímica de dependencias (JSZip) para prevenir vulnerabilidades de cadena de suministro (supply-chain).
-- **Seguridad (XSS):** Implementaci├│n de una capa estricta de escape HTML en los generadores de exportaci├│n para t├¡tulos de nodos y metadatos, previniendo la inyecci├│n de c├│digo malicioso.
-- **Deduplicaci├│n O(1):** El mapeo de relaciones ahora utiliza `Set` internamente en lugar de b├║squedas `Array.includes()`, eliminando cuellos de botella de complejidad O(N┬▓) en grafos con cientos de conexiones.
-- **Backtracking Eficiente:** Las funciones de relevancia jer├írquica ahora utilizan un ├║nico `Set` compartido con backtracking, reduciendo el uso de memoria de complejidad exponencial a lineal (evita miles de copias de objetos en grafos profundos).
-- **Batching de Dependencias:** El cargador de la Vista Panor├ímica ahora acumula todas las referencias faltantes y las solicita en una sola llamada por nivel, reduciendo dr├ísticamente los round-trips a la API de Roam.
-- **Memoizaci├│n de Estad├¡sticas:** Los contadores de la UI se calculan ahora en un solo pase (O(N)) y se memoizan para evitar iteraciones redundantes en cada renderizado.
-- **Persistencia de Cache:** Sistema de cache de relevancia basado en `useRef` para evitar invalidaciones innecesarias y mejorar la fluidez de navegaci├│n en la Vista Panor├ímica.
+Se ha realizado una auditoría de calidad integral y refactorización del motor interno:
+- **Optimización Crítica de Exportación (v1.5.45):** Se rediseñó la consulta Datalog fundamental (`findPagesWithProject`) para utilizar los índices de referencias nativos de Roam (`:block/refs`) en lugar de escaneos de texto completo (`clojure.string/includes?`). Esto reduce drásticamente el tiempo de carga del proceso de exportación, pasando de segundos/minutos a milisegundos en grafos grandes.
+- **Seguridad (SRI):** Se agregó verificación de integridad hash (SRI) en la carga dinámica de dependencias (JSZip) para prevenir vulnerabilidades de cadena de suministro (supply-chain).
+- **Seguridad (XSS):** Implementación de una capa estricta de escape HTML en los generadores de exportación para títulos de nodos y metadatos, previniendo la inyección de código malicioso.
+- **Deduplicación O(1):** El mapeo de relaciones ahora utiliza `Set` internamente en lugar de búsquedas `Array.includes()`, eliminando cuellos de botella de complejidad O(N²) en grafos con cientos de conexiones.
+- **Backtracking Eficiente:** Las funciones de relevancia jerárquica ahora utilizan un único `Set` compartido con backtracking, reduciendo el uso de memoria de complejidad exponencial a lineal (evita miles de copias de objetos en grafos profundos).
+- **Batching de Dependencias:** El cargador de la Vista Panorámica ahora acumula todas las referencias faltantes y las solicita en una sola llamada por nivel, reduciendo drásticamente los round-trips a la API de Roam.
+- **Memoización de Estadísticas:** Los contadores de la UI se calculan ahora en un solo pase (O(N)) y se memoizan para evitar iteraciones redundantes en cada renderizado.
+- **Persistencia de Cache:** Sistema de cache de relevancia basado en `useRef` para evitar invalidaciones innecesarias y mejorar la fluidez de navegación en la Vista Panorámica.
 
 ### 7. Importación
 Permite restaurar copias de seguridad o importar grafos exportados por el propio toolkit manteniendo absoluta coherencia con el formato nativo de Roam:
@@ -105,16 +105,16 @@ Permite restaurar copias de seguridad o importar grafos exportados por el propio
 - **Registro en Daily Note:** Genera una entrada automática en las notas diarias con los títulos de las páginas importadas agrupadas bajo `#import`.
 - **Protección de Archivo:** Validación previa para archivos de hasta 20MB.
 
-## Instalaci├│n
+## Instalación
 
-### Opci├│n A: Instalaci├│n con Actualizaciones Autom├íticas (Recomendado)
+### Opción A: Instalación con Actualizaciones Automáticas (Recomendado)
 
-Esta opci├│n carga el plugin desde GitHub Pages. Solo necesitas configurarlo una vez por grafo y recibir├ís actualizaciones autom├íticamente.
+Esta opción carga el plugin desde GitHub Pages. Solo necesitas configurarlo una vez por grafo y recibirás actualizaciones automáticamente.
 
-1. Crea una p├ígina en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
+1. Crea una página en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
 2. Crea un bloque hijo con `{{[[roam/js]]}}`.
-3. Dentro, crea un bloque de c├│digo JavaScript.
-4. Pega el siguiente c├│digo:
+3. Dentro, crea un bloque de código JavaScript.
+4. Pega el siguiente código:
 
 ```javascript
 var s = document.createElement('script');
@@ -126,44 +126,44 @@ document.head.appendChild(s);
 5. Confirma con "Yes, I know what I'm doing".
 6. Recarga Roam.
 
-> **Nota:** Cada vez que actualice el plugin en GitHub, todos tus grafos recibir├ín la nueva versi├│n autom├íticamente al recargar Roam.
+> **Nota:** Cada vez que actualice el plugin en GitHub, todos tus grafos recibirán la nueva versión automáticamente al recargar Roam.
 
-### Opci├│n B: Instalaci├│n Manual
+### Opción B: Instalación Manual
 
-Si prefieres tener control total sobre la versi├│n del plugin:
+Si prefieres tener control total sobre la versión del plugin:
 
-1. Crea una p├ígina en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
+1. Crea una página en Roam Research (ej. `[[roam/js/discourse-toolkit]]`).
 2. Crea un bloque hijo con `{{[[roam/js]]}}`.
-3. Dentro, crea un bloque de c├│digo JavaScript.
+3. Dentro, crea un bloque de código JavaScript.
 4. Copia y pega el contenido completo de `discourse-graph-toolkit.js`.
 5. Confirma con "Yes, I know what I'm doing".
 6. Recarga Roam.
 
-## Uso B├ísico
+## Uso Básico
 
 ### Abriendo el Toolkit
 1. Abre la paleta de comandos (`Ctrl+P`).
 2. Busca **"Discourse Graph Toolkit: Abrir"**.
 
-### Pesta├▒as disponibles
+### Pestañas disponibles
 
-| Pesta├▒a | Funci├│n |
+| Pestaña | Función |
 |---------|---------|
 | **Proyectos** | Gestiona proyectos, valida existencia, busca sugerencias |
 | **Ramas** | Verifica coherencia de `Proyecto Asociado::` en todas las ramas |
-| **Nodos** | Gesti├│n y b├║squeda de nodos hu├®rfanos sin proyecto ni conexiones |
-| **Panor├ímica** | Vista sint├®tica y pulida de todas las ramas del grafo con dise├▒o unificado |
+| **Nodos** | Gestión y búsqueda de nodos huérfanos sin proyecto ni conexiones |
+| **Panorámica** | Vista sintética y pulida de todas las ramas del grafo con diseño unificado |
 | **Exportar** | Exporta nodos a JSON, HTML, Markdown o EPUB |
 | **Importar** | Importa grafos desde archivos JSON |
 
 ### Creando Nodos
 1. Escribe tu idea en un bloque.
 2. Presiona el atajo correspondiente (ej. `Ctrl+Shift+Q`).
-3. El bloque se convierte en un enlace a una nueva p├ígina estructurada.
+3. El bloque se convierte en un enlace a una nueva página estructurada.
 
 ### Exportando
 1. Abre el Toolkit.
-2. Ve a la pesta├▒a **Exportar**.
+2. Ve a la pestaña **Exportar**.
 3. Selecciona proyectos y tipos de nodos.
 4. Haz clic en el formato deseado: JSON, HTML, Markdown, MD Plano o EPUB.
 
@@ -171,61 +171,61 @@ Si prefieres tener control total sobre la versi├│n del plugin:
 
 ```
 discourseGraphToolkit/
-Ôö£ÔöÇÔöÇ src/
-Ôöé   Ôö£ÔöÇÔöÇ config.js              # Configuraci├│n y constantes
-Ôöé   Ôö£ÔöÇÔöÇ state.js               # Gesti├│n de almacenamiento
-Ôöé   Ôö£ÔöÇÔöÇ index.js               # Inicializaci├│n
-Ôöé   Ôö£ÔöÇÔöÇ api/                   # M├│dulos de Roam API (por dominio)
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ roamProjects.js    # Gesti├│n de proyectos en Roam
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ roamSearch.js      # B├║squedas y queries
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ roamBranchVerification.js    # Verificaci├│n de ramas
-Ôöé   Ôöé   ÔööÔöÇÔöÇ roamStructureVerification.js # Verificaci├│n de estructura
-Ôöé   Ôö£ÔöÇÔöÇ core/                  # L├│gica de negocio
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ nodes.js           # Creaci├│n de nodos QUE/CLM/EVD
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ projects.js        # Gesti├│n de proyectos
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ export.js          # Exportaci├│n JSON
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ import.js          # Importaci├│n de datos
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ contentProcessor.js    # Procesamiento de contenido
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ relationshipMapper.js  # Mapeo de relaciones
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ markdownCore.js        # Core de Markdown (compartido)
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ markdownGenerator.js   # Generador Markdown
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ htmlGenerator.js       # Generador HTML (usa htmlEmbeddedScript.js)
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ htmlEmbeddedScript.js  # JavaScript inyectado en HTML exportado
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ epubGenerator.js       # Generador EPUB
-Ôöé   Ôöé   ÔööÔöÇÔöÇ html/                  # Generadores auxiliares HTML
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ htmlStyles.js      # Estilos embebidos en el HTML exportado
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ htmlHelpers.js     # Helpers espec├¡ficos de renderizado HTML
-Ôöé   Ôöé       ÔööÔöÇÔöÇ htmlNodeRenderers.js # Renderizadores de nodos individuales en HTML
-Ôöé   Ôö£ÔöÇÔöÇ ui/                    # Componentes React de interfaz
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ modal.js           # Modal principal (compositor de Providers)
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ ToolkitContext.js  # React Context y hook useToolkit (legacy/wrapper)
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ contexts/          # Contextos de dominio
-Ôöé   Ôöé   Ôöé   Ôö£ÔöÇÔöÇ NavContext.js        # Contexto de navegaci├│n de pesta├▒as
-Ôöé   Ôöé   Ôöé   Ôö£ÔöÇÔöÇ ProjectsContext.js   # Contexto para gesti├│n de proyectos
-Ôöé   Ôöé   Ôöé   Ôö£ÔöÇÔöÇ BranchesContext.js   # Contexto para validaci├│n de ramas
-Ôöé   Ôöé   Ôöé   Ôö£ÔöÇÔöÇ ExportContext.js     # Contexto para exportaci├│n de datos
-Ôöé   Ôöé   Ôöé   ÔööÔöÇÔöÇ PanoramicContext.js  # Contexto para la vista panor├ímica
-Ôöé   Ôöé   Ôö£ÔöÇÔöÇ components/        # Componentes reutilizables
-Ôöé   Ôöé   Ôöé   ÔööÔöÇÔöÇ ProjectTreeView.js  # ├ürbol jer├írquico con expand/collapse
-Ôöé   Ôöé   ÔööÔöÇÔöÇ tabs/              # Componentes de pesta├▒as individuales
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ ProjectsTab.js   # Gesti├│n de proyectos
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ BranchesTab.js   # Verificaci├│n de ramas
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ NodesTab.js      # Gesti├│n de nodos hu├®rfanos
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ PanoramicTab.js  # Vista panor├ímica
-Ôöé   Ôöé       Ôö£ÔöÇÔöÇ ExportTab.js     # Exportaci├│n
-Ôöé   Ôöé       ÔööÔöÇÔöÇ ImportTab.js     # Importaci├│n
-Ôöé   ÔööÔöÇÔöÇ utils/                 # Helpers y toast notifications
-Ôöé       Ôö£ÔöÇÔöÇ helpers.js         # Helpers generales
-Ôöé       Ôö£ÔöÇÔöÇ projectTreeUtils.js  # Utilidades de ├írbol de proyectos
-Ôöé       ÔööÔöÇÔöÇ toast.js           # Notificaciones de toast
-Ôö£ÔöÇÔöÇ ejemplos/                  # Ejemplos de exportaci├│n
-Ôö£ÔöÇÔöÇ build.ps1                  # Script de build
-ÔööÔöÇÔöÇ discourse-graph-toolkit.js # Bundle final
+├── src/
+│   ├── config.js              # Configuración y constantes
+│   ├── state.js               # Gestión de almacenamiento
+│   ├── index.js               # Inicialización
+│   ├── api/                   # Módulos de Roam API (por dominio)
+│   │   ├── roamProjects.js    # Gestión de proyectos en Roam
+│   │   ├── roamSearch.js      # Búsquedas y queries
+│   │   ├── roamBranchVerification.js    # Verificación de ramas
+│   │   └── roamStructureVerification.js # Verificación de estructura
+│   ├── core/                  # Lógica de negocio
+│   │   ├── nodes.js           # Creación de nodos QUE/CLM/EVD
+│   │   ├── projects.js        # Gestión de proyectos
+│   │   ├── export.js          # Exportación JSON
+│   │   ├── import.js          # Importación de datos
+│   │   ├── contentProcessor.js    # Procesamiento de contenido
+│   │   ├── relationshipMapper.js  # Mapeo de relaciones
+│   │   ├── markdownCore.js        # Core de Markdown (compartido)
+│   │   ├── markdownGenerator.js   # Generador Markdown
+│   │   ├── htmlGenerator.js       # Generador HTML (usa htmlEmbeddedScript.js)
+│   │   ├── htmlEmbeddedScript.js  # JavaScript inyectado en HTML exportado
+│   │   ├── epubGenerator.js       # Generador EPUB
+│   │   └── html/                  # Generadores auxiliares HTML
+│   │       ├── htmlStyles.js      # Estilos embebidos en el HTML exportado
+│   │       ├── htmlHelpers.js     # Helpers específicos de renderizado HTML
+│   │       └── htmlNodeRenderers.js # Renderizadores de nodos individuales en HTML
+│   ├── ui/                    # Componentes React de interfaz
+│   │   ├── modal.js           # Modal principal (compositor de Providers)
+│   │   ├── ToolkitContext.js  # React Context y hook useToolkit (legacy/wrapper)
+│   │   ├── contexts/          # Contextos de dominio
+│   │   │   ├── NavContext.js        # Contexto de navegación de pestañas
+│   │   │   ├── ProjectsContext.js   # Contexto para gestión de proyectos
+│   │   │   ├── BranchesContext.js   # Contexto para validación de ramas
+│   │   │   ├── ExportContext.js     # Contexto para exportación de datos
+│   │   │   └── PanoramicContext.js  # Contexto para la vista panorámica
+│   │   ├── components/        # Componentes reutilizables
+│   │   │   └── ProjectTreeView.js  # Árbol jerárquico con expand/collapse
+│   │   └── tabs/              # Componentes de pestañas individuales
+│   │       ├── ProjectsTab.js   # Gestión de proyectos
+│   │       ├── BranchesTab.js   # Verificación de ramas
+│   │       ├── NodesTab.js      # Gestión de nodos huérfanos
+│   │       ├── PanoramicTab.js  # Vista panorámica
+│   │       ├── ExportTab.js     # Exportación
+│   │       └── ImportTab.js     # Importación
+│   └── utils/                 # Helpers y toast notifications
+│       ├── helpers.js         # Helpers generales
+│       ├── projectTreeUtils.js  # Utilidades de árbol de proyectos
+│       └── toast.js           # Notificaciones de toast
+├── ejemplos/                  # Ejemplos de exportación
+├── build.ps1                  # Script de build
+└── discourse-graph-toolkit.js # Bundle final
 ```
 
 ## Desarrollo
 
-El proyecto usa un sistema de build por concatenaci├│n. Para generar el bundle:
+El proyecto usa un sistema de build por concatenación. Para generar el bundle:
 
 ```powershell
 .\build.ps1
@@ -238,4 +238,4 @@ node -c discourse-graph-toolkit.js
 
 ## Licencia
 
-Uso personal. Proyecto individual para investigaci├│n acad├®mica.
+Uso personal. Proyecto individual para investigación académica.

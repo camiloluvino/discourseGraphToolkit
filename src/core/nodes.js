@@ -31,7 +31,7 @@ DiscourseGraphToolkit.createTemplateBlocks = async function (parentUid, template
             let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
 
             let blockUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.block.create({
+            await DiscourseGraphToolkit.roamWrite.createBlock({
                 "location": { "parent-uid": parentUid, "order": startOrder + i },
                 "block": { "uid": blockUid, "string": processedText }
             });
@@ -92,7 +92,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
             this.showToast(`Nodo ${typePrefix} ya existe, vinculando...`, "info");
         } else {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({
+            await DiscourseGraphToolkit.roamWrite.createPage({
                 "page": { "title": newPageTitle, "uid": pageUid }
             });
             pageWasCreated = true;
@@ -101,7 +101,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
 
         this.addToNodeHistory(typePrefix, originalBlockContent, proyecto);
 
-        await window.roamAlphaAPI.data.block.update({
+        await DiscourseGraphToolkit.roamWrite.updateBlock({
             "block": { "uid": blockUid, "string": newBlockString }
         });
 
@@ -116,10 +116,10 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         this.showToast("Error: " + error.message, "error");
         // Rollback simple
         if (pageWasCreated && pageUid) {
-            await window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
+            await DiscourseGraphToolkit.roamWrite.deletePage({ "page": { "uid": pageUid } });
         }
         if (blockUid && originalBlockContent) {
-            await window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
+            await DiscourseGraphToolkit.roamWrite.updateBlock({ "block": { "uid": blockUid, "string": originalBlockContent } });
         }
     }
 };
