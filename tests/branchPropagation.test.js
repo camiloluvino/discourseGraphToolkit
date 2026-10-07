@@ -137,10 +137,10 @@ function fakeRoam(projects) {
     window.roamAlphaAPI = {
         data: {
             async: {
-                q: async (query) => {
-                    const uid = query.match(/:block\/uid "([^"]+)"/)[1];
-                    return projects[uid] ? [[uid + '-pb', 'Proyecto Asociado:: [[' + projects[uid] + ']]']] : [];
-                }
+                // Filas [pageUid, blockUid, texto, orden], como _queryProjectBlocks
+                q: async (query, uids) => (uids || [])
+                    .filter(uid => projects[uid])
+                    .map(uid => [uid, uid + '-pb', 'Proyecto Asociado:: [[' + projects[uid] + ']]', 0])
             },
             block: {
                 update: async (a) => { writes.push(['update', a.block.uid, a.block.string]); },
@@ -207,7 +207,7 @@ test('applyProjectChanges - Caso 3: no borra la nota escrita junto al proyecto',
     const writes = [];
     window.roamAlphaAPI = {
         data: {
-            async: { q: async () => [['clm-pb', 'Proyecto Asociado:: [[otro]] (esta nota debería conservarse)']] },
+            async: { q: async () => [['clm', 'clm-pb', 'Proyecto Asociado:: [[otro]] (esta nota debería conservarse)', 0]] },
             block: {
                 update: async (a) => { writes.push([a.block.uid, a.block.string]); },
                 create: async () => { throw new Error('no debería crear'); }
@@ -222,7 +222,7 @@ test('fixContainerAlignment - Tampoco borra la nota junto al proyecto', async ()
     const writes = [];
     window.roamAlphaAPI = {
         data: {
-            async: { q: async () => [['cont-pb', 'Proyecto Asociado:: [[tesis]] #pendiente']] },
+            async: { q: async () => [['cont', 'cont-pb', 'Proyecto Asociado:: [[tesis]] #pendiente', 0]] },
             block: {
                 update: async (a) => { writes.push([a.block.uid, a.block.string]); },
                 create: async () => { throw new Error('no debería crear'); }
@@ -232,4 +232,59 @@ test('fixContainerAlignment - Tampoco borra la nota junto al proyecto', async ()
     const res = await DGT.fixContainerAlignment('cont', 'tesis/marco');
     assert.deepStrictEqual(res, { success: true, action: 'updated' });
     assert.deepStrictEqual(writes, [['cont-pb', 'Proyecto Asociado:: [[tesis/marco]] #pendiente']]);
+});
+
+// --- Bloques de proyecto duplicados (caso 5) ---
+
+test('_pickProjectBlocks - Elige siempre el primer bloque válido según su orden en la página', () => {
+    const rows = [
+        ['p1', 'b2', 'Proyecto Asociado:: [[artículo/simmel]]', 1],
+        ['p1', 'b1', 'Proyecto Asociado:: [[tesis/marco]]', 0]
+    ];
+    const picked = DGT._pickProjectBlocks(rows).get('p1');
+    assert.deepStrictEqual(
+        [picked.project, picked.blockUid, picked.projects],
+        ['tesis/marco', 'b1', ['tesis/marco', 'artículo/simmel']]
+    );
+});
+
+test('_pickProjectBlocks - Ignora bloques escapados y no los cuenta como duplicados', () => {
+    const rows = [
+        ['p1', 'b0', '`Proyecto Asociado:: [[ejemplo]]`', 0],
+        ['p1', 'b1', 'Proyecto Asociado:: [[tesis]]', 1]
+    ];
+    const picked = DGT._pickProjectBlocks(rows).get('p1');
+    assert.deepStrictEqual([picked.project, picked.blockUid, picked.projects], ['tesis', 'b1', ['tesis']]);
+});
+
+test('_pickProjectBlocks - Un campo sin enlace se puede escribir pero no tiene proyecto', () => {
+    const picked = DGT._pickProjectBlocks([['p1', 'b1', 'Proyecto Asociado::', 0]]).get('p1');
+    assert.deepStrictEqual([picked.project, picked.blockUid, picked.projects], [null, 'b1', []]);
+});
+
+test('verifyProjectCoherence - Informa los nodos con más de un bloque de proyecto', async () => {
+    window.roamAlphaAPI = {
+        data: {
+            async: {
+                q: async () => [
+                    ['root', 'r1', 'Proyecto Asociado:: [[tesis]]', 0],
+                    ['clm', 'c2', 'Proyecto Asociado:: [[artículo]]', 2],
+                    ['clm', 'c1', 'Proyecto Asociado:: [[tesis]]', 0]
+                ]
+            }
+        }
+    };
+    const branch = [{ uid: 'clm', title: '[[CLM]] - x', type: 'CLM', parentUid: 'root' }];
+    const coh = await DGT.verifyProjectCoherence('root', branch);
+    assert.deepStrictEqual(coh.coherent.map(n => [n.uid, n.project]), [['clm', 'tesis']], 'usa el primer bloque');
+    assert.deepStrictEqual(coh.duplicates.map(n => [n.uid, n.projects]), [['clm', ['tesis', 'artículo']]]);
+    assert.strictEqual(DGT.getBranchStatus(coh), 'different', 'una rama con duplicados no figura como coherente');
+});
+
+test('getBranchStatus - Prioridad de estados', () => {
+    const base = { coherent: [], specialized: [], different: [], missing: [], duplicates: [] };
+    assert.strictEqual(DGT.getBranchStatus(base), 'coherent');
+    assert.strictEqual(DGT.getBranchStatus({ ...base, specialized: [{}] }), 'specialized');
+    assert.strictEqual(DGT.getBranchStatus({ ...base, specialized: [{}], duplicates: [{}] }), 'different');
+    assert.strictEqual(DGT.getBranchStatus({ ...base, different: [{}], missing: [{}] }), 'missing');
 });

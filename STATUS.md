@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.75**
+**v1.5.76**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,14 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.76 (Octubre 2026)
+- **Fix/Coherence (Criterio único para leer el proyecto y detección de duplicados)**:
+  - **`getProjectsForPages` / `_pickProjectBlocks`**: un solo criterio para decidir qué bloque `Proyecto Asociado::` vale en cada página (se ignoran los escapados y se elige el primero según su orden, prefiriendo los que tienen `[[proyecto]]`). Reemplaza cinco lecturas distintas (verificación de ramas, búsqueda del bloque a escribir, páginas contenedoras, carga de la pestaña Ramas y de la Panorámica) que podían elegir bloques distintos según el orden en que Roam devolviera los resultados.
+  - **Proyecto duplicado**: las páginas con más de un bloque de proyecto se listan en `coherence.duplicates`; la rama figura como "diferente" y la ventana de la rama muestra una sección "Proyecto duplicado" para resolverlo a mano. El plugin no elige ni borra bloques por su cuenta.
+  - **`getBranchStatus`**: el estado de la rama se calcula en un solo lugar (antes había tres copias).
+- **Docs**: se reparó la codificación de `AI_INSTRUCTIONS.md` y `README.md` (texto UTF-8 dañado como CP850); `AI_INSTRUCTIONS.md` documenta el comando de tests correcto (`node --test`), los cuatro archivos de pruebas y las reglas de escritura en Roam.
+- **Tests**: 5 casos nuevos en `tests/branchPropagation.test.js`.
 
 ### v1.5.75 (Octubre 2026)
 - **Fix/Robustez (Límite de escrituras compartido)**:

@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.75
- * Bundled build: 2026-10-07 21:57:47
+ * DISCOURSE GRAPH TOOLKIT v1.5.76
+ * Bundled build: 2026-10-07 22:09:42
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.75";
+    DiscourseGraphToolkit.VERSION = "1.5.76";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2348,38 +2348,91 @@ DiscourseGraphToolkit._extractRefsFromBlock = function (block, collectedUids) {
  * @returns {Promise<string|null>} - Nombre del proyecto o null si no existe
  */
 DiscourseGraphToolkit.getProjectFromNode = async function (pageUid) {
-    const PM = this.ProjectManager;
-    const escapedPattern = PM.getEscapedFieldPattern();
-    const escapedPageUid = this.escapeDatalogString(pageUid);
-
-    const query = `[:find ?string
-                   :where 
-                    [?page :block/uid "${escapedPageUid}"]
-                    [?page :block/children ?block]
-                    [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
     try {
-        const results = await window.roamAlphaAPI.data.async.q(query);
-        if (results && results.length > 0) {
-            const blockString = results[0][0];
-            const fieldPattern = PM.getFieldPattern();
-
-            // Excluir bloques escapados con backticks
-            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                return null;
-            }
-
-            // Extraer el valor entre [[ ]]
-            const regex = PM.getFieldRegex();
-            const match = blockString.match(regex);
-            return match ? match[1].trim() : null;
-        }
-        return null;
+        const picked = (await this.getProjectsForPages([pageUid])).get(pageUid);
+        return picked ? picked.project : null;
     } catch (e) {
         console.error("Error getting project from node:", e);
         return null;
     }
+};
+
+/**
+ * Lee los bloques "Proyecto Asociado::" de primer nivel de un conjunto de páginas.
+ * @param {Array<string>} pageUids
+ * @returns {Promise<Array<[string, string, string, number]>>} Filas [pageUid, blockUid, texto, orden]
+ */
+DiscourseGraphToolkit._queryProjectBlocks = async function (pageUids) {
+    if (!pageUids || pageUids.length === 0) return [];
+    const escapedPattern = this.ProjectManager.getEscapedFieldPattern();
+    const query = `[:find ?page-uid ?block-uid ?string ?order
+                   :in $ [?page-uid ...]
+                   :where 
+                   [?page :block/uid ?page-uid]
+                   [?page :block/children ?block]
+                   [?block :block/uid ?block-uid]
+                   [?block :block/string ?string]
+                   [?block :block/order ?order]
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+    return (await window.roamAlphaAPI.data.async.q(query, pageUids)) || [];
+};
+
+/**
+ * Decide, para cada página, qué bloque "Proyecto Asociado::" es el que vale.
+ * Criterio único para todo el plugin: se descartan los bloques escapados con backticks
+ * y se elige el primero según su orden en la página, prefiriendo los que tienen [[proyecto]].
+ * Si una página tiene más de un bloque con proyecto, `projects` los lista todos (duplicado).
+ * @param {Array<[string, string, string, number]>} rows - Filas de _queryProjectBlocks
+ * @returns {Map<string, {project: string|null, blockUid: string, string: string, projects: Array<string>}>}
+ */
+DiscourseGraphToolkit._pickProjectBlocks = function (rows) {
+    const PM = this.ProjectManager;
+    const regex = PM.getFieldRegex();
+    const fieldPattern = PM.getFieldPattern();
+
+    const byPage = new Map();
+    for (const [pageUid, blockUid, blockString, order] of rows) {
+        if (this.isEscapedProjectField(blockString, fieldPattern)) continue;
+        const match = blockString.match(regex);
+        if (!byPage.has(pageUid)) byPage.set(pageUid, []);
+        byPage.get(pageUid).push({ blockUid, string: blockString, order: order || 0, project: match ? match[1].trim() : null });
+    }
+
+    const picked = new Map();
+    for (const [pageUid, blocks] of byPage) {
+        blocks.sort((x, y) => x.order - y.order);
+        const valid = blocks.filter(b => b.project);
+        const chosen = valid[0] || blocks[0];
+        picked.set(pageUid, {
+            project: chosen.project,
+            blockUid: chosen.blockUid,
+            string: chosen.string,
+            projects: valid.map(b => b.project)
+        });
+    }
+    return picked;
+};
+
+/**
+ * Proyecto de cada página según el criterio único de _pickProjectBlocks.
+ * @param {Array<string>} pageUids
+ * @returns {Promise<Map<string, {project: string|null, blockUid: string, string: string, projects: Array<string>}>>}
+ */
+DiscourseGraphToolkit.getProjectsForPages = async function (pageUids) {
+    return this._pickProjectBlocks(await this._queryProjectBlocks(pageUids));
+};
+
+/**
+ * Estado global de una rama a partir de su resultado de coherencia.
+ * Los nodos con más de un bloque de proyecto cuentan como "diferente" para que la rama
+ * no figure como coherente y el usuario los revise.
+ * @returns {'missing'|'different'|'specialized'|'coherent'}
+ */
+DiscourseGraphToolkit.getBranchStatus = function (coherence) {
+    if (coherence.missing.length > 0) return 'missing';
+    if (coherence.different.length > 0 || (coherence.duplicates || []).length > 0) return 'different';
+    if (coherence.specialized.length > 0) return 'specialized';
+    return 'coherent';
 };
 
 /**
@@ -2406,60 +2459,40 @@ DiscourseGraphToolkit.isHierarchicallyCoherent = function (rootProject, nodeProj
  * Cada nodo debe tener un proyecto igual o más específico que su padre directo.
  * @param {string} rootUid - UID del QUE raíz
  * @param {Array<{uid: string, title: string, type: string, parentUid: string}>} branchNodes - Nodos de la rama
- * @returns {Promise<{rootProject: string|null, coherent: Array, specialized: Array, different: Array, missing: Array}>}
+ * @returns {Promise<{rootProject: string|null, coherent: Array, specialized: Array, different: Array, missing: Array, duplicates: Array}>}
  */
 DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNodes) {
-    const PM = this.ProjectManager;
-
     // Obtener proyecto de cada nodo (incluyendo raíz y padres) en una sola consulta batch
     const allUids = [...new Set([rootUid, ...branchNodes.map(n => n.uid), ...branchNodes.map(n => n.parentUid)])];
-    const escapedPattern = PM.getEscapedFieldPattern();
-
-    // Query para obtener todos los bloques de Proyecto Asociado de las páginas
-    const query = `[:find ?page-uid ?string
-                   :in $ [?page-uid ...]
-                   :where 
-                   [?page :block/uid ?page-uid]
-                   [?page :block/children ?block]
-                   [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
 
     const coherent = [];    // Proyecto exacto al padre
     const specialized = [];  // Sub-namespace del padre (especialización válida)
     const different = [];    // Menos específico o diferente al padre
     const missing = [];
+    const duplicates = [];   // Nodos con más de un bloque de proyecto (se revisan a mano)
     let rootProject = null;
 
     try {
-        const results = await window.roamAlphaAPI.data.async.q(query, allUids);
-
-        // Crear mapa de UID -> proyecto
-        const projectMap = new Map();
-        const regex = PM.getFieldRegex();
-        const fieldPattern = PM.getFieldPattern();
-
-        results.forEach(r => {
-            const pageUid = r[0];
-            const blockString = r[1];
-
-            // Excluir bloques escapados con backticks
-            if (DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                return;
-            }
-
-            const match = blockString.match(regex);
-            if (match) {
-                projectMap.set(pageUid, match[1].trim());
-            }
-        });
+        const picked = await this.getProjectsForPages(allUids);
+        const projectOf = (uid) => (picked.get(uid) || {}).project || null;
 
         // Proyecto del QUE raíz obtenido de la misma consulta batch
-        rootProject = projectMap.get(rootUid) || null;
+        rootProject = projectOf(rootUid);
+
+        const rootPicked = picked.get(rootUid);
+        if (rootPicked && rootPicked.projects.length > 1) {
+            duplicates.push({ uid: rootUid, title: null, type: null, isRoot: true, projects: rootPicked.projects });
+        }
 
         // 3. Clasificar nodos según coherencia con su PADRE directo
         for (const node of branchNodes) {
-            const nodeProject = projectMap.get(node.uid);
-            const parentProject = projectMap.get(node.parentUid) || rootProject;
+            const nodeProject = projectOf(node.uid);
+            const parentProject = projectOf(node.parentUid) || rootProject;
+
+            const nodePicked = picked.get(node.uid);
+            if (nodePicked && nodePicked.projects.length > 1) {
+                duplicates.push({ ...node, projects: nodePicked.projects });
+            }
 
             if (!nodeProject) {
                 missing.push({ ...node, project: null, parentProject });
@@ -2480,7 +2513,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             }
         }
 
-        return { rootProject, coherent, specialized, different, missing };
+        return { rootProject, coherent, specialized, different, missing, duplicates };
     } catch (e) {
         console.error("Error verifying project coherence:", e);
         return {
@@ -2488,7 +2521,8 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
             coherent: [],
             specialized: [],
             different: [],
-            missing: branchNodes.map(n => ({ ...n, project: null, parentProject: null }))
+            missing: branchNodes.map(n => ({ ...n, project: null, parentProject: null })),
+            duplicates: []
         };
     }
 };
@@ -2577,23 +2611,14 @@ DiscourseGraphToolkit.planBranchPropagation = function (coherence, rootUid, root
 };
 
 /**
- * Busca el bloque "Proyecto Asociado::" de primer nivel de una página.
+ * Busca el bloque "Proyecto Asociado::" de primer nivel de una página
+ * (el mismo que usa la verificación, según _pickProjectBlocks).
  * @param {string} pageUid
  * @returns {Promise<{uid: string, string: string}|null>}
  */
 DiscourseGraphToolkit._findProjectBlock = async function (pageUid) {
-    const escapedPattern = this.ProjectManager.getEscapedFieldPattern();
-    const escapedPageUid = this.escapeDatalogString(pageUid);
-    const query = `[:find ?block-uid ?string
-                   :where 
-                   [?page :block/uid "${escapedPageUid}"]
-                   [?page :block/children ?block]
-                   [?block :block/uid ?block-uid]
-                   [?block :block/string ?string]
-                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-    const results = await window.roamAlphaAPI.data.async.q(query);
-    if (!results || results.length === 0) return null;
-    return { uid: results[0][0], string: results[0][1] };
+    const picked = (await this.getProjectsForPages([pageUid])).get(pageUid);
+    return picked ? { uid: picked.blockUid, string: picked.string } : null;
 };
 
 /**
@@ -2830,32 +2855,11 @@ DiscourseGraphToolkit.getContainerPagesForNodes = async function (queUids) {
         const containerUids = [...new Set([...queToContainer.values()].map(c => c.uid))];
         if (containerUids.length === 0) return queToContainer;
 
-        const PM = this.ProjectManager;
-        const escapedPattern = PM.getEscapedFieldPattern();
-        const projectQuery = `[:find ?page-uid ?string
-                              :in $ [?page-uid ...]
-                              :where
-                              [?page :block/uid ?page-uid]
-                              [?page :block/children ?block]
-                              [?block :block/string ?string]
-                              [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
-        const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, containerUids);
-        const containerProjectMap = new Map();
-        const regex = PM.getFieldRegex();
-        const fieldPattern = PM.getFieldPattern();
-
-        if (projectResults) {
-            for (const [pageUid, blockString] of projectResults) {
-                if (this.isEscapedProjectField(blockString, fieldPattern)) continue;
-                const match = blockString.match(regex);
-                if (match) containerProjectMap.set(pageUid, match[1].trim());
-            }
-        }
+        const containerProjects = await this.getProjectsForPages(containerUids);
 
         // Enriquecer con el proyecto de cada página contenedora
         for (const [, containerInfo] of queToContainer) {
-            containerInfo.project = containerProjectMap.get(containerInfo.uid) || null;
+            containerInfo.project = (containerProjects.get(containerInfo.uid) || {}).project || null;
         }
 
         return queToContainer;
@@ -8034,33 +8038,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Filtrar preguntas por proyectos seleccionados de manera eficiente
             // Primero obtenemos los proyectos de todas las preguntas en una sola consulta
-            const PM = DiscourseGraphToolkit.ProjectManager;
-            const escapedPattern = PM.getEscapedFieldPattern();
             const allUids = allQuestions.map(q => q.pageUid);
-            const query = `[:find ?page-uid ?string
-                       :in $ [?page-uid ...]
-                       :where 
-                       [?page :block/uid ?page-uid]
-                       [?page :block/children ?block]
-                       [?block :block/string ?string]
-                       [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-            
-            const rawProjectResults = await window.roamAlphaAPI.data.async.q(query, allUids);
+            const pickedProjects = await DiscourseGraphToolkit.getProjectsForPages(allUids);
             const projectMap = new Map();
-            const regex = PM.getFieldRegex();
-            const fieldPattern = PM.getFieldPattern();
-            
-            if (rawProjectResults) {
-                rawProjectResults.forEach(r => {
-                    const pageUid = r[0];
-                    const blockString = r[1];
-                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                        const match = blockString.match(regex);
-                        if (match) {
-                            projectMap.set(pageUid, match[1].trim());
-                        }
-                    }
-                });
+            for (const [pageUid, picked] of pickedProjects) {
+                if (picked.project) projectMap.set(pageUid, picked.project);
             }
 
             // Obtener páginas contenedoras para todas las preguntas en lote antes de filtrar
@@ -8102,10 +8084,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 const branchNodes = await DiscourseGraphToolkit.getBranchNodes(q.pageUid);
                 const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(q.pageUid, branchNodes);
 
-                let status = 'coherent';
-                if (cohResult.missing.length > 0) status = 'missing';
-                else if (cohResult.different.length > 0) status = 'different';
-                else if (cohResult.specialized.length > 0) status = 'specialized';
+                const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
                 const rawContainerInfo = containerPageMap.get(q.pageUid) || null;
                 const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
@@ -8260,10 +8239,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     const branchNodes = await DiscourseGraphToolkit.getBranchNodes(uid);
                     const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(uid, branchNodes);
 
-                    let status = 'coherent';
-                    if (cohResult.missing.length > 0) status = 'missing';
-                    else if (cohResult.different.length > 0) status = 'different';
-                    else if (cohResult.specialized.length > 0) status = 'specialized';
+                    const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
                     const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([uid]);
                     const rawContainerInfo = singleContainerMap.get(uid) || null;
@@ -8316,10 +8292,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const branchNodes = await DiscourseGraphToolkit.getBranchNodes(rootUid);
         const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(rootUid, branchNodes);
 
-        let status = 'coherent';
-        if (cohResult.missing.length > 0) status = 'missing';
-        else if (cohResult.different.length > 0) status = 'different';
-        else if (cohResult.specialized.length > 0) status = 'specialized';
+        const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
         // Re-obtener página contenedora para esta pregunta
         const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([rootUid]);
@@ -8448,10 +8421,15 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const isSelected = selectedBulkQuestion?.question.pageUid === result.question.pageUid;
         const hasMissing = result.coherence?.missing?.length > 0;
         const hasDifferent = result.coherence?.different?.length > 0;
+        const duplicateCount = (result.coherence?.duplicates || []).length;
         const hasError = hasMissing || hasDifferent || result.status === 'different' || result.status === 'missing';
 
         const errorTooltip = hasError
-            ? [hasMissing ? `${result.coherence.missing.length} sin proyecto` : null, hasDifferent ? `${result.coherence.different.length} con proy. diferente` : null].filter(Boolean).join(', ')
+            ? [
+                hasMissing ? `${result.coherence.missing.length} sin proyecto` : null,
+                hasDifferent ? `${result.coherence.different.length} con proy. diferente` : null,
+                duplicateCount > 0 ? `${duplicateCount} con proyecto duplicado` : null
+            ].filter(Boolean).join(', ')
             : 'Coherente';
 
         return React.createElement('div', {
@@ -8501,6 +8479,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const result = selectedBulkQuestion;
         const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
+        const duplicateNodes = result.coherence.duplicates || [];
         // Mismo plan que ejecutará "Sincronizar Rama": la vista previa muestra exactamente lo que se escribirá
         const propagationPlan = editableProject.trim()
             ? buildPropagationPlan(result, editableProject.trim(), false)
@@ -8783,7 +8762,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     },
                         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--dgt-text-secondary)' } },
                             React.createElement('span', null, `Nodos en la rama: ${result.branchNodes.length}`),
-                            React.createElement('span', null, `Errores: ${totalProblematic + (hasContainerMismatch ? 1 : 0)}`)
+                            React.createElement('span', null, `Errores: ${totalProblematic + duplicateNodes.length + (hasContainerMismatch ? 1 : 0)}`)
                         ),
                         React.createElement('div', {
                             style: {
@@ -8838,6 +8817,29 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             hasContainerMismatch && renderContainerMismatchRow(),
                             result.coherence.different.map(node => renderDiscrepancyRow(node, 'different')),
                             result.coherence.missing.map(node => renderDiscrepancyRow(node, 'missing'))
+                        )
+                    ),
+                    // Nodos con más de un bloque de proyecto: no se corrigen automáticamente
+                    duplicateNodes.length > 0 && React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-bold dgt-text-warning' },
+                            `Proyecto duplicado (${duplicateNodes.length})`),
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                            'Estas páginas tienen más de un bloque "Proyecto Asociado::". El plugin usa el primero; deja solo uno para resolverlo.'),
+                        duplicateNodes.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-flex-between dgt-gap-sm' },
+                                React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs' },
+                                    React.createElement('span', { className: 'dgt-text-sm' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.isRoot ? 'RAÍZ' : node.type),
+                                        parseMarkdownBold(((node.isRoot ? result.question.pageTitle : node.title) || '').replace(/\[\[(QUE|GRI|CLM|EVD)\]\] - /, ''))),
+                                    React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                                        node.projects.join(' · '))
+                                ),
+                                React.createElement('button', {
+                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                    title: 'Ir a la página'
+                                }, '→')
+                            )
                         )
                     ),
                     // Nodos que la propagación no tocará y quedarán incoherentes con la raíz nueva
@@ -9502,10 +9504,10 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                             ),
                             bulkVerificationResults
-                                .filter(r => r.coherence?.different?.length > 0)
+                                .filter(r => r.coherence?.different?.length > 0 || (r.coherence?.duplicates || []).length > 0)
                                 .map(r => {
                                     const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                    const diffCount = r.coherence.different.length;
+                                    const diffCount = r.coherence.different.length + (r.coherence.duplicates || []).length;
                                     return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
                                         React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
                                         React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
@@ -10000,32 +10002,14 @@ DiscourseGraphToolkit.PanoramicTab = function () {
             setLoadStatus('⏳ Obteniendo proyectos...');
             const allNodeUids = Object.keys(allNodes);
 
-            // Usar query en bloque para mayor eficiencia
-            const PM = DiscourseGraphToolkit.ProjectManager;
-            const escapedPattern = PM.getEscapedFieldPattern();
-            const projectQuery = `[:find ?page-uid ?string
-                                   :in $ [?page-uid ...]
-                                   :where 
-                                   [?page :block/uid ?page-uid]
-                                   [?page :block/children ?block]
-                                   [?block :block/string ?string]
-                                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
+            // Usar query en bloque para mayor eficiencia (mismo criterio que la verificación de ramas)
             try {
-                const projectResults = await window.roamAlphaAPI.data.async.q(projectQuery, allNodeUids);
-                const fieldPattern = PM.getFieldPattern();
-                const regex = PM.getFieldRegex();
-
-                projectResults.forEach(r => {
-                    const docUid = r[0];
-                    const blockString = r[1];
-                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                        const match = blockString.match(regex);
-                        if (match && allNodes[docUid]) {
-                            allNodes[docUid].project = match[1].trim();
-                        }
+                const pickedProjects = await DiscourseGraphToolkit.getProjectsForPages(allNodeUids);
+                for (const [docUid, picked] of pickedProjects) {
+                    if (picked.project && allNodes[docUid]) {
+                        allNodes[docUid].project = picked.project;
                     }
-                });
+                }
             } catch (e) {
                 console.warn("No se pudieron obtener los proyectos en bulk:", e);
                 // Fallback: procesar uno a uno los rootNodes

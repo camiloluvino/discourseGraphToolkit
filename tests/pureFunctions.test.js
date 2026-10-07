@@ -15,19 +15,19 @@ require('../src/config.js');
 require('../src/utils/helpers.js');
 require('../src/core/epubGenerator.js');
 
-// markdownCore.js declara var MarkdownCore en el scope local del m├│dulo en Node.js,
+// markdownCore.js declara var MarkdownCore en el scope local del módulo en Node.js,
 // por lo que debemos evaluarlo en el contexto global de test para que sea accesible.
 const markdownCoreCode = fs.readFileSync(path.resolve(__dirname, '../src/core/markdownCore.js'), 'utf8');
 vm.runInThisContext(markdownCoreCode + '\nglobal.MarkdownCore = MarkdownCore;');
 
 const DGT = global.DiscourseGraphToolkit;
 
-test('computeFavoriteName - Set de proyectos con ancestro com├║n', () => {
+test('computeFavoriteName - Set de proyectos con ancestro común', () => {
     const set = new Set(['tesis', 'tesis/marco', 'tesis/marco/metodologia', 'tesis/marco/analisis']);
     assert.strictEqual(DGT.computeFavoriteName(set), 'tesis/marco');
 });
 
-test('computeFavoriteName - Set de proyectos sin ancestro com├║n', () => {
+test('computeFavoriteName - Set de proyectos sin ancestro común', () => {
     const set = new Set(['proyectoA/sub', 'proyectoB/sub']);
     assert.strictEqual(DGT.computeFavoriteName(set), 'proyectoA/sub|proyectoB/sub');
 });
@@ -46,7 +46,7 @@ test('computeFavoriteName - Objeto de proyectos de ExportTab', () => {
     assert.strictEqual(DGT.computeFavoriteName(obj), 'tesis/marco');
 });
 
-test('computeFavoriteName - Casos vac├¡os y nulos', () => {
+test('computeFavoriteName - Casos vacíos y nulos', () => {
     assert.strictEqual(DGT.computeFavoriteName(null), 'favorito');
     assert.strictEqual(DGT.computeFavoriteName(new Set()), 'favorito');
 });
@@ -74,18 +74,18 @@ test('cleanText - Limpieza de formato de Roam', () => {
     assert.strictEqual(DGT.cleanText('  espacios  '), 'espacios');
 });
 
-test('getNodeType - Detecci├│n de tipos de nodo', () => {
+test('getNodeType - Detección de tipos de nodo', () => {
     assert.strictEqual(DGT.getNodeType('[[QUE]] - La pregunta?'), 'QUE');
-    assert.strictEqual(DGT.getNodeType('[[CLM]] - La afirmaci├│n'), 'CLM');
+    assert.strictEqual(DGT.getNodeType('[[CLM]] - La afirmación'), 'CLM');
     assert.strictEqual(DGT.getNodeType('[[EVD]] - La evidencia'), 'EVD');
     assert.strictEqual(DGT.getNodeType('[[GRI]] - El grupo'), 'GRI');
-    assert.strictEqual(DGT.getNodeType('T├¡tulo cualquiera'), null);
+    assert.strictEqual(DGT.getNodeType('Título cualquiera'), null);
     assert.strictEqual(DGT.getNodeType(null), null);
 });
 
-test('formatExportProjectName - Formateo de nombres de proyecto para exportaci├│n', () => {
+test('formatExportProjectName - Formateo de nombres de proyecto para exportación', () => {
     assert.strictEqual(DGT.formatExportProjectName('tesis/marco/analisis'), 'tesis_marco_analisis');
-    assert.strictEqual(DGT.formatExportProjectName('tesis/marco/epistemolog├¡a'), 'tesis_marco_epistemologa');
+    assert.strictEqual(DGT.formatExportProjectName('tesis/marco/epistemología'), 'tesis_marco_epistemologa');
 });
 
 test('MarkdownCore.cleanText - Limpieza de espacios extra', () => {

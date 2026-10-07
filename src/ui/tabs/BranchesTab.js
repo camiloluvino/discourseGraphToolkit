@@ -278,33 +278,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
             // Filtrar preguntas por proyectos seleccionados de manera eficiente
             // Primero obtenemos los proyectos de todas las preguntas en una sola consulta
-            const PM = DiscourseGraphToolkit.ProjectManager;
-            const escapedPattern = PM.getEscapedFieldPattern();
             const allUids = allQuestions.map(q => q.pageUid);
-            const query = `[:find ?page-uid ?string
-                       :in $ [?page-uid ...]
-                       :where 
-                       [?page :block/uid ?page-uid]
-                       [?page :block/children ?block]
-                       [?block :block/string ?string]
-                       [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-            
-            const rawProjectResults = await window.roamAlphaAPI.data.async.q(query, allUids);
+            const pickedProjects = await DiscourseGraphToolkit.getProjectsForPages(allUids);
             const projectMap = new Map();
-            const regex = PM.getFieldRegex();
-            const fieldPattern = PM.getFieldPattern();
-            
-            if (rawProjectResults) {
-                rawProjectResults.forEach(r => {
-                    const pageUid = r[0];
-                    const blockString = r[1];
-                    if (!DiscourseGraphToolkit.isEscapedProjectField(blockString, fieldPattern)) {
-                        const match = blockString.match(regex);
-                        if (match) {
-                            projectMap.set(pageUid, match[1].trim());
-                        }
-                    }
-                });
+            for (const [pageUid, picked] of pickedProjects) {
+                if (picked.project) projectMap.set(pageUid, picked.project);
             }
 
             // Obtener páginas contenedoras para todas las preguntas en lote antes de filtrar
@@ -346,10 +324,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 const branchNodes = await DiscourseGraphToolkit.getBranchNodes(q.pageUid);
                 const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(q.pageUid, branchNodes);
 
-                let status = 'coherent';
-                if (cohResult.missing.length > 0) status = 'missing';
-                else if (cohResult.different.length > 0) status = 'different';
-                else if (cohResult.specialized.length > 0) status = 'specialized';
+                const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
                 const rawContainerInfo = containerPageMap.get(q.pageUid) || null;
                 const containerStatus = DiscourseGraphToolkit.calcContainerStatus(cohResult.rootProject, rawContainerInfo);
@@ -504,10 +479,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     const branchNodes = await DiscourseGraphToolkit.getBranchNodes(uid);
                     const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(uid, branchNodes);
 
-                    let status = 'coherent';
-                    if (cohResult.missing.length > 0) status = 'missing';
-                    else if (cohResult.different.length > 0) status = 'different';
-                    else if (cohResult.specialized.length > 0) status = 'specialized';
+                    const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
                     const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([uid]);
                     const rawContainerInfo = singleContainerMap.get(uid) || null;
@@ -560,10 +532,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const branchNodes = await DiscourseGraphToolkit.getBranchNodes(rootUid);
         const cohResult = await DiscourseGraphToolkit.verifyProjectCoherence(rootUid, branchNodes);
 
-        let status = 'coherent';
-        if (cohResult.missing.length > 0) status = 'missing';
-        else if (cohResult.different.length > 0) status = 'different';
-        else if (cohResult.specialized.length > 0) status = 'specialized';
+        const status = DiscourseGraphToolkit.getBranchStatus(cohResult);
 
         // Re-obtener página contenedora para esta pregunta
         const singleContainerMap = await DiscourseGraphToolkit.getContainerPagesForNodes([rootUid]);
@@ -692,10 +661,15 @@ DiscourseGraphToolkit.BranchesTab = function () {
         const isSelected = selectedBulkQuestion?.question.pageUid === result.question.pageUid;
         const hasMissing = result.coherence?.missing?.length > 0;
         const hasDifferent = result.coherence?.different?.length > 0;
+        const duplicateCount = (result.coherence?.duplicates || []).length;
         const hasError = hasMissing || hasDifferent || result.status === 'different' || result.status === 'missing';
 
         const errorTooltip = hasError
-            ? [hasMissing ? `${result.coherence.missing.length} sin proyecto` : null, hasDifferent ? `${result.coherence.different.length} con proy. diferente` : null].filter(Boolean).join(', ')
+            ? [
+                hasMissing ? `${result.coherence.missing.length} sin proyecto` : null,
+                hasDifferent ? `${result.coherence.different.length} con proy. diferente` : null,
+                duplicateCount > 0 ? `${duplicateCount} con proyecto duplicado` : null
+            ].filter(Boolean).join(', ')
             : 'Coherente';
 
         return React.createElement('div', {
@@ -745,6 +719,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const result = selectedBulkQuestion;
         const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
+        const duplicateNodes = result.coherence.duplicates || [];
         // Mismo plan que ejecutará "Sincronizar Rama": la vista previa muestra exactamente lo que se escribirá
         const propagationPlan = editableProject.trim()
             ? buildPropagationPlan(result, editableProject.trim(), false)
@@ -1027,7 +1002,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                     },
                         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--dgt-text-secondary)' } },
                             React.createElement('span', null, `Nodos en la rama: ${result.branchNodes.length}`),
-                            React.createElement('span', null, `Errores: ${totalProblematic + (hasContainerMismatch ? 1 : 0)}`)
+                            React.createElement('span', null, `Errores: ${totalProblematic + duplicateNodes.length + (hasContainerMismatch ? 1 : 0)}`)
                         ),
                         React.createElement('div', {
                             style: {
@@ -1082,6 +1057,29 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             hasContainerMismatch && renderContainerMismatchRow(),
                             result.coherence.different.map(node => renderDiscrepancyRow(node, 'different')),
                             result.coherence.missing.map(node => renderDiscrepancyRow(node, 'missing'))
+                        )
+                    ),
+                    // Nodos con más de un bloque de proyecto: no se corrigen automáticamente
+                    duplicateNodes.length > 0 && React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-bold dgt-text-warning' },
+                            `Proyecto duplicado (${duplicateNodes.length})`),
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                            'Estas páginas tienen más de un bloque "Proyecto Asociado::". El plugin usa el primero; deja solo uno para resolverlo.'),
+                        duplicateNodes.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-flex-between dgt-gap-sm' },
+                                React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs' },
+                                    React.createElement('span', { className: 'dgt-text-sm' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.isRoot ? 'RAÍZ' : node.type),
+                                        parseMarkdownBold(((node.isRoot ? result.question.pageTitle : node.title) || '').replace(/\[\[(QUE|GRI|CLM|EVD)\]\] - /, ''))),
+                                    React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                                        node.projects.join(' · '))
+                                ),
+                                React.createElement('button', {
+                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                    title: 'Ir a la página'
+                                }, '→')
+                            )
                         )
                     ),
                     // Nodos que la propagación no tocará y quedarán incoherentes con la raíz nueva
@@ -1746,10 +1744,10 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                 React.createElement('button', { onClick: () => setOpenPopover(null), className: 'dgt-btn-ghost dgt-text-sm', style: { border: 'none', cursor: 'pointer', padding: 0 } }, '✕')
                             ),
                             bulkVerificationResults
-                                .filter(r => r.coherence?.different?.length > 0)
+                                .filter(r => r.coherence?.different?.length > 0 || (r.coherence?.duplicates || []).length > 0)
                                 .map(r => {
                                     const queTitle = r.question.pageTitle.replace(/\[\[(QUE|GRI)\]\] - /, '');
-                                    const diffCount = r.coherence.different.length;
+                                    const diffCount = r.coherence.different.length + (r.coherence.duplicates || []).length;
                                     return React.createElement('div', { key: r.question.pageUid, className: 'dgt-popover-item', style: { alignItems: 'center', gap: '6px' } },
                                         React.createElement('span', { className: 'dgt-badge dgt-badge-warning', style: { flexShrink: 0 } }, `${diffCount} nodo${diffCount !== 1 ? 's' : ''}`),
                                         React.createElement('span', { className: 'dgt-text-truncate', style: { flex: 1, minWidth: 0, fontWeight: 500 }, title: queTitle }, queTitle),
