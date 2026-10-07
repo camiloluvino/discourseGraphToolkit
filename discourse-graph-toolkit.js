@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.72
- * Bundled build: 2026-09-27 17:33:17
+ * DISCOURSE GRAPH TOOLKIT v1.5.73
+ * Bundled build: 2026-10-07 21:37:46
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.72";
+    DiscourseGraphToolkit.VERSION = "1.5.73";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -2400,164 +2400,145 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
 };
 
 /**
- * Propaga el proyecto del QUE raíz a todos los nodos de la rama
- * @param {string} rootUid - UID del QUE raíz
- * @param {string} targetProject - Proyecto a propagar
- * @param {Array<{uid: string}>} nodesToUpdate - Nodos a actualizar
+ * Calcula, sin escribir nada en Roam, qué proyecto debe recibir cada nodo de una rama.
+ *
+ * Recorre la rama desde la raíz (cada padre antes que sus hijos) usando el proyecto YA
+ * RESUELTO del padre, de modo que el valor nuevo de la raíz y las correcciones de los
+ * niveles superiores se transmiten en cascada en una sola pasada.
+ *
+ * Reglas para cada nodo:
+ *  - Si su proyecto es coherente con el del padre (igual o más específico), se conserva.
+ *  - Si está en `fixableUids` (estaba incoherente o sin proyecto al verificar), recibe el del padre.
+ *  - Si solo heredaba el proyecto anterior de su padre (era idéntico) y el padre cambió, lo sigue.
+ *  - En otro caso (p. ej. una especialización que deja de calzar con la raíz nueva) no se toca:
+ *    se informa en `pending` para que el usuario lo revise caso a caso.
+ *
+ * @param {{rootProject: string|null, coherent: Array, specialized: Array, different: Array, missing: Array}} coherence
+ *   Resultado de verifyProjectCoherence
+ * @param {string} rootUid - UID del nodo raíz (QUE/GRI)
+ * @param {string} rootTargetProject - Proyecto que tendrá la raíz tras la propagación
+ * @param {Set<string>} fixableUids - Nodos que se deben corregir
+ * @returns {{changes: Array<{uid: string, from: string|null, to: string, isRoot?: boolean}>,
+ *            pending: Array<{uid: string, title: string, type: string, project: string, parentProject: string}>}}
+ */
+DiscourseGraphToolkit.planBranchPropagation = function (coherence, rootUid, rootTargetProject, fixableUids) {
+    const changes = [];
+    const pending = [];
+    const oldRootProject = coherence.rootProject || null;
+
+    if (rootTargetProject && rootTargetProject !== oldRootProject) {
+        changes.push({ uid: rootUid, from: oldRootProject, to: rootTargetProject, isRoot: true });
+    }
+
+    const nodes = [
+        ...(coherence.coherent || []),
+        ...(coherence.specialized || []),
+        ...(coherence.different || []),
+        ...(coherence.missing || [])
+    ];
+    const byUid = new Map(nodes.map(n => [n.uid, n]));
+
+    // Profundidad de cada nodo dentro de la rama, para procesar padres antes que hijos
+    const depthOf = (node) => {
+        let depth = 0;
+        let current = node;
+        const seen = new Set();
+        while (current && current.parentUid && current.parentUid !== rootUid && !seen.has(current.uid)) {
+            seen.add(current.uid);
+            current = byUid.get(current.parentUid);
+            depth++;
+        }
+        return depth;
+    };
+    const ordered = nodes
+        .map((node, index) => ({ node, index, depth: depthOf(node) }))
+        .sort((a, b) => a.depth - b.depth || a.index - b.index)
+        .map(entry => entry.node);
+
+    // Proyecto de cada nodo después de aplicar el plan
+    const resolved = new Map([[rootUid, rootTargetProject || oldRootProject]]);
+
+    for (const node of ordered) {
+        const current = node.project || null;
+        const oldParentProject = node.parentProject || null;
+        const parentProject = resolved.has(node.parentUid) ? resolved.get(node.parentUid) : oldParentProject;
+
+        if (!parentProject) {
+            resolved.set(node.uid, current);
+            continue;
+        }
+
+        if (current && this.isHierarchicallyCoherent(parentProject, current)) {
+            resolved.set(node.uid, current);
+        } else if (fixableUids.has(node.uid) || (current && current === oldParentProject)) {
+            changes.push({ uid: node.uid, from: current, to: parentProject });
+            resolved.set(node.uid, parentProject);
+        } else {
+            pending.push({ uid: node.uid, title: node.title, type: node.type, project: current, parentProject });
+            resolved.set(node.uid, current);
+        }
+    }
+
+    return { changes, pending };
+};
+
+/**
+ * Busca el bloque "Proyecto Asociado::" de primer nivel de una página.
+ * @param {string} pageUid
+ * @returns {Promise<{uid: string, string: string}|null>}
+ */
+DiscourseGraphToolkit._findProjectBlock = async function (pageUid) {
+    const escapedPattern = this.ProjectManager.getEscapedFieldPattern();
+    const escapedPageUid = this.escapeDatalogString(pageUid);
+    const query = `[:find ?block-uid ?string
+                   :where 
+                   [?page :block/uid "${escapedPageUid}"]
+                   [?page :block/children ?block]
+                   [?block :block/uid ?block-uid]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    if (!results || results.length === 0) return null;
+    return { uid: results[0][0], string: results[0][1] };
+};
+
+/**
+ * Escribe en Roam los cambios calculados por planBranchPropagation.
+ * Actualiza el bloque de proyecto existente o lo crea como primer hijo de la página.
+ * Un error en un nodo no detiene el resto.
+ * @param {Array<{uid: string, to: string}>} changes
  * @returns {Promise<{success: boolean, updated: number, created: number, errors: Array}>}
  */
-DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, targetProject, nodesToUpdate) {
+DiscourseGraphToolkit.applyProjectChanges = async function (changes) {
     const PM = this.ProjectManager;
-    const newValue = PM.buildFieldValue(targetProject);
-    const escapedPattern = PM.getEscapedFieldPattern();
-
     let updated = 0;
     let created = 0;
     const errors = [];
 
-    // PRIMERO: Actualizar el nodo raíz (QUE) para que futuras verificaciones muestren el valor correcto
-    try {
-        const escapedRootUid = this.escapeDatalogString(rootUid);
-        const rootQuery = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedRootUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
-        const rootResults = await window.roamAlphaAPI.data.async.q(rootQuery);
-
-        if (rootResults && rootResults.length > 0) {
-            const blockUid = rootResults[0][0];
-            await window.roamAlphaAPI.data.block.update({
-                block: { uid: blockUid, string: newValue }
-            });
-            updated++;
-        } else {
-            // Crear bloque en el nodo raíz si no existe
-            await window.roamAlphaAPI.data.block.create({
-                location: { 'parent-uid': rootUid, order: 0 },
-                block: { string: newValue }
-            });
-            created++;
-        }
-    } catch (e) {
-        console.error(`Error updating root node ${rootUid}:`, e);
-        errors.push({ uid: rootUid, error: e.message, isRoot: true });
-    }
-
-    // SEGUNDO: Actualizar los nodos hijos (CLM/EVD)
-    // Respetamos sub-namespaces existentes (especializaciones)
-    const regex = PM.getFieldRegex();
-    let skipped = 0;
-
-    for (const node of nodesToUpdate) {
+    for (const change of changes) {
         try {
-            // Buscar si ya tiene un bloque con Proyecto Asociado
-            const escapedNodeUid = this.escapeDatalogString(node.uid);
-            const query = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedNodeUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+            const newValue = PM.buildFieldValue(change.to);
+            const projectBlock = await this._findProjectBlock(change.uid);
 
-            const results = await window.roamAlphaAPI.data.async.q(query);
-
-            const nodeTargetProject = node.parentProject || targetProject;
-            const nodeNewValue = PM.buildFieldValue(nodeTargetProject);
-
-            if (results && results.length > 0) {
-                const blockUid = results[0][0];
-                const blockString = results[0][1];
-
-                // Extraer el proyecto actual del nodo
-                const match = blockString.match(regex);
-                const currentProject = match ? match[1].trim() : null;
-
-                // Si ya es coherente (exacto o sub-namespace), respetar la especialización
-                if (currentProject && this.isHierarchicallyCoherent(nodeTargetProject, currentProject)) {
-                    skipped++;
-                    continue;
-                }
-
-                // Actualizar solo si es incoherente
+            if (projectBlock) {
                 await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: nodeNewValue }
+                    block: { uid: projectBlock.uid, string: newValue }
                 });
                 updated++;
             } else {
-                // Crear nuevo bloque como primer hijo
                 await window.roamAlphaAPI.data.block.create({
-                    location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: nodeNewValue }
+                    location: { 'parent-uid': change.uid, order: 0 },
+                    block: { string: newValue }
                 });
                 created++;
             }
         } catch (e) {
-            console.error(`Error updating node ${node.uid}:`, e);
-            errors.push({ uid: node.uid, error: e.message });
+            console.error(`Error updating node ${change.uid}:`, e);
+            errors.push({ uid: change.uid, error: e.message, isRoot: !!change.isRoot });
         }
     }
 
     return { success: errors.length === 0, updated, created, errors };
-};
-
-/**
- * Propaga el proyecto del padre directo a cada nodo (para corregir generalizaciones)
- * Cada nodo recibe el proyecto de su parentProject específico.
- * @param {Array<{uid: string, parentProject: string}>} nodesToFix - Nodos con generalización
- * @returns {Promise<{success: boolean, updated: number, errors: Array}>}
- */
-DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
-    const PM = this.ProjectManager;
-    const escapedPattern = PM.getEscapedFieldPattern();
-    const regex = PM.getFieldRegex();
-
-    let updated = 0;
-    const errors = [];
-
-    for (const node of nodesToFix) {
-        if (!node.parentProject) continue;
-
-        const newValue = PM.buildFieldValue(node.parentProject);
-
-        try {
-            // Buscar si ya tiene un bloque con Proyecto Asociado
-            const escapedNodeUid = this.escapeDatalogString(node.uid);
-            const query = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedNodeUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
-            const results = await window.roamAlphaAPI.data.async.q(query);
-
-            if (results && results.length > 0) {
-                const blockUid = results[0][0];
-                await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: newValue }
-                });
-                updated++;
-            } else {
-                // Crear nuevo bloque como primer hijo
-                await window.roamAlphaAPI.data.block.create({
-                    location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: newValue }
-                });
-                updated++;
-            }
-        } catch (e) {
-            console.error(`Error updating node ${node.uid}:`, e);
-            errors.push({ uid: node.uid, error: e.message });
-        }
-    }
-
-    return { success: errors.length === 0, updated, errors };
 };
 
 /**
@@ -8121,49 +8102,41 @@ DiscourseGraphToolkit.BranchesTab = function () {
         setEditableProject(result.coherence.rootProject || '');
     };
 
+    // Plan de propagación de una rama (ver planBranchPropagation).
+    // Con onlyMissing solo se corrigen los nodos sin proyecto; si no, también los diferentes.
+    const buildPropagationPlan = (result, rootTargetProject, onlyMissing) => {
+        const fixableUids = new Set([
+            ...(onlyMissing ? [] : result.coherence.different.map(n => n.uid)),
+            ...result.coherence.missing.map(n => n.uid)
+        ]);
+        return DiscourseGraphToolkit.planBranchPropagation(
+            result.coherence,
+            result.question.pageUid,
+            rootTargetProject,
+            fixableUids
+        );
+    };
+
     const handlePropagate = async () => {
         if (!selectedBulkQuestion || !editableProject.trim()) {
             return;
         }
 
-        const exactChanges = [
-            ...selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization'),
-            ...selectedBulkQuestion.coherence.missing
-        ];
-        
-        const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
-        
-        const totalNodes = exactChanges.length + generalizations.length;
-        if (totalNodes === 0) return;
+        const plan = buildPropagationPlan(selectedBulkQuestion, editableProject.trim(), false);
+        if (plan.changes.length === 0) return;
 
         setIsPropagating(true);
-        setBulkVerifyStatus(`⏳ Propagando proyecto a ${totalNodes} nodos...`);
+        setBulkVerifyStatus(`⏳ Propagando proyecto a ${plan.changes.length} nodos...`);
 
         try {
-            let success = true;
-            
-            // 1. Propagar proyecto raíz a diferentes exactos y faltantes
-            if (exactChanges.length > 0) {
-                const resultExact = await DiscourseGraphToolkit.propagateProjectToBranch(
-                    selectedBulkQuestion.question.pageUid,
-                    editableProject.trim(),
-                    exactChanges
-                );
-                if (!resultExact.success) success = false;
-            }
-            
-            // 2. Heredar proyecto del padre directo para generalizaciones
-            if (generalizations.length > 0) {
-                const resultGen = await DiscourseGraphToolkit.propagateFromParents(generalizations);
-                if (!resultGen.success) success = false;
-            }
+            const res = await DiscourseGraphToolkit.applyProjectChanges(plan.changes);
+            await refreshSelectedQuestion();
 
-            if (success) {
-                await refreshSelectedQuestion();
-            } else {
-                setBulkVerifyStatus(`⚠️ Propagación con errores.`);
-                // Forzar refresco para ver lo que se arregló
-                await refreshSelectedQuestion();
+            if (!res.success) {
+                setBulkVerifyStatus(`⚠️ Propagación con errores en ${res.errors.length} nodo(s).`);
+                DiscourseGraphToolkit.showToast(`Propagación con errores en ${res.errors.length} nodo(s). Revisa la consola.`, 'warning');
+            } else if (plan.pending.length > 0) {
+                DiscourseGraphToolkit.showToast(`${plan.pending.length} nodo(s) quedaron pendientes de revisión manual.`, 'info');
             }
         } catch (e) {
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -8216,11 +8189,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 setBulkVerifyStatus(`⏳ Corrigiendo (${i + 1}/${eligibleResults.length}): ${cleanTitle}...`);
 
                 try {
-                    const propRes = await DiscourseGraphToolkit.propagateProjectToBranch(
-                        result.question.pageUid,
-                        result.coherence.rootProject,
-                        result.coherence.missing
-                    );
+                    const plan = buildPropagationPlan(result, result.coherence.rootProject, true);
+                    const propRes = await DiscourseGraphToolkit.applyProjectChanges(plan.changes);
                     if (!propRes.success) {
                         failedBranches++;
                     } else {
@@ -8489,6 +8459,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const result = selectedBulkQuestion;
         const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
+        // Mismo plan que ejecutará "Sincronizar Rama": la vista previa muestra exactamente lo que se escribirá
+        const propagationPlan = editableProject.trim()
+            ? buildPropagationPlan(result, editableProject.trim(), false)
+            : { changes: [], pending: [] };
+        const plannedTargets = new Map(propagationPlan.changes.map(c => [c.uid, c.to]));
         const hasContainerMismatch = result.containerPage && (result.containerPage.containerStatus === 'mismatched' || result.containerPage.containerStatus === 'no_project');
 
         const renderContainerMismatchRow = () => {
@@ -8612,7 +8587,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             const textColor = errorType === 'different' ? '#92400e' : '#991b1b';
             const borderColor = errorType === 'different' ? '#fde68a' : '#fca5a5';
             const oldProject = errorType === 'different' ? (node.project || '(sin proyecto)') : '(sin proyecto)';
-            const newProject = errorType === 'different' ? node.parentProject : (node.parentProject || editableProject);
+            const newProject = plannedTargets.get(node.uid) || node.parentProject || '(sin cambios)';
 
             return React.createElement('div', {
                 key: node.uid,
@@ -8822,6 +8797,29 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             result.coherence.different.map(node => renderDiscrepancyRow(node, 'different')),
                             result.coherence.missing.map(node => renderDiscrepancyRow(node, 'missing'))
                         )
+                    ),
+                    // Nodos que la propagación no tocará y quedarán incoherentes con la raíz nueva
+                    propagationPlan.pending.length > 0 && React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-bold dgt-text-warning' },
+                            `Quedarán pendientes de revisión manual (${propagationPlan.pending.length})`),
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                            'Estos nodos tienen un proyecto propio que no calza con el nuevo proyecto de su padre. No se modificarán: revísalos caso a caso.'),
+                        propagationPlan.pending.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-flex-between dgt-gap-sm' },
+                                React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs' },
+                                    React.createElement('span', { className: 'dgt-text-sm' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.type),
+                                        parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|GRI)\]\] - /, ''))),
+                                    React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                                        `${node.project} (se mantiene; el padre pasará a ${node.parentProject})`)
+                                ),
+                                React.createElement('button', {
+                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                    title: `Ir a: ${node.title || ''}`
+                                }, '→')
+                            )
+                        )
                     )
                 ),
                 // Pie / Footer
@@ -8840,7 +8838,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         className: 'dgt-btn dgt-btn-secondary',
                         style: { padding: '6px 12px', fontSize: '0.8125rem', cursor: 'pointer' }
                     }, 'Cerrar'),
-                    totalProblematic > 0 && React.createElement('button', {
+                    propagationPlan.changes.length > 0 && React.createElement('button', {
                         onClick: (e) => { e.stopPropagation(); handlePropagate(); },
                         disabled: isPropagating || !editableProject.trim(),
                         className: 'dgt-btn dgt-btn-primary',
@@ -8850,7 +8848,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             fontSize: '0.8125rem',
                             cursor: 'pointer'
                         }
-                    }, isPropagating ? '⏳ Sincronizando...' : `Sincronizar Rama (${totalProblematic})`)
+                    }, isPropagating ? '⏳ Sincronizando...' : `Sincronizar Rama (${propagationPlan.changes.length})`)
                 )
             )
         );
@@ -8967,6 +8965,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         const queTitle = (result.question.pageTitle || '').replace(/\[\[(QUE|GRI)\]\] - /, '');
                         const rootProj = result.coherence.rootProject;
                         const missingNodes = result.coherence.missing || [];
+                        const missingPlanTargets = new Map(
+                            buildPropagationPlan(result, rootProj, true).changes.map(c => [c.uid, c.to])
+                        );
 
                         return React.createElement('div', {
                             key: result.question.pageUid,
@@ -9023,7 +9024,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                     const textColor = '#991b1b';
                                     const borderColor = '#fca5a5';
                                     const oldProject = '(sin proyecto)';
-                                    const newProject = node.parentProject || rootProj;
+                                    const newProject = missingPlanTargets.get(node.uid) || node.parentProject || rootProj;
 
                                     return React.createElement('div', {
                                         key: node.uid,

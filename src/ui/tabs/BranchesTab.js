@@ -388,49 +388,41 @@ DiscourseGraphToolkit.BranchesTab = function () {
         setEditableProject(result.coherence.rootProject || '');
     };
 
+    // Plan de propagación de una rama (ver planBranchPropagation).
+    // Con onlyMissing solo se corrigen los nodos sin proyecto; si no, también los diferentes.
+    const buildPropagationPlan = (result, rootTargetProject, onlyMissing) => {
+        const fixableUids = new Set([
+            ...(onlyMissing ? [] : result.coherence.different.map(n => n.uid)),
+            ...result.coherence.missing.map(n => n.uid)
+        ]);
+        return DiscourseGraphToolkit.planBranchPropagation(
+            result.coherence,
+            result.question.pageUid,
+            rootTargetProject,
+            fixableUids
+        );
+    };
+
     const handlePropagate = async () => {
         if (!selectedBulkQuestion || !editableProject.trim()) {
             return;
         }
 
-        const exactChanges = [
-            ...selectedBulkQuestion.coherence.different.filter(n => n.reason !== 'generalization'),
-            ...selectedBulkQuestion.coherence.missing
-        ];
-        
-        const generalizations = selectedBulkQuestion.coherence.different.filter(n => n.reason === 'generalization');
-        
-        const totalNodes = exactChanges.length + generalizations.length;
-        if (totalNodes === 0) return;
+        const plan = buildPropagationPlan(selectedBulkQuestion, editableProject.trim(), false);
+        if (plan.changes.length === 0) return;
 
         setIsPropagating(true);
-        setBulkVerifyStatus(`⏳ Propagando proyecto a ${totalNodes} nodos...`);
+        setBulkVerifyStatus(`⏳ Propagando proyecto a ${plan.changes.length} nodos...`);
 
         try {
-            let success = true;
-            
-            // 1. Propagar proyecto raíz a diferentes exactos y faltantes
-            if (exactChanges.length > 0) {
-                const resultExact = await DiscourseGraphToolkit.propagateProjectToBranch(
-                    selectedBulkQuestion.question.pageUid,
-                    editableProject.trim(),
-                    exactChanges
-                );
-                if (!resultExact.success) success = false;
-            }
-            
-            // 2. Heredar proyecto del padre directo para generalizaciones
-            if (generalizations.length > 0) {
-                const resultGen = await DiscourseGraphToolkit.propagateFromParents(generalizations);
-                if (!resultGen.success) success = false;
-            }
+            const res = await DiscourseGraphToolkit.applyProjectChanges(plan.changes);
+            await refreshSelectedQuestion();
 
-            if (success) {
-                await refreshSelectedQuestion();
-            } else {
-                setBulkVerifyStatus(`⚠️ Propagación con errores.`);
-                // Forzar refresco para ver lo que se arregló
-                await refreshSelectedQuestion();
+            if (!res.success) {
+                setBulkVerifyStatus(`⚠️ Propagación con errores en ${res.errors.length} nodo(s).`);
+                DiscourseGraphToolkit.showToast(`Propagación con errores en ${res.errors.length} nodo(s). Revisa la consola.`, 'warning');
+            } else if (plan.pending.length > 0) {
+                DiscourseGraphToolkit.showToast(`${plan.pending.length} nodo(s) quedaron pendientes de revisión manual.`, 'info');
             }
         } catch (e) {
             setBulkVerifyStatus('❌ Error: ' + e.message);
@@ -483,11 +475,8 @@ DiscourseGraphToolkit.BranchesTab = function () {
                 setBulkVerifyStatus(`⏳ Corrigiendo (${i + 1}/${eligibleResults.length}): ${cleanTitle}...`);
 
                 try {
-                    const propRes = await DiscourseGraphToolkit.propagateProjectToBranch(
-                        result.question.pageUid,
-                        result.coherence.rootProject,
-                        result.coherence.missing
-                    );
+                    const plan = buildPropagationPlan(result, result.coherence.rootProject, true);
+                    const propRes = await DiscourseGraphToolkit.applyProjectChanges(plan.changes);
                     if (!propRes.success) {
                         failedBranches++;
                     } else {
@@ -756,6 +745,11 @@ DiscourseGraphToolkit.BranchesTab = function () {
 
         const result = selectedBulkQuestion;
         const totalProblematic = result.coherence.different.length + result.coherence.missing.length;
+        // Mismo plan que ejecutará "Sincronizar Rama": la vista previa muestra exactamente lo que se escribirá
+        const propagationPlan = editableProject.trim()
+            ? buildPropagationPlan(result, editableProject.trim(), false)
+            : { changes: [], pending: [] };
+        const plannedTargets = new Map(propagationPlan.changes.map(c => [c.uid, c.to]));
         const hasContainerMismatch = result.containerPage && (result.containerPage.containerStatus === 'mismatched' || result.containerPage.containerStatus === 'no_project');
 
         const renderContainerMismatchRow = () => {
@@ -879,7 +873,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
             const textColor = errorType === 'different' ? '#92400e' : '#991b1b';
             const borderColor = errorType === 'different' ? '#fde68a' : '#fca5a5';
             const oldProject = errorType === 'different' ? (node.project || '(sin proyecto)') : '(sin proyecto)';
-            const newProject = errorType === 'different' ? node.parentProject : (node.parentProject || editableProject);
+            const newProject = plannedTargets.get(node.uid) || node.parentProject || '(sin cambios)';
 
             return React.createElement('div', {
                 key: node.uid,
@@ -1089,6 +1083,29 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             result.coherence.different.map(node => renderDiscrepancyRow(node, 'different')),
                             result.coherence.missing.map(node => renderDiscrepancyRow(node, 'missing'))
                         )
+                    ),
+                    // Nodos que la propagación no tocará y quedarán incoherentes con la raíz nueva
+                    propagationPlan.pending.length > 0 && React.createElement('div', { className: 'dgt-flex-column dgt-gap-sm' },
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-bold dgt-text-warning' },
+                            `Quedarán pendientes de revisión manual (${propagationPlan.pending.length})`),
+                        React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                            'Estos nodos tienen un proyecto propio que no calza con el nuevo proyecto de su padre. No se modificarán: revísalos caso a caso.'),
+                        propagationPlan.pending.map(node =>
+                            React.createElement('div', { key: node.uid, className: 'dgt-flex-between dgt-gap-sm' },
+                                React.createElement('div', { className: 'dgt-flex-column dgt-gap-xs' },
+                                    React.createElement('span', { className: 'dgt-text-sm' },
+                                        React.createElement('span', { className: 'dgt-badge dgt-badge-warning dgt-mr-xs' }, node.type),
+                                        parseMarkdownBold((node.title || '').replace(/\[\[(CLM|EVD|GRI)\]\] - /, ''))),
+                                    React.createElement('span', { className: 'dgt-text-xs dgt-text-muted' },
+                                        `${node.project} (se mantiene; el padre pasará a ${node.parentProject})`)
+                                ),
+                                React.createElement('button', {
+                                    onClick: (e) => { e.stopPropagation(); handleNavigateToPage(node.uid); },
+                                    className: 'dgt-btn dgt-btn-primary dgt-text-xs',
+                                    title: `Ir a: ${node.title || ''}`
+                                }, '→')
+                            )
+                        )
                     )
                 ),
                 // Pie / Footer
@@ -1107,7 +1124,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         className: 'dgt-btn dgt-btn-secondary',
                         style: { padding: '6px 12px', fontSize: '0.8125rem', cursor: 'pointer' }
                     }, 'Cerrar'),
-                    totalProblematic > 0 && React.createElement('button', {
+                    propagationPlan.changes.length > 0 && React.createElement('button', {
                         onClick: (e) => { e.stopPropagation(); handlePropagate(); },
                         disabled: isPropagating || !editableProject.trim(),
                         className: 'dgt-btn dgt-btn-primary',
@@ -1117,7 +1134,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                             fontSize: '0.8125rem',
                             cursor: 'pointer'
                         }
-                    }, isPropagating ? '⏳ Sincronizando...' : `Sincronizar Rama (${totalProblematic})`)
+                    }, isPropagating ? '⏳ Sincronizando...' : `Sincronizar Rama (${propagationPlan.changes.length})`)
                 )
             )
         );
@@ -1234,6 +1251,9 @@ DiscourseGraphToolkit.BranchesTab = function () {
                         const queTitle = (result.question.pageTitle || '').replace(/\[\[(QUE|GRI)\]\] - /, '');
                         const rootProj = result.coherence.rootProject;
                         const missingNodes = result.coherence.missing || [];
+                        const missingPlanTargets = new Map(
+                            buildPropagationPlan(result, rootProj, true).changes.map(c => [c.uid, c.to])
+                        );
 
                         return React.createElement('div', {
                             key: result.question.pageUid,
@@ -1290,7 +1310,7 @@ DiscourseGraphToolkit.BranchesTab = function () {
                                     const textColor = '#991b1b';
                                     const borderColor = '#fca5a5';
                                     const oldProject = '(sin proyecto)';
-                                    const newProject = node.parentProject || rootProj;
+                                    const newProject = missingPlanTargets.get(node.uid) || node.parentProject || rootProj;
 
                                     return React.createElement('div', {
                                         key: node.uid,

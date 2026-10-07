@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-09-27
+**Última actualización:** 2026-10-07
 
 ## Versión Actual
 
-**v1.5.72**
+**v1.5.73**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,14 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.73 (Octubre 2026)
+- **Fix/Coherence (Propagación de proyectos en cascada)**:
+  - **Planificador puro (`planBranchPropagation`)**: calcula qué proyecto recibe cada nodo recorriendo la rama desde la raíz (padre antes que hijo) con el proyecto ya resuelto del padre. Corrige dos errores: (1) al editar el proyecto de la raíz y propagar, los hijos recibían el valor anterior de la raíz; (2) una cadena de nodos mal asignados requería una pasada por nivel, porque cada hijo heredaba el valor erróneo que se estaba corrigiendo en su padre.
+  - **Especializaciones**: un nodo con un sub-namespace propio que deja de calzar con la raíz nueva no se modifica; se lista como "pendiente de revisión manual" en la vista previa. Los nodos que solo heredaban el proyecto de su padre lo siguen.
+  - **Ejecutor (`applyProjectChanges`)**: escribe solo los cambios del plan; la raíz ya no se reescribe cuando su proyecto no cambia. Reemplaza a `propagateProjectToBranch` y `propagateFromParents`.
+  - **Vista previa fiel**: "Sincronizar Rama" y la corrección en bloque de nodos sin proyecto muestran exactamente el plan que se ejecutará. El botón también aparece cuando solo se cambia el proyecto de la raíz.
+  - **Tests**: nuevo `tests/branchPropagation.test.js` (planificador y ejecutor con API de Roam simulada).
 
 ### v1.5.72 (Septiembre 2026)
 - **Optimization/Import (Diffing estricto y optimización de tasa de mutación en importación)**:

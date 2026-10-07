@@ -305,164 +305,145 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
 };
 
 /**
- * Propaga el proyecto del QUE raíz a todos los nodos de la rama
- * @param {string} rootUid - UID del QUE raíz
- * @param {string} targetProject - Proyecto a propagar
- * @param {Array<{uid: string}>} nodesToUpdate - Nodos a actualizar
+ * Calcula, sin escribir nada en Roam, qué proyecto debe recibir cada nodo de una rama.
+ *
+ * Recorre la rama desde la raíz (cada padre antes que sus hijos) usando el proyecto YA
+ * RESUELTO del padre, de modo que el valor nuevo de la raíz y las correcciones de los
+ * niveles superiores se transmiten en cascada en una sola pasada.
+ *
+ * Reglas para cada nodo:
+ *  - Si su proyecto es coherente con el del padre (igual o más específico), se conserva.
+ *  - Si está en `fixableUids` (estaba incoherente o sin proyecto al verificar), recibe el del padre.
+ *  - Si solo heredaba el proyecto anterior de su padre (era idéntico) y el padre cambió, lo sigue.
+ *  - En otro caso (p. ej. una especialización que deja de calzar con la raíz nueva) no se toca:
+ *    se informa en `pending` para que el usuario lo revise caso a caso.
+ *
+ * @param {{rootProject: string|null, coherent: Array, specialized: Array, different: Array, missing: Array}} coherence
+ *   Resultado de verifyProjectCoherence
+ * @param {string} rootUid - UID del nodo raíz (QUE/GRI)
+ * @param {string} rootTargetProject - Proyecto que tendrá la raíz tras la propagación
+ * @param {Set<string>} fixableUids - Nodos que se deben corregir
+ * @returns {{changes: Array<{uid: string, from: string|null, to: string, isRoot?: boolean}>,
+ *            pending: Array<{uid: string, title: string, type: string, project: string, parentProject: string}>}}
+ */
+DiscourseGraphToolkit.planBranchPropagation = function (coherence, rootUid, rootTargetProject, fixableUids) {
+    const changes = [];
+    const pending = [];
+    const oldRootProject = coherence.rootProject || null;
+
+    if (rootTargetProject && rootTargetProject !== oldRootProject) {
+        changes.push({ uid: rootUid, from: oldRootProject, to: rootTargetProject, isRoot: true });
+    }
+
+    const nodes = [
+        ...(coherence.coherent || []),
+        ...(coherence.specialized || []),
+        ...(coherence.different || []),
+        ...(coherence.missing || [])
+    ];
+    const byUid = new Map(nodes.map(n => [n.uid, n]));
+
+    // Profundidad de cada nodo dentro de la rama, para procesar padres antes que hijos
+    const depthOf = (node) => {
+        let depth = 0;
+        let current = node;
+        const seen = new Set();
+        while (current && current.parentUid && current.parentUid !== rootUid && !seen.has(current.uid)) {
+            seen.add(current.uid);
+            current = byUid.get(current.parentUid);
+            depth++;
+        }
+        return depth;
+    };
+    const ordered = nodes
+        .map((node, index) => ({ node, index, depth: depthOf(node) }))
+        .sort((a, b) => a.depth - b.depth || a.index - b.index)
+        .map(entry => entry.node);
+
+    // Proyecto de cada nodo después de aplicar el plan
+    const resolved = new Map([[rootUid, rootTargetProject || oldRootProject]]);
+
+    for (const node of ordered) {
+        const current = node.project || null;
+        const oldParentProject = node.parentProject || null;
+        const parentProject = resolved.has(node.parentUid) ? resolved.get(node.parentUid) : oldParentProject;
+
+        if (!parentProject) {
+            resolved.set(node.uid, current);
+            continue;
+        }
+
+        if (current && this.isHierarchicallyCoherent(parentProject, current)) {
+            resolved.set(node.uid, current);
+        } else if (fixableUids.has(node.uid) || (current && current === oldParentProject)) {
+            changes.push({ uid: node.uid, from: current, to: parentProject });
+            resolved.set(node.uid, parentProject);
+        } else {
+            pending.push({ uid: node.uid, title: node.title, type: node.type, project: current, parentProject });
+            resolved.set(node.uid, current);
+        }
+    }
+
+    return { changes, pending };
+};
+
+/**
+ * Busca el bloque "Proyecto Asociado::" de primer nivel de una página.
+ * @param {string} pageUid
+ * @returns {Promise<{uid: string, string: string}|null>}
+ */
+DiscourseGraphToolkit._findProjectBlock = async function (pageUid) {
+    const escapedPattern = this.ProjectManager.getEscapedFieldPattern();
+    const escapedPageUid = this.escapeDatalogString(pageUid);
+    const query = `[:find ?block-uid ?string
+                   :where 
+                   [?page :block/uid "${escapedPageUid}"]
+                   [?page :block/children ?block]
+                   [?block :block/uid ?block-uid]
+                   [?block :block/string ?string]
+                   [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+    const results = await window.roamAlphaAPI.data.async.q(query);
+    if (!results || results.length === 0) return null;
+    return { uid: results[0][0], string: results[0][1] };
+};
+
+/**
+ * Escribe en Roam los cambios calculados por planBranchPropagation.
+ * Actualiza el bloque de proyecto existente o lo crea como primer hijo de la página.
+ * Un error en un nodo no detiene el resto.
+ * @param {Array<{uid: string, to: string}>} changes
  * @returns {Promise<{success: boolean, updated: number, created: number, errors: Array}>}
  */
-DiscourseGraphToolkit.propagateProjectToBranch = async function (rootUid, targetProject, nodesToUpdate) {
+DiscourseGraphToolkit.applyProjectChanges = async function (changes) {
     const PM = this.ProjectManager;
-    const newValue = PM.buildFieldValue(targetProject);
-    const escapedPattern = PM.getEscapedFieldPattern();
-
     let updated = 0;
     let created = 0;
     const errors = [];
 
-    // PRIMERO: Actualizar el nodo raíz (QUE) para que futuras verificaciones muestren el valor correcto
-    try {
-        const escapedRootUid = this.escapeDatalogString(rootUid);
-        const rootQuery = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedRootUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
-        const rootResults = await window.roamAlphaAPI.data.async.q(rootQuery);
-
-        if (rootResults && rootResults.length > 0) {
-            const blockUid = rootResults[0][0];
-            await window.roamAlphaAPI.data.block.update({
-                block: { uid: blockUid, string: newValue }
-            });
-            updated++;
-        } else {
-            // Crear bloque en el nodo raíz si no existe
-            await window.roamAlphaAPI.data.block.create({
-                location: { 'parent-uid': rootUid, order: 0 },
-                block: { string: newValue }
-            });
-            created++;
-        }
-    } catch (e) {
-        console.error(`Error updating root node ${rootUid}:`, e);
-        errors.push({ uid: rootUid, error: e.message, isRoot: true });
-    }
-
-    // SEGUNDO: Actualizar los nodos hijos (CLM/EVD)
-    // Respetamos sub-namespaces existentes (especializaciones)
-    const regex = PM.getFieldRegex();
-    let skipped = 0;
-
-    for (const node of nodesToUpdate) {
+    for (const change of changes) {
         try {
-            // Buscar si ya tiene un bloque con Proyecto Asociado
-            const escapedNodeUid = this.escapeDatalogString(node.uid);
-            const query = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedNodeUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
+            const newValue = PM.buildFieldValue(change.to);
+            const projectBlock = await this._findProjectBlock(change.uid);
 
-            const results = await window.roamAlphaAPI.data.async.q(query);
-
-            const nodeTargetProject = node.parentProject || targetProject;
-            const nodeNewValue = PM.buildFieldValue(nodeTargetProject);
-
-            if (results && results.length > 0) {
-                const blockUid = results[0][0];
-                const blockString = results[0][1];
-
-                // Extraer el proyecto actual del nodo
-                const match = blockString.match(regex);
-                const currentProject = match ? match[1].trim() : null;
-
-                // Si ya es coherente (exacto o sub-namespace), respetar la especialización
-                if (currentProject && this.isHierarchicallyCoherent(nodeTargetProject, currentProject)) {
-                    skipped++;
-                    continue;
-                }
-
-                // Actualizar solo si es incoherente
+            if (projectBlock) {
                 await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: nodeNewValue }
+                    block: { uid: projectBlock.uid, string: newValue }
                 });
                 updated++;
             } else {
-                // Crear nuevo bloque como primer hijo
                 await window.roamAlphaAPI.data.block.create({
-                    location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: nodeNewValue }
+                    location: { 'parent-uid': change.uid, order: 0 },
+                    block: { string: newValue }
                 });
                 created++;
             }
         } catch (e) {
-            console.error(`Error updating node ${node.uid}:`, e);
-            errors.push({ uid: node.uid, error: e.message });
+            console.error(`Error updating node ${change.uid}:`, e);
+            errors.push({ uid: change.uid, error: e.message, isRoot: !!change.isRoot });
         }
     }
 
     return { success: errors.length === 0, updated, created, errors };
-};
-
-/**
- * Propaga el proyecto del padre directo a cada nodo (para corregir generalizaciones)
- * Cada nodo recibe el proyecto de su parentProject específico.
- * @param {Array<{uid: string, parentProject: string}>} nodesToFix - Nodos con generalización
- * @returns {Promise<{success: boolean, updated: number, errors: Array}>}
- */
-DiscourseGraphToolkit.propagateFromParents = async function (nodesToFix) {
-    const PM = this.ProjectManager;
-    const escapedPattern = PM.getEscapedFieldPattern();
-    const regex = PM.getFieldRegex();
-
-    let updated = 0;
-    const errors = [];
-
-    for (const node of nodesToFix) {
-        if (!node.parentProject) continue;
-
-        const newValue = PM.buildFieldValue(node.parentProject);
-
-        try {
-            // Buscar si ya tiene un bloque con Proyecto Asociado
-            const escapedNodeUid = this.escapeDatalogString(node.uid);
-            const query = `[:find ?block-uid ?string
-                           :where 
-                           [?page :block/uid "${escapedNodeUid}"]
-                           [?page :block/children ?block]
-                           [?block :block/uid ?block-uid]
-                           [?block :block/string ?string]
-                           [(clojure.string/includes? ?string "${escapedPattern}")]]`;
-
-            const results = await window.roamAlphaAPI.data.async.q(query);
-
-            if (results && results.length > 0) {
-                const blockUid = results[0][0];
-                await window.roamAlphaAPI.data.block.update({
-                    block: { uid: blockUid, string: newValue }
-                });
-                updated++;
-            } else {
-                // Crear nuevo bloque como primer hijo
-                await window.roamAlphaAPI.data.block.create({
-                    location: { 'parent-uid': node.uid, order: 0 },
-                    block: { string: newValue }
-                });
-                updated++;
-            }
-        } catch (e) {
-            console.error(`Error updating node ${node.uid}:`, e);
-            errors.push({ uid: node.uid, error: e.message });
-        }
-    }
-
-    return { success: errors.length === 0, updated, errors };
 };
 
 /**
