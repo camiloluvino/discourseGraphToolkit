@@ -40,7 +40,7 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
         let pageUid = await this.findProjectsPage();
         if (!pageUid) {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
+            await DiscourseGraphToolkit.roamWrite.createPage({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
         }
 
         const escapedPageUid = this.escapeDatalogString(pageUid);
@@ -50,14 +50,14 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
 
         // Eliminar obsoletos
         for (const [blockText, blockUid] of existingBlocks.entries()) {
-            if (!projects.includes(blockText)) await window.roamAlphaAPI.data.block.delete({ block: { uid: blockUid } });
+            if (!projects.includes(blockText)) await DiscourseGraphToolkit.roamWrite.deleteBlock({ block: { uid: blockUid } });
         }
 
         // Agregar nuevos
         for (let i = 0; i < projects.length; i++) {
             const project = projects[i];
             if (!existingBlocks.has(project)) {
-                await window.roamAlphaAPI.data.block.create({ location: { 'parent-uid': pageUid, order: i }, block: { string: project } });
+                await DiscourseGraphToolkit.roamWrite.createBlock({ location: { 'parent-uid': pageUid, order: i }, block: { string: project } });
             }
         }
         return { success: true };

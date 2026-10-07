@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.74
- * Bundled build: 2026-10-07 21:52:51
+ * DISCOURSE GRAPH TOOLKIT v1.5.75
+ * Bundled build: 2026-10-07 21:57:47
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.74";
+    DiscourseGraphToolkit.VERSION = "1.5.75";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -1207,6 +1207,100 @@ DiscourseGraphToolkit.formatExportProjectName = function (pName) {
 
 
 
+// --- MODULE: src/utils/mutationThrottle.js ---
+// ============================================================================
+// UTILS: Limitador de escrituras (Roam API Rate Limiter)
+// Roam comparte entre TODAS las escrituras (y algunas funciones de UI) un
+// presupuesto de 1500 llamadas por 60 segundos; al superarlo, la API lanza un
+// error. Toda escritura del plugin debe pasar por DiscourseGraphToolkit.roamWrite
+// (o por MutationThrottle.execute) para que el conteo sea compartido.
+// ============================================================================
+
+DiscourseGraphToolkit.MutationThrottle = {
+    MAX_OPS_PER_WINDOW: 1400,   // Margen de seguridad sobre el límite de 1500/60s de Roam
+    WINDOW_MS: 60000,           // Ventana móvil de 60 segundos
+    MIN_DELAY_MS: 0,            // Yield mínimo (~4ms por setTimeout) para no congelar la UI
+    callTimestamps: [],         // Persiste entre operaciones: el presupuesto de Roam es global
+    onProgress: null,
+
+    // Define a quién se informan las pausas (p. ej. la pestaña Importar); null para ninguno
+    setProgressCallback: function (progressCallback) {
+        this.onProgress = progressCallback || null;
+    },
+
+    now: function () {
+        return Date.now();
+    },
+
+    sleep: function (ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
+    _pruneWindow: function () {
+        const now = this.now();
+        this.callTimestamps = this.callTimestamps.filter(t => (now - t) < this.WINDOW_MS);
+    },
+
+    execute: async function (mutationFn) {
+        // 1. Limpiar timestamps que salieron de la ventana móvil de 60s
+        this._pruneWindow();
+
+        // 2. Si alcanzamos el umbral de seguridad, esperar a que venza el más antiguo
+        while (this.callTimestamps.length >= this.MAX_OPS_PER_WINDOW) {
+            const oldest = this.callTimestamps[0];
+            const waitMs = (oldest + this.WINDOW_MS) - this.now() + 25;
+            if (waitMs > 0) {
+                const waitSec = Math.ceil(waitMs / 1000);
+                const msg = `⏳ Pausa preventiva por cuota de Roam (${this.callTimestamps.length}/1500 ops). Esperando ${waitSec}s para continuar con seguridad...`;
+                console.warn(msg);
+                if (this.onProgress) this.onProgress(msg);
+                await this.sleep(waitMs);
+                if (this.onProgress) this.onProgress(`✅ Cuota renovada. Reanudando...`);
+            }
+            this._pruneWindow();
+        }
+
+        // 3. Ejecución segura con reintento ante error 429 / Rate Limit
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (attempts < maxAttempts) {
+            try {
+                await this.sleep(this.MIN_DELAY_MS);
+                const result = await mutationFn();
+                this.callTimestamps.push(this.now());
+                return result;
+            } catch (err) {
+                const isRateLimit = err && err.message && (
+                    err.message.includes("maximum mutation rate limit exceeded") ||
+                    err.message.includes("rate limit")
+                );
+
+                if (isRateLimit && attempts < maxAttempts - 1) {
+                    attempts++;
+                    const backoffMs = 20000 * attempts;
+                    const msg = `⚠️ Cuota de Roam excedida. Esperando ${backoffMs / 1000}s para reintentar (intento ${attempts}/${maxAttempts})...`;
+                    console.warn(msg, err);
+                    if (this.onProgress) this.onProgress(msg);
+                    await this.sleep(backoffMs);
+                    this._pruneWindow();
+                } else {
+                    throw err;
+                }
+            }
+        }
+    }
+};
+
+// Escrituras en Roam a través del limitador compartido
+DiscourseGraphToolkit.roamWrite = {
+    createBlock: (args) => DiscourseGraphToolkit.MutationThrottle.execute(() => window.roamAlphaAPI.data.block.create(args)),
+    updateBlock: (args) => DiscourseGraphToolkit.MutationThrottle.execute(() => window.roamAlphaAPI.data.block.update(args)),
+    deleteBlock: (args) => DiscourseGraphToolkit.MutationThrottle.execute(() => window.roamAlphaAPI.data.block.delete(args)),
+    createPage: (args) => DiscourseGraphToolkit.MutationThrottle.execute(() => window.roamAlphaAPI.data.page.create(args)),
+    deletePage: (args) => DiscourseGraphToolkit.MutationThrottle.execute(() => window.roamAlphaAPI.data.page.delete(args))
+};
+
+
 // --- MODULE: src/utils/toast.js ---
 // ============================================================================
 // UTILS: Toast Notifications
@@ -1474,7 +1568,7 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         let pageUid = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :node/title "${escapedTitle}"] [?page :block/uid ?uid]]`);
         if (!pageUid || pageUid.length === 0) {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
+            await DiscourseGraphToolkit.roamWrite.createPage({ page: { title: this.ROAM.CONFIG_PAGE, uid: pageUid } });
         } else {
             pageUid = pageUid[0][0];
         }
@@ -1486,10 +1580,10 @@ DiscourseGraphToolkit.saveConfigToRoam = async function (config, templates) {
         const escapedPageUid = this.escapeDatalogString(pageUid);
         const children = await window.roamAlphaAPI.data.async.q(`[:find ?uid :where [?page :block/uid "${escapedPageUid}"] [?child :block/parents ?page] [?child :block/uid ?uid]]`);
         for (let child of children) {
-            await window.roamAlphaAPI.data.block.delete({ block: { uid: child[0] } });
+            await DiscourseGraphToolkit.roamWrite.deleteBlock({ block: { uid: child[0] } });
         }
 
-        await window.roamAlphaAPI.data.block.create({
+        await DiscourseGraphToolkit.roamWrite.createBlock({
             location: { "parent-uid": pageUid, order: 0 },
             block: { string: data }
         });
@@ -1835,7 +1929,7 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
         let pageUid = await this.findProjectsPage();
         if (!pageUid) {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
+            await DiscourseGraphToolkit.roamWrite.createPage({ page: { title: this.ROAM.PROJECTS_PAGE, uid: pageUid } });
         }
 
         const escapedPageUid = this.escapeDatalogString(pageUid);
@@ -1845,14 +1939,14 @@ DiscourseGraphToolkit.syncProjectsToRoam = async function (projects) {
 
         // Eliminar obsoletos
         for (const [blockText, blockUid] of existingBlocks.entries()) {
-            if (!projects.includes(blockText)) await window.roamAlphaAPI.data.block.delete({ block: { uid: blockUid } });
+            if (!projects.includes(blockText)) await DiscourseGraphToolkit.roamWrite.deleteBlock({ block: { uid: blockUid } });
         }
 
         // Agregar nuevos
         for (let i = 0; i < projects.length; i++) {
             const project = projects[i];
             if (!existingBlocks.has(project)) {
-                await window.roamAlphaAPI.data.block.create({ location: { 'parent-uid': pageUid, order: i }, block: { string: project } });
+                await DiscourseGraphToolkit.roamWrite.createBlock({ location: { 'parent-uid': pageUid, order: i }, block: { string: project } });
             }
         }
         return { success: true };
@@ -2547,12 +2641,12 @@ DiscourseGraphToolkit.applyProjectChanges = async function (changes) {
             const projectBlock = await this._findProjectBlock(change.uid);
 
             if (projectBlock) {
-                await window.roamAlphaAPI.data.block.update({
+                await DiscourseGraphToolkit.roamWrite.updateBlock({
                     block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, change.to) }
                 });
                 updated++;
             } else {
-                await window.roamAlphaAPI.data.block.create({
+                await DiscourseGraphToolkit.roamWrite.createBlock({
                     location: { 'parent-uid': change.uid, order: 0 },
                     block: { string: newValue }
                 });
@@ -2807,13 +2901,13 @@ DiscourseGraphToolkit.fixContainerAlignment = async function (targetUid, newProj
         const projectBlock = await this._findProjectBlock(targetUid);
 
         if (projectBlock) {
-            await window.roamAlphaAPI.data.block.update({
+            await DiscourseGraphToolkit.roamWrite.updateBlock({
                 block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, newProject) }
             });
             return { success: true, action: 'updated' };
         } else {
             // Crear bloque como primer hijo de la página
-            await window.roamAlphaAPI.data.block.create({
+            await DiscourseGraphToolkit.roamWrite.createBlock({
                 location: { 'parent-uid': targetUid, order: 0 },
                 block: { string: this.ProjectManager.buildFieldValue(newProject) }
             });
@@ -2956,7 +3050,7 @@ DiscourseGraphToolkit.fixQueStructure = async function (questionUid) {
             // Reemplazar #SupportedBy con #RespondedBy
             const newString = blockString.replace(/#SupportedBy/g, "#RespondedBy");
 
-            await window.roamAlphaAPI.data.block.update({
+            await DiscourseGraphToolkit.roamWrite.updateBlock({
                 block: { uid: blockUid, string: newString }
             });
             fixed++;
@@ -3005,7 +3099,7 @@ DiscourseGraphToolkit.createTemplateBlocks = async function (parentUid, template
             let processedText = item.text.replace(/{PROYECTO}/g, proyecto);
 
             let blockUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.block.create({
+            await DiscourseGraphToolkit.roamWrite.createBlock({
                 "location": { "parent-uid": parentUid, "order": startOrder + i },
                 "block": { "uid": blockUid, "string": processedText }
             });
@@ -3066,7 +3160,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
             this.showToast(`Nodo ${typePrefix} ya existe, vinculando...`, "info");
         } else {
             pageUid = window.roamAlphaAPI.util.generateUID();
-            await window.roamAlphaAPI.data.page.create({
+            await DiscourseGraphToolkit.roamWrite.createPage({
                 "page": { "title": newPageTitle, "uid": pageUid }
             });
             pageWasCreated = true;
@@ -3075,7 +3169,7 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
 
         this.addToNodeHistory(typePrefix, originalBlockContent, proyecto);
 
-        await window.roamAlphaAPI.data.block.update({
+        await DiscourseGraphToolkit.roamWrite.updateBlock({
             "block": { "uid": blockUid, "string": newBlockString }
         });
 
@@ -3090,10 +3184,10 @@ DiscourseGraphToolkit.convertBlockToNode = async function (typePrefix) {
         this.showToast("Error: " + error.message, "error");
         // Rollback simple
         if (pageWasCreated && pageUid) {
-            await window.roamAlphaAPI.data.page.delete({ "page": { "uid": pageUid } });
+            await DiscourseGraphToolkit.roamWrite.deletePage({ "page": { "uid": pageUid } });
         }
         if (blockUid && originalBlockContent) {
-            await window.roamAlphaAPI.data.block.update({ "block": { "uid": blockUid, "string": originalBlockContent } });
+            await DiscourseGraphToolkit.roamWrite.updateBlock({ "block": { "uid": blockUid, "string": originalBlockContent } });
         }
     }
 };
@@ -3319,84 +3413,19 @@ DiscourseGraphToolkit.exportPagesNative = async function (pageUids, filename, on
 // CORE: Importación
 // ============================================================================
 
-// --- Controlador de Tasa de Mutación (Roam API Rate Limiter) ---
-DiscourseGraphToolkit.MutationThrottle = {
-    MAX_OPS_PER_WINDOW: 1400,   // Margen de seguridad sobre el límite de 1500/60s de Roam
-    WINDOW_MS: 60000,           // Ventana móvil de 60 segundos
-    MIN_DELAY_MS: 0,            // Yield mínimo (~4ms por setTimeout) para no congelar la UI
-    callTimestamps: [],
-    onProgress: null,
-
-    reset: function (progressCallback) {
-        this.callTimestamps = [];
-        this.onProgress = progressCallback || null;
-    },
-
-    sleep: function (ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    },
-
-    execute: async function (mutationFn) {
-        const now = Date.now();
-        // 1. Limpiar timestamps que salieron de la ventana móvil de 60s
-        this.callTimestamps = this.callTimestamps.filter(t => (now - t) < this.WINDOW_MS);
-
-        // 2. Si alcanzamos el umbral de seguridad, esperar a que venza el más antiguo
-        while (this.callTimestamps.length >= this.MAX_OPS_PER_WINDOW) {
-            const oldest = this.callTimestamps[0];
-            const waitMs = (oldest + this.WINDOW_MS) - Date.now() + 25;
-            if (waitMs > 0) {
-                const waitSec = Math.ceil(waitMs / 1000);
-                const msg = `⏳ Pausa preventiva por cuota de Roam (${this.callTimestamps.length}/1500 ops). Esperando ${waitSec}s para continuar con seguridad...`;
-                console.warn(msg);
-                if (this.onProgress) this.onProgress(msg);
-                await this.sleep(waitMs);
-                if (this.onProgress) this.onProgress(`✅ Cuota renovada. Reanudando importación...`);
-            }
-            const postWait = Date.now();
-            this.callTimestamps = this.callTimestamps.filter(t => (postWait - t) < this.WINDOW_MS);
-        }
-
-        // 3. Ejecución segura con reintento ante error 429 / Rate Limit
-        let attempts = 0;
-        const maxAttempts = 3;
-        while (attempts < maxAttempts) {
-            try {
-                if (this.MIN_DELAY_MS !== null && this.MIN_DELAY_MS !== undefined && this.MIN_DELAY_MS >= 0) {
-                    await this.sleep(this.MIN_DELAY_MS);
-                }
-                const result = await mutationFn();
-                this.callTimestamps.push(Date.now());
-                return result;
-            } catch (err) {
-                const isRateLimit = err && err.message && (
-                    err.message.includes("maximum mutation rate limit exceeded") ||
-                    err.message.includes("rate limit")
-                );
-
-                if (isRateLimit && attempts < maxAttempts - 1) {
-                    attempts++;
-                    const backoffMs = 20000 * attempts;
-                    const msg = `⚠️ Cuota de Roam excedida. Esperando ${backoffMs / 1000}s para reintentar (intento ${attempts}/${maxAttempts})...`;
-                    console.warn(msg, err);
-                    if (this.onProgress) this.onProgress(msg);
-                    await this.sleep(backoffMs);
-                    const retryNow = Date.now();
-                    this.callTimestamps = this.callTimestamps.filter(t => (retryNow - t) < this.WINDOW_MS);
-                } else {
-                    throw err;
-                }
-            }
-        }
-    }
-};
-
 DiscourseGraphToolkit.importGraph = async function (jsonContent, onProgress) {
     const report = (msg) => { console.log(msg); if (onProgress) onProgress(msg); };
 
-    // Inicializar el controlador de cuota con el callback de progreso
-    DiscourseGraphToolkit.MutationThrottle.reset(report);
+    // Las pausas del limitador se informan en la pestaña Importar mientras dure la importación
+    DiscourseGraphToolkit.MutationThrottle.setProgressCallback(report);
+    try {
+        return await this._importGraph(jsonContent, report);
+    } finally {
+        DiscourseGraphToolkit.MutationThrottle.setProgressCallback(null);
+    }
+};
 
+DiscourseGraphToolkit._importGraph = async function (jsonContent, report) {
     report(`Leyendo archivo (${jsonContent.length} bytes)...`);
 
     let data;

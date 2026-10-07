@@ -452,12 +452,12 @@ DiscourseGraphToolkit.applyProjectChanges = async function (changes) {
             const projectBlock = await this._findProjectBlock(change.uid);
 
             if (projectBlock) {
-                await window.roamAlphaAPI.data.block.update({
+                await DiscourseGraphToolkit.roamWrite.updateBlock({
                     block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, change.to) }
                 });
                 updated++;
             } else {
-                await window.roamAlphaAPI.data.block.create({
+                await DiscourseGraphToolkit.roamWrite.createBlock({
                     location: { 'parent-uid': change.uid, order: 0 },
                     block: { string: newValue }
                 });
@@ -712,13 +712,13 @@ DiscourseGraphToolkit.fixContainerAlignment = async function (targetUid, newProj
         const projectBlock = await this._findProjectBlock(targetUid);
 
         if (projectBlock) {
-            await window.roamAlphaAPI.data.block.update({
+            await DiscourseGraphToolkit.roamWrite.updateBlock({
                 block: { uid: projectBlock.uid, string: this._replaceProjectInString(projectBlock.string, newProject) }
             });
             return { success: true, action: 'updated' };
         } else {
             // Crear bloque como primer hijo de la página
-            await window.roamAlphaAPI.data.block.create({
+            await DiscourseGraphToolkit.roamWrite.createBlock({
                 location: { 'parent-uid': targetUid, order: 0 },
                 block: { string: this.ProjectManager.buildFieldValue(newProject) }
             });

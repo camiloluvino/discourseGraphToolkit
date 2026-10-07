@@ -4,7 +4,7 @@
 
 ## Versión Actual
 
-**v1.5.74**
+**v1.5.75**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,13 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.75 (Octubre 2026)
+- **Fix/Robustez (Límite de escrituras compartido)**:
+  - Roam comparte entre todas las escrituras un presupuesto de 1500 llamadas por 60 s y lanza un error al superarlo. Hasta ahora solo la importación lo respetaba; la propagación, "Corregir missing", la alineación de contenedores, la sincronización de proyectos, el guardado de configuración y la creación de nodos escribían sin control y podían cortarse a mitad de una operación masiva.
+  - **Nuevo módulo `src/utils/mutationThrottle.js`**: `MutationThrottle` (movido desde `import.js`) y `roamWrite` (`createBlock`, `updateBlock`, `deleteBlock`, `createPage`, `deletePage`), por donde pasan ahora todas las escrituras del plugin.
+  - El conteo de escrituras persiste entre operaciones (antes cada importación lo reiniciaba). `reset()` se reemplaza por `setProgressCallback()`; la importación lo activa solo mientras dura.
+  - **Tests**: nuevo `tests/mutationThrottle.test.js` (reloj simulado).
 
 ### v1.5.74 (Octubre 2026)
 - **Fix/Coherence (Propagación sin pérdida de texto)**:

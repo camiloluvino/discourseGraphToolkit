@@ -8,6 +8,7 @@ global.DiscourseGraphToolkit = {};
 
 require('../src/config.js');
 require('../src/utils/helpers.js');
+require('../src/utils/mutationThrottle.js');
 require('../src/state.js');
 require('../src/core/projects.js');
 require('../src/api/roamProjects.js');
