@@ -71,6 +71,13 @@ DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
+// ¿El bloque es (o contiene) la referencia a la bitácora?
+// Sin distinguir mayúsculas, pero exige doble corchete y tilde.
+DiscourseGraphToolkit.isBitacoraBlock = function (blockString) {
+    if (!blockString || typeof blockString !== 'string') return false;
+    return blockString.toLowerCase().includes(this.BITACORA_MARKER);
+};
+
 DiscourseGraphToolkit.getNodeType = function (title) {
     if (!title) return null;
     if (title.includes('[[GRI]]')) return 'GRI';

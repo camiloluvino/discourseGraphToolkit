@@ -39,7 +39,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             if (blockIdentifier) visitedBlocks.add(blockIdentifier);
 
             // Excluir bloque de bitácora y sus hijos SI la opción está activada
-            if (excludeBitacora && blockString.toLowerCase().includes('[[bitácora]]')) {
+            if (excludeBitacora && DiscourseGraphToolkit.isBitacoraBlock(blockString)) {
                 return "";
             }
 

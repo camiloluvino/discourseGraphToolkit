@@ -241,6 +241,7 @@ Las pruebas usan el runner nativo de Node (`node:test`) y no requieren dependenc
   - `tests/wildcardGris.test.js`: mapeo de relaciones de nodos GRI.
   - `tests/branchPropagation.test.js`: verificación y propagación de proyectos en ramas (`planBranchPropagation`, `applyProjectChanges`, `_replaceProjectInString`, `_pickProjectBlocks`, `getBranchStatus`, `fixContainerAlignment`).
   - `tests/mutationThrottle.test.js`: limitador de escrituras compartido (`MutationThrottle`, `roamWrite`), con reloj simulado.
+  - `tests/bitacora.test.js`: escape de `[[bitácora]]` en la verificación de ramas (`isBitacoraBlock`, `_extractAllReferencesFromNode`, `getBranchNodes`).
 - **Regla:** Cada vez que se modifiquen esos módulos, ejecutar y validar las pruebas antes de dar por terminado el trabajo. Al corregir un error, escribir primero la prueba que lo reproduce.
 
 ## Escrituras en Roam

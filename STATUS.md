@@ -1,10 +1,10 @@
 # Estado del Proyecto — Discourse Graph Toolkit
 
-**Última actualización:** 2026-10-07
+**Última actualización:** 2026-10-22
 
 ## Versión Actual
 
-**v1.5.76**
+**v1.5.77**
 
 ## Estado de Funcionalidades
 
@@ -23,6 +23,13 @@
 | Exportación HTML | ✅ Estable | Documento interactivo con soporte GRI (usa el orden de la Panorámica) |
 | Exportación Markdown | ✅ Muy Mejorado | Flujo simplificado: motor de ejecución que consume el orden de la Panorámica |
 | Exportación EPUB | ✅ Muy Mejorado | ToC profundo dinámico, árbol jerárquico multinivel por namespace y cursivas nativas Roam |
+
+### v1.5.77 (Octubre 2026)
+- **Feature/Coherence (Escape de `[[bitácora]]` en la verificación de ramas)**:
+  - Lo que cuelga de un bloque que contiene `[[bitácora]]` deja de formar parte de la rama, a cualquier profundidad, igual que `#RelatedTo`: no se siguen sus referencias ni sus etiquetas de relación. Evita que páginas guardadas en bitácora aparezcan como incoherentes con su padre, y la propagación y "Corregir missing" ya no reescriben su proyecto.
+  - Antes la bitácora de primer nivel ya quedaba fuera, pero no la bitácora anidada dentro de un bloque de relación (p. ej. `#SupportedBy` → `[[bitácora]]` → página antigua).
+  - **`isBitacoraBlock`** y **`BITACORA_MARKER`**: criterio único (doble corchete y tilde, sin distinguir mayúsculas), compartido con la opción de exportación "Excluir bitácora". `_isBranchEscapeBlock` agrupa los escapes de la verificación.
+  - **Tests**: nuevo `tests/bitacora.test.js`.
 
 ### v1.5.76 (Octubre 2026)
 - **Fix/Coherence (Criterio único para leer el proyecto y detección de duplicados)**:
