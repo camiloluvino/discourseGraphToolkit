@@ -134,6 +134,7 @@ Proyecto Asociado:: [[tesis/marco/metodología]]
 
 - Si el proyecto es **completamente diferente**, se considera una **incoherencia** (puesto que los nodos vinculados jerárquicamente vía `#SupportedBy`, `#RespondedBy` o `#Contains` se asumen como parte del mismo flujo argumentativo).
 - Para incluir nodos de otros proyectos sin generar errores, se deben colocar bajo el marcador **`#RelatedTo`**, el cual se ignora durante la verificación de ramas por ser una relación lateral/no-jerárquica.
+- **`[[bitácora]]`** funciona como escape del mismo modo: lo que cuelga de un bloque que contiene `[[bitácora]]` (escrito así, con doble corchete y tilde) no forma parte de la rama, a cualquier profundidad. Allí va el material superado: títulos anteriores, páginas degradadas a bloques, relaciones renombradas o referencias a nodos de otras ramas. Ni sus referencias ni las etiquetas de relación que contenga se evalúan, y la propagación de proyectos no toca esas páginas.
 
 Ejemplo:
 ```

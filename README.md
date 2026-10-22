@@ -1,6 +1,6 @@
 # Discourse Graph Toolkit
 
-**Versión:** 1.5.76
+**Versión:** 1.5.77
 **Autor:** Camilo Luvino
 
 ## Descripción
@@ -45,6 +45,7 @@ Verifica la consistencia de tus ramas de investigación:
 - **Validación de Páginas Contenedoras:** Agrupa las preguntas bajo sus respectivas páginas contenedoras (ej. `tesis/capítulo1/grafoDeDiscurso`) y verifica que el `Proyecto Asociado::` del contenedor sea coherente.
 - **Namespaces jerárquicos:** Soporta sub-proyectos como `tesis/marco/metodología`.
 - **Exclusión de relaciones horizontales:** Las conexiones vía `#RelatedTo` son ignoradas por el validador de ramas para evitar falsos positivos en enlaces laterales.
+- **Exclusión de la bitácora:** Lo que cuelga de un bloque `[[bitácora]]` (material superado) tampoco se verifica ni se propaga, a cualquier profundidad.
 - **Vista de árbol jerárquico:** Agrupa las preguntas por namespace de proyecto con indicadores de estado agregados.
 - **Resumen Interactivo Unificado (Conteo por Ramas):**
   - **🏛️ Badge de Contenedor:** Número de ramas con desalineamientos respecto a su página contenedora. Popover interactivo con botones de alineación directa.

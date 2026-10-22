@@ -49,6 +49,11 @@ DiscourseGraphToolkit.ROAM = {
 // Las páginas contenedoras siempre terminan con este sufijo
 DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX = '/grafoDeDiscurso';
 
+// Marcador de bitácora: lo que cuelga de un bloque que lo contiene es material
+// superado (títulos anteriores, páginas degradadas, relaciones renombradas) y no
+// cuenta como estructura vigente del grafo. Ver isBitacoraBlock.
+DiscourseGraphToolkit.BITACORA_MARKER = '[[bitácora]]';
+
 // Configuración de Archivos y Exportación
 DiscourseGraphToolkit.FILES = {
     BYTES_PER_MB: 1024 * 1024,

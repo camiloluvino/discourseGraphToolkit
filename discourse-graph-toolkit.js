@@ -1,13 +1,13 @@
 ﻿/**
- * DISCOURSE GRAPH TOOLKIT v1.5.76
- * Bundled build: 2026-10-07 22:09:42
+ * DISCOURSE GRAPH TOOLKIT v1.5.77
+ * Bundled build: 2026-10-22 15:48:17
  */
 
 (function () {
     'use strict';
 
     var DiscourseGraphToolkit = DiscourseGraphToolkit || {};
-    DiscourseGraphToolkit.VERSION = "1.5.76";
+    DiscourseGraphToolkit.VERSION = "1.5.77";
 
 // --- EMBEDDED SCRIPT FOR HTML EXPORT (MarkdownCore + htmlEmbeddedScript.js) ---
 DiscourseGraphToolkit._HTML_EMBEDDED_SCRIPT = `// ============================================================================
@@ -45,7 +45,8 @@ var MarkdownCore = {
         if (blockUid && visitedBlocks[blockUid]) return content;
         if (blockUid) visitedBlocks[blockUid] = true;
 
-        // Excluir bitácora
+        // Excluir bitácora (mismo criterio que DiscourseGraphToolkit.isBitacoraBlock;
+        // este archivo no puede depender del plugin porque se inyecta en el HTML)
         if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) {
             return '';
         }
@@ -826,6 +827,11 @@ DiscourseGraphToolkit.ROAM = {
 // Las páginas contenedoras siempre terminan con este sufijo
 DiscourseGraphToolkit.CONTAINER_PAGE_SUFFIX = '/grafoDeDiscurso';
 
+// Marcador de bitácora: lo que cuelga de un bloque que lo contiene es material
+// superado (títulos anteriores, páginas degradadas, relaciones renombradas) y no
+// cuenta como estructura vigente del grafo. Ver isBitacoraBlock.
+DiscourseGraphToolkit.BITACORA_MARKER = '[[bitácora]]';
+
 // Configuración de Archivos y Exportación
 DiscourseGraphToolkit.FILES = {
     BYTES_PER_MB: 1024 * 1024,
@@ -1164,6 +1170,13 @@ DiscourseGraphToolkit.downloadFile = function (filename, content, mimeType) {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+// ¿El bloque es (o contiene) la referencia a la bitácora?
+// Sin distinguir mayúsculas, pero exige doble corchete y tilde.
+DiscourseGraphToolkit.isBitacoraBlock = function (blockString) {
+    if (!blockString || typeof blockString !== 'string') return false;
+    return blockString.toLowerCase().includes(this.BITACORA_MARKER);
 };
 
 DiscourseGraphToolkit.getNodeType = function (title) {
@@ -2275,8 +2288,18 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
 };
 
 /**
+ * Bloques de escape para la verificación de ramas: ni sus referencias ni sus hijos
+ * forman parte de la rama.
+ *  - #RelatedTo: relación lateral, no jerárquica.
+ *  - [[bitácora]]: material superado que no es estructura vigente.
+ */
+DiscourseGraphToolkit._isBranchEscapeBlock = function (blockString) {
+    return blockString.includes("#RelatedTo") || this.isBitacoraBlock(blockString);
+};
+
+/**
  * Helper: Extrae las referencias jerárquicas de nodos discourse del contenido de un nodo
- * Busca en #RespondedBy, #SupportedBy, #Contains (ignora #RelatedTo)
+ * Busca en #RespondedBy, #SupportedBy, #Contains (ignora #RelatedTo y [[bitácora]])
  */
 DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
     const references = new Set();
@@ -2298,13 +2321,13 @@ DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
                 if (!nodeBlock) return;
                 
                 const nodeStr = nodeBlock.string || "";
-                // Si encontramos un #RelatedTo anidado explícitamente, abortamos la extracción por ese sub-árbol
-                if (nodeStr.includes("#RelatedTo")) return;
+                // Si encontramos un #RelatedTo o una [[bitácora]] (a cualquier profundidad), abortamos la extracción por ese sub-árbol
+                if (self._isBranchEscapeBlock(nodeStr)) return;
 
                 // Extraemos cualquier referencia en la línea actual
                 self._extractRefsFromBlock(nodeBlock, references);
 
-                // Continuamos procesando los hijos recursivamente sin limitación de profundidad (o hasta toparnos con #RelatedTo)
+                // Continuamos procesando los hijos recursivamente sin limitación de profundidad (o hasta toparnos con un escape)
                 if (nodeBlock.children) {
                     for (const c of nodeBlock.children) {
                         extractSafe(c);
@@ -2507,7 +2530,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'generalization' });
             } else {
                 // Proyecto completamente diferente al padre (error de coherencia)
-                // Los nodos bajo #RelatedTo ya están excluidos del recorrido,
+                // Los nodos bajo #RelatedTo o [[bitácora]] ya están excluidos del recorrido,
                 // así que todo nodo aquí es parte jerárquica de la rama.
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'cross_project' });
             }
@@ -3717,7 +3740,7 @@ DiscourseGraphToolkit.ContentProcessor = {
             if (blockIdentifier) visitedBlocks.add(blockIdentifier);
 
             // Excluir bloque de bitácora y sus hijos SI la opción está activada
-            if (excludeBitacora && blockString.toLowerCase().includes('[[bitácora]]')) {
+            if (excludeBitacora && DiscourseGraphToolkit.isBitacoraBlock(blockString)) {
                 return "";
             }
 
@@ -4474,7 +4497,8 @@ var MarkdownCore = {
         if (blockUid && visitedBlocks[blockUid]) return content;
         if (blockUid) visitedBlocks[blockUid] = true;
 
-        // Excluir bitácora
+        // Excluir bitácora (mismo criterio que DiscourseGraphToolkit.isBitacoraBlock;
+        // este archivo no puede depender del plugin porque se inyecta en el HTML)
         if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) {
             return '';
         }

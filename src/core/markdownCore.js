@@ -33,7 +33,8 @@ var MarkdownCore = {
         if (blockUid && visitedBlocks[blockUid]) return content;
         if (blockUid) visitedBlocks[blockUid] = true;
 
-        // Excluir bitácora
+        // Excluir bitácora (mismo criterio que DiscourseGraphToolkit.isBitacoraBlock;
+        // este archivo no puede depender del plugin porque se inyecta en el HTML)
         if (excludeBitacora && blockString.toLowerCase().indexOf('[[bitácora]]') !== -1) {
             return '';
         }

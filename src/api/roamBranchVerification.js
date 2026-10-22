@@ -86,8 +86,18 @@ DiscourseGraphToolkit.getBranchNodes = async function (questionUid) {
 };
 
 /**
+ * Bloques de escape para la verificación de ramas: ni sus referencias ni sus hijos
+ * forman parte de la rama.
+ *  - #RelatedTo: relación lateral, no jerárquica.
+ *  - [[bitácora]]: material superado que no es estructura vigente.
+ */
+DiscourseGraphToolkit._isBranchEscapeBlock = function (blockString) {
+    return blockString.includes("#RelatedTo") || this.isBitacoraBlock(blockString);
+};
+
+/**
  * Helper: Extrae las referencias jerárquicas de nodos discourse del contenido de un nodo
- * Busca en #RespondedBy, #SupportedBy, #Contains (ignora #RelatedTo)
+ * Busca en #RespondedBy, #SupportedBy, #Contains (ignora #RelatedTo y [[bitácora]])
  */
 DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
     const references = new Set();
@@ -109,13 +119,13 @@ DiscourseGraphToolkit._extractAllReferencesFromNode = function (nodeData) {
                 if (!nodeBlock) return;
                 
                 const nodeStr = nodeBlock.string || "";
-                // Si encontramos un #RelatedTo anidado explícitamente, abortamos la extracción por ese sub-árbol
-                if (nodeStr.includes("#RelatedTo")) return;
+                // Si encontramos un #RelatedTo o una [[bitácora]] (a cualquier profundidad), abortamos la extracción por ese sub-árbol
+                if (self._isBranchEscapeBlock(nodeStr)) return;
 
                 // Extraemos cualquier referencia en la línea actual
                 self._extractRefsFromBlock(nodeBlock, references);
 
-                // Continuamos procesando los hijos recursivamente sin limitación de profundidad (o hasta toparnos con #RelatedTo)
+                // Continuamos procesando los hijos recursivamente sin limitación de profundidad (o hasta toparnos con un escape)
                 if (nodeBlock.children) {
                     for (const c of nodeBlock.children) {
                         extractSafe(c);
@@ -318,7 +328,7 @@ DiscourseGraphToolkit.verifyProjectCoherence = async function (rootUid, branchNo
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'generalization' });
             } else {
                 // Proyecto completamente diferente al padre (error de coherencia)
-                // Los nodos bajo #RelatedTo ya están excluidos del recorrido,
+                // Los nodos bajo #RelatedTo o [[bitácora]] ya están excluidos del recorrido,
                 // así que todo nodo aquí es parte jerárquica de la rama.
                 different.push({ ...node, project: nodeProject, parentProject, reason: 'cross_project' });
             }
